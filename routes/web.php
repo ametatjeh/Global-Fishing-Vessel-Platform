@@ -1,0 +1,100 @@
+<?php
+
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ComplianceController;
+use App\Http\Controllers\DarkVesselController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EncounterController;
+use App\Http\Controllers\FishingGroundController;
+use App\Http\Controllers\InvestigationController;
+use App\Http\Controllers\MapController;
+use App\Http\Controllers\ProviderController;
+use App\Http\Controllers\SystemController;
+use App\Http\Controllers\TrackingController;
+use App\Http\Controllers\VesselController;
+use Illuminate\Support\Facades\Route;
+
+// Authentication Routes
+Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [AuthController::class, 'login'])->name('login.post');
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// Protected Portal Routes
+Route::middleware('auth')->group(function () {
+    Route::get('/', [DashboardController::class, 'index'])->name('home');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // 1. Global Vessel Map
+    Route::get('/map', [MapController::class, 'index'])->name('map.index');
+
+    // 2. Vessel Registry
+    Route::get('/vessels', [VesselController::class, 'index'])->name('vessels.index');
+    Route::get('/vessels/{id}', [VesselController::class, 'show'])->name('vessels.show');
+
+    // 3. Live Vessel Tracking
+    Route::get('/tracking', [TrackingController::class, 'index'])->name('tracking.index');
+
+    // 4. Fishing Grounds (FAO & EEZ)
+    Route::get('/fishing-grounds', [FishingGroundController::class, 'index'])->name('fishing-grounds.index');
+
+    // 5. Vessel Encounters
+    Route::get('/encounters', [EncounterController::class, 'index'])->name('encounters.index');
+    Route::get('/encounters/{id}', [EncounterController::class, 'show'])->name('encounters.show');
+    Route::post('/encounters/{id}/status', [EncounterController::class, 'updateStatus'])
+        ->middleware('role:super_admin,admin,analyst')
+        ->name('encounters.update-status');
+
+    // 6. Dark Vessel Detection & SAR Candidate Analyst Review
+    Route::get('/dark-vessels', [DarkVesselController::class, 'index'])->name('dark-vessels.index');
+    Route::get('/dark-vessels/export', [DarkVesselController::class, 'export'])->name('dark-vessels.export');
+    Route::get('/dark-vessels/{id}', [DarkVesselController::class, 'show'])->name('dark-vessels.show');
+    Route::post('/dark-vessels/{id}/review', [DarkVesselController::class, 'submitReview'])
+        ->middleware('role:super_admin,admin,analyst')
+        ->name('dark-vessels.review');
+
+    // Aliases for SAR Analyst Review
+    Route::get('/sar/candidates', [DarkVesselController::class, 'index'])->name('sar.candidates.index');
+    Route::get('/sar/candidates/export', [DarkVesselController::class, 'export'])->name('sar.candidates.export');
+    Route::get('/sar/candidates/{id}', [DarkVesselController::class, 'show'])->name('sar.candidates.show');
+    Route::post('/sar/candidates/{id}/review', [DarkVesselController::class, 'submitReview'])
+        ->middleware('role:super_admin,admin,analyst')
+        ->name('sar.candidates.review');
+
+    // SAR Evidence Serving
+    Route::get('/sar/evidence/{candidate}/{type}', [\App\Http\Controllers\SarEvidenceController::class, 'serveEvidenceImage'])
+        ->name('sar.evidence.image');
+
+    // 7. Fishing Compliance
+    Route::get('/compliance', [ComplianceController::class, 'index'])->name('compliance.index');
+    Route::get('/compliance/events/{id}', [ComplianceController::class, 'showEvent'])->name('compliance.show');
+    Route::post('/compliance/events/{id}/status', [ComplianceController::class, 'updateEventStatus'])
+        ->middleware('role:super_admin,admin,analyst')
+        ->name('compliance.update-status');
+
+    // 8. Investigations
+    Route::get('/investigations', [InvestigationController::class, 'index'])->name('investigations.index');
+    Route::get('/investigations/create', [InvestigationController::class, 'create'])
+        ->middleware('role:super_admin,admin,analyst')
+        ->name('investigations.create');
+    Route::post('/investigations', [InvestigationController::class, 'store'])
+        ->middleware('role:super_admin,admin,analyst')
+        ->name('investigations.store');
+    Route::get('/investigations/{id}', [InvestigationController::class, 'show'])->name('investigations.show');
+
+    // 9. Data Sources & Providers
+    Route::get('/providers', [ProviderController::class, 'index'])->name('providers.index');
+    Route::post('/providers/{slug}/health', [ProviderController::class, 'checkHealth'])
+        ->middleware('role:super_admin,admin')
+        ->name('providers.health');
+
+    // 10. System Settings & Activity Logs
+    Route::get('/settings', [SystemController::class, 'settings'])
+        ->middleware('role:super_admin,admin')
+        ->name('settings.index');
+    Route::post('/settings/offsite-backup', [SystemController::class, 'updateOffsiteBackupGate'])
+        ->middleware('role:super_admin')
+        ->name('settings.offsite-backup');
+    Route::get('/audit-logs', [SystemController::class, 'auditLogs'])
+        ->middleware('role:super_admin,admin')
+        ->name('audit-logs.index');
+});

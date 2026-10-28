@@ -1,0 +1,134 @@
+{
+  "type": "FeatureCollection",
+  "name": "MARINE_REGIONS_EEZ_SAMPLE",
+  "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "MRGID": 8492,
+        "GEONAME": "Indonesian Exclusive Economic Zone",
+        "SOVEREIGN1": "Indonesia",
+        "ISO_SOV1": "IDN",
+        "POL_TYPE": "200NM",
+        "AREA_KM2": 6159032.0,
+        "source": "https://www.marineregions.org/downloads.php",
+        "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [95.0, 6.0],
+            [97.5, 6.5],
+            [104.5, 1.5],
+            [109.0, 4.0],
+            [118.0, 4.5],
+            [125.0, 5.0],
+            [128.5, 3.0],
+            [131.0, 0.5],
+            [141.0, -2.5],
+            [141.0, -9.0],
+            [138.0, -9.5],
+            [131.0, -11.0],
+            [124.0, -11.5],
+            [114.5, -11.0],
+            [105.0, -10.5],
+            [98.0, -6.0],
+            [94.5, 2.0],
+            [95.0, 6.0]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "MRGID": 8488,
+        "GEONAME": "Japanese Exclusive Economic Zone",
+        "SOVEREIGN1": "Japan",
+        "ISO_SOV1": "JPN",
+        "POL_TYPE": "200NM",
+        "AREA_KM2": 4479388.0,
+        "source": "https://www.marineregions.org/downloads.php",
+        "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [128.0, 24.0],
+            [142.0, 24.0],
+            [154.0, 24.0],
+            [154.0, 36.0],
+            [146.0, 45.0],
+            [140.0, 45.0],
+            [136.0, 38.0],
+            [129.0, 33.0],
+            [124.0, 26.0],
+            [128.0, 24.0]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "MRGID": 8314,
+        "GEONAME": "Australian Exclusive Economic Zone",
+        "SOVEREIGN1": "Australia",
+        "ISO_SOV1": "AUS",
+        "POL_TYPE": "200NM",
+        "AREA_KM2": 8505348.0,
+        "source": "https://www.marineregions.org/downloads.php",
+        "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [113.0, -12.0],
+            [130.0, -10.0],
+            [142.0, -10.0],
+            [154.0, -14.0],
+            [160.0, -29.0],
+            [154.0, -44.0],
+            [146.0, -45.0],
+            [136.0, -38.0],
+            [115.0, -36.0],
+            [110.0, -25.0],
+            [113.0, -12.0]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "MRGID": 5686,
+        "GEONAME": "Norwegian Exclusive Economic Zone",
+        "SOVEREIGN1": "Norway",
+        "ISO_SOV1": "NOR",
+        "POL_TYPE": "200NM",
+        "AREA_KM2": 2385178.0,
+        "source": "https://www.marineregions.org/downloads.php",
+        "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [2.0, 58.0],
+            [5.0, 62.0],
+            [10.0, 68.0],
+            [30.0, 72.0],
+            [32.0, 70.0],
+            [18.0, 64.0],
+            [8.0, 58.0],
+            [2.0, 58.0]
+          ]
+        ]
+      }
+    }
+  ]
+}
