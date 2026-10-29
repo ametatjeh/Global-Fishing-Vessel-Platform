@@ -267,29 +267,41 @@
 <script>
     let trackingMapController = null;
 
-    document.addEventListener('DOMContentLoaded', () => {
-        if (window.GlobalMapController) {
-            trackingMapController = new window.GlobalMapController('tracking-map-canvas', {
-                center: [100.0, 5.0],
-                zoom: 4.0,
-                layers: {
-                    fao: false,
-                    eez: true,
-                    encounters: false,
-                    vessels: true,
-                    darkVessels: false,
-                    sarScenes: false
-                }
-            });
+    function initializeTrackingMap() {
+        if (typeof window.GlobalMapController !== 'function') {
+            setTimeout(initializeTrackingMap, 50);
+            return;
+        }
 
-            // Fit All Vessels button
-            document.getElementById('btnFitAllVessels').addEventListener('click', () => {
+        trackingMapController = new window.GlobalMapController('tracking-map-canvas', {
+            center: [100.0, 5.0],
+            zoom: 4.0,
+            layers: {
+                fao: false,
+                eez: true,
+                encounters: false,
+                vessels: true,
+                darkVessels: false,
+                sarScenes: false
+            }
+        });
+
+        // Fit All Vessels button
+        const btnFit = document.getElementById('btnFitAllVessels');
+        if (btnFit) {
+            btnFit.addEventListener('click', () => {
                 if (trackingMapController) {
                     trackingMapController.fitToData('vessels');
                 }
             });
         }
-    });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeTrackingMap);
+    } else {
+        initializeTrackingMap();
+    }
 
     function focusVessel(lat, lng, name, mmsi, flag, sog, cog, time, linkUrl) {
         if (trackingMapController && trackingMapController.map && lat && lng && isFinite(lat) && isFinite(lng)) {

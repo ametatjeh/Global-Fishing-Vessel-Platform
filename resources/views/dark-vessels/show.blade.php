@@ -753,13 +753,14 @@ document.addEventListener('DOMContentLoaded', function() {
         ]
     };
 
-    const maplibregl = window.maplibregl;
-    if (!maplibregl) {
-        console.warn('[Evidence Inspector] window.maplibregl is not yet available.');
-        return;
-    }
+    function initCandidateDetailMap() {
+        const maplibregl = window.maplibregl;
+        if (!maplibregl) {
+            setTimeout(initCandidateDetailMap, 50);
+            return;
+        }
 
-    const map = new maplibregl.Map({
+        const map = new maplibregl.Map({
         container: 'candidate-detail-map',
         style: esriDarkStyle,
         center: [candidateLng, candidateLat],
@@ -955,6 +956,9 @@ document.addEventListener('DOMContentLoaded', function() {
             m.getElement().style.display = checked ? 'flex' : 'none';
         });
     });
+    }
+
+    initCandidateDetailMap();
 });
 </script>
 @endsection

@@ -19,9 +19,13 @@ export default defineConfig({
     },
 
     build: {
+        chunkSizeWarningLimit: 1150,
         rollupOptions: {
             output: {
                 manualChunks(id) {
+                    if (id.includes('maplibre-gl-worker.mjs?raw')) {
+                        return 'maplibre-worker-raw';
+                    }
                     if (id.includes('node_modules/maplibre-gl/')) {
                         return 'maplibre';
                     }
