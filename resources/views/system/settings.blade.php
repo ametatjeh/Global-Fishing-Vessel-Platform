@@ -109,7 +109,7 @@
 
             <!-- Storage / Disk Space -->
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <span class="text-slate-400 text-[11px]">Kapasitas Disk (Drive C:):</span>
+                <span class="text-slate-400 text-[11px]">Kapasitas Disk ({{ $diskStorage['drive'] ?? 'Storage' }}):</span>
                 <div class="text-sm font-bold font-mono text-white">{{ $diskStorage['free_gb'] ?? 0 }} GB Free ({{ $diskStorage['free_percent'] ?? 0 }}%)</div>
                 <div class="text-[10px] text-emerald-400 font-semibold">{{ $diskStorage['threshold_status'] ?? 'Healthy' }}</div>
             </div>

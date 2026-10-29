@@ -121,4 +121,17 @@ return [
             'max_reconnect_attempts' => (int) env('AIS_MAX_RECONNECT_ATTEMPTS', 5),
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | System Infrastructure & Observability Settings
+    |--------------------------------------------------------------------------
+    */
+    'storage' => [
+        'disk_monitor_path' => env('DISK_MONITOR_PATH', null),
+    ],
+    'backup' => [
+        'root_dir' => env('BACKUP_ROOT_DIR', null),
+        'retention_days' => (int) env('BACKUP_RETENTION_DAYS', 14),
+    ],
 ];

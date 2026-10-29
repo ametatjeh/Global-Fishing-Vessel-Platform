@@ -13,7 +13,77 @@ use Illuminate\Support\Facades\File;
 
 class SystemHealthService
 {
-    protected string $backupRoot = 'C:\\backups\\gfvip';
+    protected ?string $backupRoot = null;
+    protected ?string $diskMonitorPath = null;
+
+    /**
+     * Set backup root directory for testing or runtime override.
+     */
+    public function setBackupRoot(?string $path): self
+    {
+        $this->backupRoot = $path;
+        return $this;
+    }
+
+    /**
+     * Resolve backup root directory across Windows and Linux (aaPanel).
+     */
+    public function getBackupRootDir(): string
+    {
+        if ($this->backupRoot !== null) {
+            return $this->backupRoot;
+        }
+
+        $configured = config('maritime.backup.root_dir', env('BACKUP_ROOT_DIR'));
+        if (!empty($configured)) {
+            return rtrim($configured, '/\\');
+        }
+
+        if (PHP_OS_FAMILY === 'Windows') {
+            return 'C:\\backups\\gfvip';
+        }
+
+        // Standard aaPanel / Linux backup directory
+        if (File::exists('/www/backup')) {
+            return '/www/backup/gfvip';
+        }
+
+        return storage_path('backups');
+    }
+
+    /**
+     * Set disk monitor path for testing or runtime override.
+     */
+    public function setDiskMonitorPath(?string $path): self
+    {
+        $this->diskMonitorPath = $path;
+        return $this;
+    }
+
+    /**
+     * Resolve target mount point for storage monitoring.
+     */
+    public function getDiskMonitorPath(): string
+    {
+        if ($this->diskMonitorPath !== null) {
+            return $this->diskMonitorPath;
+        }
+
+        $configured = config('maritime.storage.disk_monitor_path', env('DISK_MONITOR_PATH'));
+        if (!empty($configured)) {
+            return $configured;
+        }
+
+        if (PHP_OS_FAMILY === 'Windows') {
+            return 'C:';
+        }
+
+        if (File::exists('/www')) {
+            return '/www';
+        }
+
+        return base_path();
+    }
 
     /**
      * Get consolidated system health status.
@@ -252,19 +322,57 @@ class SystemHealthService
      */
     public function getBackupStatus(): array
     {
-        $manifestFile = $this->backupRoot . '\\latest_backup_manifest.json';
-        $manifest = $this->readJsonFile($manifestFile);
+        $backupDir = $this->getBackupRootDir();
 
-        if (!$manifest) {
+        if (!File::isDirectory($backupDir)) {
+            return [
+                'status' => 'DIRECTORY_MISSING',
+                'message' => 'Direktori backup belum ditemukan pada ' . $backupDir,
+                'backup_root' => $backupDir,
+            ];
+        }
+
+        $manifestFile = $backupDir . DIRECTORY_SEPARATOR . 'latest_backup_manifest.json';
+        if (!File::exists($manifestFile)) {
             return [
                 'status' => 'NOT_VERIFIED',
                 'message' => 'No backup manifest found at ' . $manifestFile,
+                'backup_root' => $backupDir,
+            ];
+        }
+
+        $manifest = $this->readJsonFile($manifestFile);
+        if (!$manifest || !is_array($manifest) || !isset($manifest['status'])) {
+            return [
+                'status' => 'CORRUPTED',
+                'message' => 'Manifest backup ditemukan pada ' . $manifestFile . ' namun format JSON rusak atau tidak sesuai skema.',
+                'backup_root' => $backupDir,
             ];
         }
 
         try {
             $timestamp = Carbon::parse($manifest['timestamp_utc'] ?? null);
             $ageHours = round($timestamp->diffInMinutes(now()) / 60, 2);
+
+            $dumpFile = $manifest['database']['dump_file'] ?? null;
+            $dumpPath = $manifest['database']['dump_path'] ?? null;
+            $dumpExists = false;
+            if ($dumpPath && File::exists($dumpPath)) {
+                $dumpExists = true;
+            } elseif ($dumpFile && File::exists($backupDir . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . $dumpFile)) {
+                $dumpExists = true;
+            }
+
+            if (!$dumpExists && ($manifest['status'] ?? '') === 'SUCCESS') {
+                return [
+                    'status' => 'DUMP_MISSING',
+                    'message' => "Manifest mencatat backup sukses, namun file dump fisik ({$dumpFile}) tidak ditemukan pada disk.",
+                    'backup_root' => $backupDir,
+                    'last_backup_utc' => $manifest['timestamp_utc'] ?? null,
+                    'age_hours' => $ageHours,
+                    'dump_file' => $dumpFile,
+                ];
+            }
 
             $status = 'HEALTHY';
             if ($ageHours > 48 || ($manifest['status'] ?? '') !== 'SUCCESS') {
@@ -275,10 +383,11 @@ class SystemHealthService
 
             return [
                 'status' => $status,
+                'backup_root' => $backupDir,
                 'last_backup_utc' => $manifest['timestamp_utc'] ?? null,
                 'age_hours' => $ageHours,
                 'database_name' => $manifest['database']['database_name'] ?? 'unknown',
-                'dump_file' => $manifest['database']['dump_file'] ?? 'unknown',
+                'dump_file' => $dumpFile ?? 'unknown',
                 'dump_size_mb' => $manifest['database']['size_mb'] ?? 0,
                 'sar_products_file_count' => $manifest['sar_storage']['products_file_count'] ?? 0,
                 'sar_evidence_file_count' => $manifest['sar_storage']['evidence_file_count'] ?? 0,
@@ -289,6 +398,7 @@ class SystemHealthService
             return [
                 'status' => 'FAILED',
                 'message' => 'Failed to parse backup manifest: ' . $e->getMessage(),
+                'backup_root' => $backupDir,
             ];
         }
     }
@@ -298,13 +408,15 @@ class SystemHealthService
      */
     public function getDisasterRecoveryStatus(): array
     {
-        $reportFile = $this->backupRoot . '\\latest_recovery_test_report.json';
+        $backupDir = $this->getBackupRootDir();
+        $reportFile = $backupDir . DIRECTORY_SEPARATOR . 'latest_recovery_test_report.json';
         $report = $this->readJsonFile($reportFile);
 
         if (!$report) {
             return [
                 'status' => 'NOT_VERIFIED',
                 'message' => 'No disaster recovery test report found at ' . $reportFile,
+                'backup_root' => $backupDir,
             ];
         }
 
@@ -420,9 +532,35 @@ class SystemHealthService
      */
     public function getDiskStorageStatus(): array
     {
-        $drive = 'C:';
-        $freeBytes = @disk_free_space($drive) ?: 0;
-        $totalBytes = @disk_total_space($drive) ?: 1;
+        $drive = $this->getDiskMonitorPath();
+        $rawFree = @disk_free_space($drive);
+        $rawTotal = @disk_total_space($drive);
+
+        $backupDir = $this->getBackupRootDir();
+        $sarProductsDir = storage_path('app/sar_products');
+        $sarEvidenceDir = storage_path('app/sar_evidence');
+
+        if ($rawFree === false || $rawTotal === false || $rawTotal <= 0) {
+            return [
+                'status' => 'UNKNOWN',
+                'drive' => $drive,
+                'free_bytes' => null,
+                'free_gb' => null,
+                'total_bytes' => null,
+                'total_gb' => null,
+                'free_percent' => null,
+                'threshold_status' => 'Pemeriksaan ruang disk gagal atau mount point tidak dapat dibaca (' . $drive . ')',
+                'error' => 'Gagal membaca kapasitas filesystem melalui disk_free_space / disk_total_space.',
+                'paths' => [
+                    'backup_root' => ['path' => $backupDir, 'exists' => File::exists($backupDir)],
+                    'sar_products' => ['path' => $sarProductsDir, 'exists' => File::exists($sarProductsDir)],
+                    'sar_evidence' => ['path' => $sarEvidenceDir, 'exists' => File::exists($sarEvidenceDir)],
+                ],
+            ];
+        }
+
+        $freeBytes = (float) $rawFree;
+        $totalBytes = (float) $rawTotal;
         $freePercent = round(($freeBytes / $totalBytes) * 100, 2);
 
         $status = 'HEALTHY';
@@ -431,10 +569,6 @@ class SystemHealthService
         } elseif ($freePercent < 20) {
             $status = 'WARNING';
         }
-
-        $backupDir = $this->backupRoot;
-        $sarProductsDir = storage_path('app/sar_products');
-        $sarEvidenceDir = storage_path('app/sar_evidence');
 
         return [
             'status' => $status,
@@ -478,12 +612,33 @@ class SystemHealthService
                 'code' => 'BACKUP_FAILED',
                 'message' => $msg,
             ];
+        } elseif (($backup['status'] ?? '') === 'DUMP_MISSING') {
+            $alerts[] = [
+                'severity' => 'CRITICAL',
+                'component' => 'Backup',
+                'code' => 'BACKUP_DUMP_MISSING',
+                'message' => $backup['message'] ?? 'File dump database backup fisik tidak ditemukan di disk.',
+            ];
+        } elseif (($backup['status'] ?? '') === 'CORRUPTED') {
+            $alerts[] = [
+                'severity' => 'CRITICAL',
+                'component' => 'Backup',
+                'code' => 'BACKUP_MANIFEST_CORRUPTED',
+                'message' => 'Manifest backup lokal rusak atau tidak sesuai skema.',
+            ];
+        } elseif (($backup['status'] ?? '') === 'DIRECTORY_MISSING') {
+            $alerts[] = [
+                'severity' => 'CRITICAL',
+                'component' => 'Backup',
+                'code' => 'BACKUP_DIR_MISSING',
+                'message' => 'Direktori backup belum ditemukan pada: ' . ($backup['backup_root'] ?? $this->getBackupRootDir()),
+            ];
         } elseif (($backup['status'] ?? '') === 'NOT_VERIFIED') {
             $alerts[] = [
                 'severity' => 'CRITICAL',
                 'component' => 'Backup',
                 'code' => 'BACKUP_MISSING',
-                'message' => 'Manifest backup lokal belum ditemukan.',
+                'message' => 'Manifest backup lokal belum ditemukan pada direktori: ' . ($backup['backup_root'] ?? $this->getBackupRootDir()),
             ];
         }
 
@@ -505,19 +660,27 @@ class SystemHealthService
         }
 
         // Disk alerts
+        $diskLabel = $disk['drive'] ?? 'Storage';
         if (($disk['status'] ?? '') === 'CRITICAL') {
             $alerts[] = [
                 'severity' => 'CRITICAL',
                 'component' => 'Storage',
                 'code' => 'DISK_SPACE_CRITICAL',
-                'message' => "Sisa ruang disk Drive C: kurang dari 10% ({$disk['free_percent']}%).",
+                'message' => "Sisa ruang disk {$diskLabel} kurang dari 10% ({$disk['free_percent']}%).",
             ];
         } elseif (($disk['status'] ?? '') === 'WARNING') {
             $alerts[] = [
                 'severity' => 'WARNING',
                 'component' => 'Storage',
                 'code' => 'DISK_SPACE_WARNING',
-                'message' => "Sisa ruang disk Drive C: berada di antara 10%-20% ({$disk['free_percent']}%).",
+                'message' => "Sisa ruang disk {$diskLabel} berada di antara 10%-20% ({$disk['free_percent']}%).",
+            ];
+        } elseif (($disk['status'] ?? '') === 'UNKNOWN') {
+            $alerts[] = [
+                'severity' => 'WARNING',
+                'component' => 'Storage',
+                'code' => 'DISK_CHECK_FAILED',
+                'message' => "Gagal membaca kapasitas penyimpanan pada mount point {$diskLabel}.",
             ];
         }
 
