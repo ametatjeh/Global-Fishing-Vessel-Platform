@@ -319,7 +319,10 @@
 <script>
     function initializeGlobalMap() {
         if (typeof window.GlobalMapController !== 'function') {
-            // Module is still hydrating / evaluating, check back shortly
+            if (typeof window.loadMapLibreEngine === 'function') {
+                window.loadMapLibreEngine().then(initializeGlobalMap);
+                return;
+            }
             setTimeout(initializeGlobalMap, 50);
             return;
         }

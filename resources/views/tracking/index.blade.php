@@ -269,6 +269,10 @@
 
     function initializeTrackingMap() {
         if (typeof window.GlobalMapController !== 'function') {
+            if (typeof window.loadMapLibreEngine === 'function') {
+                window.loadMapLibreEngine().then(initializeTrackingMap);
+                return;
+            }
             setTimeout(initializeTrackingMap, 50);
             return;
         }

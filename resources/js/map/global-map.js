@@ -5,26 +5,13 @@
  */
 import * as maplibregl from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
-import workerSource from 'maplibre-gl/dist/maplibre-gl-worker.mjs?raw';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-// Ensure MapLibre Web Worker is loaded correctly and safely across all server environments.
-// 1. Importing maplibreWorkerUrl ensures the worker binary is registered in Vite manifest.json.
-// 2. Creating an in-memory Blob worker URL with explicit text/javascript MIME type completely
-//    prevents browser MIME-type blocking (e.g. Nginx serving .mjs as application/octet-stream).
-if (typeof window !== 'undefined' && typeof Blob !== 'undefined' && typeof URL !== 'undefined') {
-    try {
-        const workerBlob = new Blob([workerSource], { type: 'text/javascript' });
-        const blobWorkerUrl = URL.createObjectURL(workerBlob);
-        if (maplibregl.config) {
-            maplibregl.config.WORKER_URL = blobWorkerUrl;
-        }
-    } catch (e) {
-        console.warn('[GlobalMapController] Blob worker initialization fallback:', e);
-        if (maplibregl.config) {
-            maplibregl.config.WORKER_URL = maplibreWorkerUrl;
-        }
-    }
+// Configure official MapLibre Web Worker built and versioned by Vite
+if (maplibregl.config) {
+    maplibregl.config.WORKER_URL = maplibreWorkerUrl;
+}
+if (typeof window !== 'undefined') {
     window.maplibregl = maplibregl;
 }
 

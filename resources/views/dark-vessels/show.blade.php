@@ -371,8 +371,8 @@
                     </div>
                 </div>
 
-                <div class="relative w-full h-84 rounded-xl overflow-hidden border border-slate-800 shadow-inner">
-                    <div id="candidate-detail-map" class="w-full h-84"></div>
+                <div class="relative w-full h-[360px] min-h-[360px] rounded-xl overflow-hidden border border-slate-800 shadow-inner">
+                    <div id="candidate-detail-map" class="w-full h-full min-h-[360px] bg-slate-950"></div>
                     <div class="absolute bottom-2 left-2 px-2.5 py-1 rounded bg-slate-950/80 backdrop-blur-md border border-slate-800 text-[10px] font-mono text-teal-300 pointer-events-none">
                         Lat: {{ number_format($detection->latitude, 5) }}, Lng: {{ number_format($detection->longitude, 5) }}
                     </div>
@@ -756,23 +756,62 @@ document.addEventListener('DOMContentLoaded', function() {
     function initCandidateDetailMap() {
         const maplibregl = window.maplibregl;
         if (!maplibregl) {
+            if (typeof window.loadMapLibreEngine === 'function') {
+                window.loadMapLibreEngine().then(initCandidateDetailMap);
+                return;
+            }
             setTimeout(initCandidateDetailMap, 50);
             return;
         }
 
+        const container = document.getElementById('candidate-detail-map');
+        if (!container) return;
+
+        if (container.clientHeight === 0) {
+            container.style.minHeight = '360px';
+            container.style.height = '360px';
+        }
+
+        if (!isFinite(candidateLat) || !isFinite(candidateLng)) {
+            console.error('[Candidate Detail Map] Invalid coordinates:', candidateLat, candidateLng);
+            return;
+        }
+
         const map = new maplibregl.Map({
-        container: 'candidate-detail-map',
-        style: esriDarkStyle,
-        center: [candidateLng, candidateLat],
-        zoom: 7,
-        attributionControl: false
-    });
+            container: 'candidate-detail-map',
+            style: esriDarkStyle,
+            center: [candidateLng, candidateLat],
+            zoom: 7,
+            attributionControl: false
+        });
 
-    map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
+        map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
 
-    map.on('error', function(e) {
-        console.warn('[Evidence Inspector Map Error]:', e.error ? e.error.message : e);
-    });
+        map.on('error', function(e) {
+            const err = e.error || e;
+            const msg = err?.message || String(err);
+            console.warn('[Evidence Inspector Map Error]:', msg);
+
+            if (msg.includes('tile') || msg.includes('404') || msg.includes('Failed to fetch')) {
+                container.style.backgroundColor = '#0b1120';
+                if (!document.getElementById('basemap-fallback-candidate')) {
+                    const banner = document.createElement('div');
+                    banner.id = 'basemap-fallback-candidate';
+                    banner.className = 'absolute top-2 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 rounded-xl bg-amber-950/80 border border-amber-600/60 text-amber-200 text-[10px] font-mono shadow-xl backdrop-blur flex items-center gap-2 pointer-events-auto';
+                    banner.innerHTML = `
+                        <span>⚠️</span>
+                        <span>Basemap unavailable. Operational data layers remain available.</span>
+                        <button type="button" onclick="this.parentElement.remove()" class="text-amber-400 hover:text-white font-bold ml-1">&times;</button>
+                    `;
+                    container.parentElement.style.position = 'relative';
+                    container.parentElement.appendChild(banner);
+                }
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            if (map) map.resize();
+        });
 
     map.on('load', function() {
         map.resize();
