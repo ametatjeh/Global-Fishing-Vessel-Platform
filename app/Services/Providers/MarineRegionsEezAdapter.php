@@ -88,7 +88,7 @@ class MarineRegionsEezAdapter implements ProviderAdapterInterface
             $mrgid = (int) ($props['MRGID'] ?? $props['mrgid'] ?? null);
             $geoname = $props['GEONAME'] ?? $props['geoname'] ?? ('EEZ Zone ' . $mrgid);
             $sovereign = $props['SOVEREIGN1'] ?? $props['sovereign'] ?? 'Unknown Sovereign';
-            $iso3 = $props['ISO_SOV1'] ?? $props['iso_ter1'] ?? $props['sovereign_iso3'] ?? null;
+            $iso3 = $props['ISO_SOV1'] ?? $props['iso_sov1'] ?? $props['sovereign_iso3'] ?? null;
 
             if (!$mrgid || !$geom) {
                 $skipped++;
@@ -110,8 +110,14 @@ class MarineRegionsEezAdapter implements ProviderAdapterInterface
                         'geoname' => $geoname,
                         'sovereign_state' => $sovereign,
                         'sovereign_iso3' => $iso3,
+                        'territory1' => $props['TERRITORY1'] ?? null,
+                        'iso_ter1' => $props['ISO_TER1'] ?? null,
+                        'sovereign2' => $props['SOVEREIGN2'] ?? null,
+                        'sovereign3' => $props['SOVEREIGN3'] ?? null,
                         'pol_type' => $props['POL_TYPE'] ?? $props['pol_type'] ?? '200NM',
                         'area_sqkm' => $props['AREA_KM2'] ?? $props['area_sqkm'] ?? null,
+                        'x_1' => $props['X_1'] ?? null,
+                        'y_1' => $props['Y_1'] ?? null,
                         'version' => $this->version,
                         'source_name' => 'Flanders Marine Institute (VLIZ)',
                         'source_url' => $this->sourceUrl,
@@ -128,7 +134,9 @@ class MarineRegionsEezAdapter implements ProviderAdapterInterface
                 if (DB::connection()->getDriverName() === 'pgsql') {
                     try {
                         DB::statement(
-                            "UPDATE eez_zones SET geom = ST_Multi(ST_GeomFromGeoJSON(?)) WHERE id = ?",
+                            "UPDATE eez_zones 
+                             SET geom = ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON(?)), 3)) 
+                             WHERE id = ?",
                             [json_encode($geom), $eez->id]
                         );
                     } catch (\Throwable $e) {

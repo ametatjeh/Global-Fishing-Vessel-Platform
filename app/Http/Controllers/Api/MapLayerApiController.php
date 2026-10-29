@@ -35,28 +35,40 @@ class MapLayerApiController extends Controller
                 ],
                 [
                     'id' => 'layer-fao-areas',
-                    'name' => 'Fishing Ground FAO',
+                    'name' => 'FAO Major Fishing Areas',
                     'type' => 'fill',
-                    'color' => '#818cf8', // indigo-400
+                    'color' => '#3b82f6', // blue-500
                     'provider_status' => 'connected',
-                    'version' => config('maritime.fao.version'),
-                    'license' => config('maritime.fao.license'),
-                    'source_url' => config('maritime.fao.source_url'),
-                    'description' => 'FAO Major Fishing Areas designated for statistical and assessment purposes.',
-                    'disclaimer' => config('maritime.fao.disclaimer'),
+                    'version' => config('maritime.fao.version', '2026.1-CWP'),
+                    'license' => config('maritime.fao.license', 'FAO Open Access Terms / CC-BY-NC-SA 3.0 IGO'),
+                    'source_url' => config('maritime.fao.source_url', 'https://www.fao.org/fishery/geoserver/fifao/ows'),
+                    'description' => 'Wilayah statistik perikanan global FAO untuk pelaporan hasil tangkapan (bukan batas yurisdiksi maritim).',
+                    'disclaimer' => config('maritime.fao.disclaimer', 'Wilayah statistik FAO tidak menyatakan pendapat hukum apapun mengenai status hukum negara atau perbatasan laut.'),
                 ],
                 [
                     'id' => 'layer-eez-zones',
-                    'name' => 'Fishing Ground EEZ',
+                    'name' => 'World EEZ (Marine Regions v12)',
                     'type' => 'line',
-                    'color' => '#2dd4bf', // teal-400
+                    'color' => '#14b8a6', // teal-500
                     'provider_status' => 'connected',
-                    'version' => config('maritime.eez.version'),
-                    'license' => config('maritime.eez.license'),
-                    'source_url' => config('maritime.eez.source_url'),
-                    'attribution' => config('maritime.eez.attribution'),
-                    'description' => 'Maritime boundaries and 200NM Exclusive Economic Zones (Marine Regions).',
-                    'disclaimer' => config('maritime.eez.disclaimer'),
+                    'version' => 'v12 (October 2023)',
+                    'license' => 'Creative Commons Attribution 4.0 International (CC BY 4.0)',
+                    'source_url' => 'https://www.marineregions.org/downloads.php',
+                    'attribution' => 'Flanders Marine Institute (VLIZ) Marine Regions (DOI: 10.14284/632)',
+                    'description' => 'Batas referensi Zona Ekonomi Eksklusif 200NM dan delimitasi maritim global Marine Regions v12.',
+                    'disclaimer' => 'Batas yurisdiksi hak ekonomi maritim UNCLOS / traktat bilateral. Bukan penetapan batas hukum final untuk klaim tumpang tindih.',
+                ],
+                [
+                    'id' => 'layer-fma-rfmo',
+                    'name' => 'Fisheries Management Areas (RFMO)',
+                    'type' => 'fill',
+                    'color' => '#a855f7', // purple-500
+                    'provider_status' => 'connected',
+                    'version' => '2024.1',
+                    'license' => 'FAO Open Access Terms / CC-BY-NC-SA 3.0 IGO',
+                    'source_url' => 'https://www.fao.org/fishery/geoserver/fifao/ows',
+                    'description' => 'Wilayah kompetensi organisasi pengelolaan perikanan regional multilateral (RFMO/RFB FAO: WCPFC, IOTC, CCSBT, ICCAT, dll).',
+                    'disclaimer' => 'Area kompetensi mandat pengelolaan perikanan internasional. Bukan batas kedaulatan maritim negara.',
                 ],
                 [
                     'id' => 'layer-vessel-encounters',
@@ -102,6 +114,19 @@ class MapLayerApiController extends Controller
         $search = $request->query('q');
 
         $data = $this->spatial->getEezFeatureCollection($bbox, $search);
+
+        return response()->json($data);
+    }
+
+    /**
+     * Get FAO Regional Fisheries Management Areas (RFMO / RFB) GeoJSON
+     */
+    public function fma(Request $request): JsonResponse
+    {
+        $bbox = $this->parseBBox($request->query('bbox'));
+        $search = $request->query('q');
+
+        $data = $this->spatial->getFisheriesManagementAreasFeatureCollection($bbox, $search);
 
         return response()->json($data);
     }

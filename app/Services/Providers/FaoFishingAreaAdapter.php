@@ -129,7 +129,9 @@ class FaoFishingAreaAdapter implements ProviderAdapterInterface
                 if (DB::connection()->getDriverName() === 'pgsql') {
                     try {
                         DB::statement(
-                            "UPDATE fao_fishing_areas SET geom = ST_Multi(ST_GeomFromGeoJSON(?)) WHERE id = ?",
+                            "UPDATE fao_fishing_areas 
+                             SET geom = ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON(?)), 3)) 
+                             WHERE id = ?",
                             [json_encode($geom), $area->id]
                         );
                     } catch (\Throwable $e) {

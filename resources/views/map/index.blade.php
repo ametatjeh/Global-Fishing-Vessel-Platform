@@ -26,14 +26,19 @@
                 <span>Fit Vessels</span>
             </button>
 
-            <button type="button" id="btnFitEez" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-teal-300 font-medium transition border border-slate-700 flex items-center gap-1" title="Pusatkan peta ke batas Fishing Ground EEZ">
+            <button type="button" id="btnFitEez" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-teal-300 font-medium transition border border-slate-700 flex items-center gap-1" title="Pusatkan peta ke batas World EEZ v12">
                 <span>🛡️</span>
                 <span>Fit EEZ</span>
             </button>
 
-            <button type="button" id="btnFitFao" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-indigo-300 font-medium transition border border-slate-700 flex items-center gap-1" title="Pusatkan peta ke zona Fishing Ground FAO">
+            <button type="button" id="btnFitFao" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-blue-300 font-medium transition border border-slate-700 flex items-center gap-1" title="Pusatkan peta ke wilayah statistik FAO">
                 <span>🌐</span>
                 <span>Fit FAO</span>
+            </button>
+
+            <button type="button" id="btnFitFma" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-purple-300 font-medium transition border border-slate-700 flex items-center gap-1" title="Pusatkan peta ke area pengelolaan perikanan RFMO/RFB">
+                <span>🏛️</span>
+                <span>Fit RFMO</span>
             </button>
 
             <button type="button" id="btnFitSarCandidates" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-300 font-medium transition border border-slate-700 flex items-center gap-1">
@@ -165,9 +170,9 @@
                         <div>
                             <div class="font-bold text-slate-200 flex items-center gap-1.5">
                                 <span class="w-2.5 h-0.5 bg-teal-400"></span>
-                                <span>Fishing Ground EEZ (200NM)</span>
+                                <span>World EEZ (Marine Regions v12)</span>
                             </div>
-                            <p class="text-[10px] text-slate-400 mt-0.5">Maritime Boundaries (Marine Regions)</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Maritime Boundaries 200NM (VLIZ)</p>
                         </div>
                     </div>
                     <div class="text-right">
@@ -176,20 +181,37 @@
                     </div>
                 </label>
 
-                <label class="flex items-start justify-between p-2 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 transition cursor-pointer">
+                <label class="flex items-start justify-between p-2 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-blue-500/50 transition cursor-pointer">
                     <div class="flex items-start gap-2.5">
-                        <input type="checkbox" id="toggle-layer-fao" checked class="mt-0.5 rounded bg-slate-800 border-slate-700 text-indigo-500 focus:ring-indigo-400">
+                        <input type="checkbox" id="toggle-layer-fao" checked class="mt-0.5 rounded bg-slate-800 border-slate-700 text-blue-500 focus:ring-blue-400">
                         <div>
                             <div class="font-bold text-slate-200 flex items-center gap-1.5">
-                                <span class="w-2.5 h-2.5 rounded-sm bg-indigo-500 border border-indigo-300"></span>
-                                <span>Fishing Ground FAO</span>
+                                <span class="w-2.5 h-2.5 rounded-sm bg-blue-500/40 border border-blue-400 border-dashed"></span>
+                                <span>FAO Major Fishing Areas</span>
                             </div>
-                            <p class="text-[10px] text-slate-400 mt-0.5">Major Fishing Areas (Statistik PBB)</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Wilayah Statistik Perikanan Global</p>
                         </div>
                     </div>
                     <div class="text-right">
-                        <span id="loading-fao" class="text-[10px] text-indigo-400 animate-spin" style="display: none;">⏳</span>
-                        <span id="count-fao" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-indigo-300 border border-indigo-900">0</span>
+                        <span id="loading-fao" class="text-[10px] text-blue-400 animate-spin" style="display: none;">⏳</span>
+                        <span id="count-fao" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-blue-300 border border-blue-900">0</span>
+                    </div>
+                </label>
+
+                <label class="flex items-start justify-between p-2 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-purple-500/50 transition cursor-pointer">
+                    <div class="flex items-start gap-2.5">
+                        <input type="checkbox" id="toggle-layer-fma" checked class="mt-0.5 rounded bg-slate-800 border-slate-700 text-purple-500 focus:ring-purple-400">
+                        <div>
+                            <div class="font-bold text-slate-200 flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-sm bg-purple-500/40 border border-purple-400 border-dotted"></span>
+                                <span>Fisheries Management (RFMO)</span>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Kompetensi Pengelolaan PBB/FAO</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span id="loading-fma" class="text-[10px] text-purple-400 animate-spin" style="display: none;">⏳</span>
+                        <span id="count-fma" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-purple-300 border border-purple-900">0</span>
                     </div>
                 </label>
             </div>
@@ -290,6 +312,7 @@
         // Checkbox Layer Toggles
         const layerToggles = [
             { id: 'toggle-layer-fao', key: 'fao' },
+            { id: 'toggle-layer-fma', key: 'fma' },
             { id: 'toggle-layer-eez', key: 'eez' },
             { id: 'toggle-layer-encounters', key: 'encounters' },
             { id: 'toggle-layer-vessels', key: 'vessels' },
@@ -319,6 +342,7 @@
             { id: 'btnFitVessels', type: 'vessels' },
             { id: 'btnFitEez', type: 'eez' },
             { id: 'btnFitFao', type: 'fao' },
+            { id: 'btnFitFma', type: 'fma' },
             { id: 'btnFitSarCandidates', type: 'sar-candidates' },
             { id: 'btnFitSarScene', type: 'sar-scenes' },
         ];

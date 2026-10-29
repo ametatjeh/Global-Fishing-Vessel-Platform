@@ -36,6 +36,7 @@ export class GlobalMapController {
         this.activeLayers = Object.assign({
             fao: true,
             eez: true,
+            fma: true,
             encounters: true,
             vessels: true,
             darkVessels: true,
@@ -45,6 +46,7 @@ export class GlobalMapController {
         this.loadingState = {
             fao: false,
             eez: false,
+            fma: false,
             encounters: false,
             vessels: false,
             darkVessels: false,
@@ -55,6 +57,7 @@ export class GlobalMapController {
         this.layerData = {
             fao: null,
             eez: null,
+            fma: null,
             encounters: null,
             vessels: null,
             darkVessels: null,
@@ -231,6 +234,7 @@ export class GlobalMapController {
 
     setupSourcesAndLayers() {
         this.addFaoLayer();
+        this.addFmaLayer();
         this.addEezLayer();
         this.addGfwLayer();
         this.addSarSceneLayer();
@@ -252,8 +256,8 @@ export class GlobalMapController {
             source: 'fao-source',
             layout: { visibility: this.activeLayers.fao ? 'visible' : 'none' },
             paint: {
-                'fill-color': '#6366f1',
-                'fill-opacity': 0.14
+                'fill-color': '#3b82f6',
+                'fill-opacity': 0.12
             }
         });
 
@@ -263,10 +267,43 @@ export class GlobalMapController {
             source: 'fao-source',
             layout: { visibility: this.activeLayers.fao ? 'visible' : 'none' },
             paint: {
-                'line-color': '#a5b4fc',
-                'line-width': 2.2,
-                'line-opacity': 1.0,
+                'line-color': '#93c5fd',
+                'line-width': 1.8,
+                'line-opacity': 0.9,
                 'line-dasharray': [4, 2]
+            }
+        });
+    }
+
+    addFmaLayer() {
+        if (this.map.getSource('fma-source')) return;
+
+        this.map.addSource('fma-source', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] }
+        });
+
+        this.map.addLayer({
+            id: 'fma-fill-layer',
+            type: 'fill',
+            source: 'fma-source',
+            layout: { visibility: this.activeLayers.fma ? 'visible' : 'none' },
+            paint: {
+                'fill-color': '#8b5cf6',
+                'fill-opacity': 0.10
+            }
+        });
+
+        this.map.addLayer({
+            id: 'fma-line-layer',
+            type: 'line',
+            source: 'fma-source',
+            layout: { visibility: this.activeLayers.fma ? 'visible' : 'none' },
+            paint: {
+                'line-color': '#c084fc',
+                'line-width': 2.0,
+                'line-opacity': 0.9,
+                'line-dasharray': [2, 2]
             }
         });
     }
@@ -285,8 +322,14 @@ export class GlobalMapController {
             source: 'eez-source',
             layout: { visibility: this.activeLayers.eez ? 'visible' : 'none' },
             paint: {
-                'fill-color': '#0d9488',
-                'fill-opacity': 0.16
+                'fill-color': [
+                    'match',
+                    ['get', 'pol_type'],
+                    'Overlapping claim', '#f59e0b',
+                    'Joint regime', '#a855f7',
+                    '#0d9488'
+                ],
+                'fill-opacity': 0.15
             }
         });
 
@@ -296,8 +339,14 @@ export class GlobalMapController {
             source: 'eez-source',
             layout: { visibility: this.activeLayers.eez ? 'visible' : 'none' },
             paint: {
-                'line-color': '#2dd4bf',
-                'line-width': 2.8,
+                'line-color': [
+                    'match',
+                    ['get', 'pol_type'],
+                    'Overlapping claim', '#f59e0b',
+                    'Joint regime', '#c084fc',
+                    '#2dd4bf'
+                ],
+                'line-width': 2.6,
                 'line-opacity': 1.0
             }
         });
@@ -603,13 +652,35 @@ export class GlobalMapController {
             const props = e.features[0].properties;
             const html = `
                 <div class="space-y-2 text-xs font-sans">
-                    <div class="flex items-center gap-1.5 font-bold text-indigo-300 border-b border-indigo-900 pb-1">
+                    <div class="flex items-center gap-1.5 font-bold text-blue-300 border-b border-blue-900 pb-1">
                         <span>🌐</span>
                         <span>FAO Statistical Area ${props.area_code || ''}</span>
                     </div>
-                    <div class="text-slate-200 font-semibold">${props.name_en || 'Fishing Area'}</div>
-                    <div class="text-[10px] text-indigo-300/80 bg-indigo-950/60 p-2 rounded border border-indigo-800/40">
-                        <strong>Perhatian:</strong> Poligon FAO adalah batas statistik pelaporan perikanan global, bukan batas larangan tangkap.
+                    <div class="text-slate-100 font-semibold">${props.name_en || 'Fishing Area'}</div>
+                    <div class="text-[11px] text-blue-200">Ocean Basin: <strong class="text-white">${props.ocean_basin || '-'}</strong></div>
+                    <div class="text-[10px] text-blue-300/80 bg-blue-950/60 p-2 rounded border border-blue-800/40">
+                        <strong>Perhatian:</strong> Poligon FAO adalah wilayah statistik pelaporan perikanan global, bukan batas yurisdiksi atau kewenangan hukum.
+                    </div>
+                </div>
+            `;
+            this.showPopup(e.lngLat, html);
+        });
+
+        // Fisheries Management Areas (RFMO) Click Popup
+        this.map.on('click', 'fma-fill-layer', (e) => {
+            if (!e.features.length) return;
+            const props = e.features[0].properties;
+            const html = `
+                <div class="space-y-2 text-xs font-sans">
+                    <div class="flex items-center gap-1.5 font-bold text-purple-300 border-b border-purple-900 pb-1">
+                        <span>🏛️</span>
+                        <span>${props.rfb_code || 'RFMO'} &bull; ${props.mandate_type || 'Regional Body'}</span>
+                    </div>
+                    <div class="text-slate-100 font-semibold">${props.name || 'Fisheries Management Area'}</div>
+                    <div class="text-[11px] text-purple-200">Ocean Basin: <strong class="text-white">${props.ocean_basin || '-'}</strong></div>
+                    <div class="text-[10px] text-slate-300">Instrumen: ${props.legal_instrument || '-'}</div>
+                    <div class="text-[10px] text-purple-300/90 bg-purple-950/70 p-2 rounded border border-purple-800/40">
+                        <strong>Mandat:</strong> ${props.disclaimer || 'Wilayah kompetensi pengelolaan perikanan multilateral berdasarkan instrumen traktat internasional. Bukan batas kedaulatan maritim.'}
                     </div>
                 </div>
             `;
@@ -620,16 +691,25 @@ export class GlobalMapController {
         this.map.on('click', 'eez-fill-layer', (e) => {
             if (!e.features.length) return;
             const props = e.features[0].properties;
+            const polBadge = props.pol_type === 'Overlapping claim' 
+                ? '<span class="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold uppercase">Klaim Tumpang Tindih</span>'
+                : (props.pol_type === 'Joint regime' 
+                    ? '<span class="px-1.5 py-0.5 rounded text-[9px] bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold uppercase">Joint Regime</span>'
+                    : '<span class="px-1.5 py-0.5 rounded text-[9px] bg-teal-500/20 text-teal-300 border border-teal-500/40 font-bold uppercase">200 NM EEZ</span>');
+
             const html = `
                 <div class="space-y-2 text-xs font-sans">
-                    <div class="flex items-center gap-1.5 font-bold text-teal-300 border-b border-teal-900 pb-1">
-                        <span>🛡️</span>
-                        <span>Exclusive Economic Zone (200NM)</span>
+                    <div class="flex items-center justify-between border-b border-teal-900 pb-1">
+                        <span class="font-bold text-teal-300 flex items-center gap-1.5">
+                            <span>🛡️</span> World EEZ v12
+                        </span>
+                        ${polBadge}
                     </div>
-                    <div class="text-slate-200 font-semibold">${props.geoname || 'EEZ Zone'}</div>
-                    <div class="text-[11px] text-teal-200 font-medium">Sovereign: ${props.sovereign_state || '-'}</div>
-                    <div class="text-[10px] text-teal-300/80 bg-teal-950/60 p-2 rounded border border-teal-800/40">
-                        <strong>Status Hukum:</strong> Batas yurisdiksi hak ekonomi maritim UNCLOS. Berada di EEZ bukan bukti otomatis pelanggaran tanpa verifikasi izin.
+                    <div class="text-slate-100 font-semibold">${props.geoname || 'EEZ Zone'}</div>
+                    <div class="text-[11px] text-teal-200">Negara: <strong class="text-white">${props.sovereign_state || '-'}</strong> ${props.sovereign_iso3 ? `(${props.sovereign_iso3})` : ''}</div>
+                    <div class="text-[10px] text-slate-300">Luas: <strong class="text-white">${props.area_sqkm ? Number(props.area_sqkm).toLocaleString() + ' km²' : '-'}</strong> &bull; MRGID: <strong class="text-teal-300">${props.mrgid || '-'}</strong></div>
+                    <div class="text-[10px] text-teal-300/90 bg-teal-950/70 p-2 rounded border border-teal-800/40">
+                        <strong>Status Hukum (UNCLOS):</strong> ${props.disclaimer || 'Batas yurisdiksi hak ekonomi maritim UNCLOS / traktat bilateral. Bukan penetapan batas hukum final untuk klaim sengketa.'}
                     </div>
                 </div>
             `;
@@ -662,6 +742,7 @@ export class GlobalMapController {
         // Cursor pointer styling on hover
         const clickableLayers = [
             'fao-fill-layer',
+            'fma-fill-layer',
             'eez-fill-layer',
             'encounters-circle-layer',
             'vessels-circle-layer',
@@ -711,6 +792,7 @@ export class GlobalMapController {
 
         const layerMap = {
             fao: ['fao-fill-layer', 'fao-line-layer'],
+            fma: ['fma-fill-layer', 'fma-line-layer'],
             eez: ['eez-fill-layer', 'eez-line-layer'],
             encounters: ['encounters-circle-layer'],
             vessels: ['vessels-circle-layer'],
@@ -742,6 +824,7 @@ export class GlobalMapController {
         const bbox = this.getViewportBBoxString();
         const urls = {
             fao: `/api/layers/fao?bbox=${bbox || ''}`,
+            fma: `/api/layers/fma?bbox=${bbox || ''}`,
             eez: `/api/layers/eez?bbox=${bbox || ''}`,
             encounters: `/api/layers/encounters?bbox=${bbox || ''}`,
             vessels: `/api/layers/vessels?bbox=${bbox || ''}`,
@@ -751,6 +834,7 @@ export class GlobalMapController {
 
         const sources = {
             fao: 'fao-source',
+            fma: 'fma-source',
             eez: 'eez-source',
             encounters: 'encounters-source',
             vessels: 'vessels-source',
@@ -830,6 +914,9 @@ export class GlobalMapController {
         } else if (type === 'fao') {
             sourceId = 'fao-source';
             layerKey = 'fao';
+        } else if (type === 'fma' || type === 'rfmo') {
+            sourceId = 'fma-source';
+            layerKey = 'fma';
         }
 
         const source = this.map.getSource(sourceId);

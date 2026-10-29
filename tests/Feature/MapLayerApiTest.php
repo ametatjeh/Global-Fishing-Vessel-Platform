@@ -106,6 +106,35 @@ class MapLayerApiTest extends TestCase
         $this->assertEquals('Indonesia', $response->json('features.0.properties.sovereign_state'));
     }
 
+    public function test_fma_layer_returns_geojson_feature_collection(): void
+    {
+        \App\Models\FisheriesManagementArea::create([
+            'rfb_code' => 'WCPFC',
+            'name' => 'Western and Central Pacific Fisheries Commission',
+            'mandate_type' => 'RFMO',
+            'ocean_basin' => 'Pacific Ocean',
+            'competence_summary' => 'Highly migratory fish stocks',
+            'version' => '2024.1',
+            'source_dataset_url' => 'https://www.fao.org/fishery/geoserver/fifao/ows',
+            'license_name' => 'FAO Open Access Terms / CC-BY-NC-SA 3.0 IGO',
+            'import_date' => now(),
+            'geometry_geojson' => json_encode([
+                'type' => 'MultiPolygon',
+                'coordinates' => [[[[120.0, -10.0], [180.0, -10.0], [180.0, 20.0], [120.0, 20.0], [120.0, -10.0]]]],
+            ]),
+            'bbox' => [120.0, -10.0, 180.0, 20.0],
+            'crosses_antimeridian' => false,
+        ]);
+
+        $response = $this->getJson('/api/layers/fma?bbox=110,-15,185,25');
+
+        $response->assertStatus(200);
+        $this->assertEquals('FeatureCollection', $response->json('type'));
+        $this->assertCount(1, $response->json('features'));
+        $this->assertEquals('WCPFC', $response->json('features.0.properties.rfb_code'));
+        $this->assertEquals('RFMO', $response->json('features.0.properties.mandate_type'));
+    }
+
     public function test_encounters_layer_returns_zero_when_no_encounters_detected(): void
     {
         $response = $this->getJson('/api/layers/encounters');

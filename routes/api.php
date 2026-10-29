@@ -13,6 +13,7 @@ Route::prefix('layers')->group(function () {
     Route::get('/', [MapLayerApiController::class, 'layers'])->name('api.layers');
     Route::get('/fao', [MapLayerApiController::class, 'fao'])->name('api.layers.fao');
     Route::get('/eez', [MapLayerApiController::class, 'eez'])->name('api.layers.eez');
+    Route::get('/fma', [MapLayerApiController::class, 'fma'])->name('api.layers.fma');
     Route::get('/vessels', [MapLayerApiController::class, 'vessels'])->name('api.layers.vessels');
     Route::get('/encounters', [MapLayerApiController::class, 'encounters'])->name('api.layers.encounters');
     Route::get('/dark-vessels', [MapLayerApiController::class, 'darkVessels'])->name('api.layers.dark-vessels');

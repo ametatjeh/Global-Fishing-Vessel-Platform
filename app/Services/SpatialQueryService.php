@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\FaoFishingArea;
+use App\Models\FisheriesManagementArea;
 use App\Models\EezZone;
 use App\Models\Vessel;
 use App\Models\VesselPosition;
@@ -82,7 +83,7 @@ class SpatialQueryService
             $query->inBoundingBox($normalizedBBox[0], $normalizedBBox[1], $normalizedBBox[2], $normalizedBBox[3]);
         }
 
-        $eezs = $query->limit(60)->get();
+        $eezs = $query->limit(350)->get();
 
         $features = [];
         foreach ($eezs as $eez) {
@@ -99,14 +100,20 @@ class SpatialQueryService
                     'geoname' => $eez->geoname,
                     'sovereign_state' => $eez->sovereign_state,
                     'sovereign_iso3' => $eez->sovereign_iso3,
+                    'territory1' => $eez->territory1,
+                    'iso_ter1' => $eez->iso_ter1,
+                    'sovereign2' => $eez->sovereign2,
+                    'sovereign3' => $eez->sovereign3,
                     'pol_type' => $eez->pol_type,
                     'area_sqkm' => $eez->area_sqkm,
+                    'x_1' => $eez->x_1,
+                    'y_1' => $eez->y_1,
                     'version' => $eez->version,
                     'source' => $eez->source_name,
                     'license' => $eez->license_name,
                     'attribution' => $eez->attribution_notice,
                     'crosses_antimeridian' => $eez->crosses_antimeridian,
-                    'disclaimer' => config('maritime.eez.disclaimer'),
+                    'disclaimer' => config('maritime.eez.disclaimer', 'Batas yurisdiksi hak ekonomi maritim berdasarkan UNCLOS / traktat bilateral. Bukan penetapan batas hukum final untuk klaim tumpang tindih.'),
                 ]
             ];
         }
@@ -116,8 +123,67 @@ class SpatialQueryService
             'features' => $features,
             'metadata' => [
                 'count' => count($features),
-                'dataset' => 'Maritime Boundaries Geodatabase: Exclusive Economic Zone (200NM) v12',
+                'dataset' => 'Maritime Boundaries Geodatabase: Exclusive Economic Zone (200NM) v12 (October 2023)',
+                'doi' => '10.14284/632',
+                'publisher' => 'Flanders Marine Institute (VLIZ) Marine Regions',
                 'license' => 'CC BY 4.0 International',
+            ]
+        ];
+    }
+
+    /**
+     * Get FAO Regional Fishery Bodies (RFBs / RFMOs) Competence Areas as GeoJSON FeatureCollection
+     */
+    public function getFisheriesManagementAreasFeatureCollection(?array $bbox = null, ?string $search = null): array
+    {
+        $query = FisheriesManagementArea::query();
+
+        if ($search) {
+            $query->search($search);
+        }
+
+        $normalizedBBox = $this->normalizeBBox($bbox);
+        if ($normalizedBBox) {
+            $query->inBoundingBox($normalizedBBox[0], $normalizedBBox[1], $normalizedBBox[2], $normalizedBBox[3]);
+        }
+
+        $fmas = $query->limit(150)->get();
+
+        $features = [];
+        foreach ($fmas as $fma) {
+            $geom = json_decode($fma->geometry_geojson, true);
+            if (!$geom) continue;
+
+            $features[] = [
+                'type' => 'Feature',
+                'id' => $fma->id,
+                'geometry' => $geom,
+                'properties' => [
+                    'id' => $fma->id,
+                    'rfb_code' => $fma->rfb_code,
+                    'name' => $fma->name,
+                    'mandate_type' => $fma->mandate_type,
+                    'ocean_basin' => $fma->ocean_basin,
+                    'competence_summary' => $fma->competence_summary,
+                    'established_year' => $fma->established_year,
+                    'legal_instrument' => $fma->legal_instrument,
+                    'version' => $fma->version,
+                    'source' => $fma->source_dataset_url,
+                    'license' => $fma->license_name,
+                    'crosses_antimeridian' => $fma->crosses_antimeridian,
+                    'disclaimer' => $fma->disclaimer,
+                ]
+            ];
+        }
+
+        return [
+            'type' => 'FeatureCollection',
+            'features' => $features,
+            'metadata' => [
+                'count' => count($features),
+                'dataset' => 'FAO Regional Fishery Bodies (RFBs / RFMOs) Competence Areas',
+                'publisher' => 'Food and Agriculture Organization of the United Nations (FAO)',
+                'license' => 'FAO Open Access Terms / CC-BY-NC-SA 3.0 IGO',
             ]
         ];
     }
