@@ -122,21 +122,15 @@ class SpatialQueryService
 
     /**
      * Get Live AIS Vessel Positions as GeoJSON FeatureCollection
+     * Optimized query using direct position indices and driver-specific distinct selection
      */
     public function getLiveVesselsFeatureCollection(?array $bbox = null, ?string $search = null): array
     {
-        // Query vessels that have an active latest position
-        $query = Vessel::with(['latestPosition.sourceProvider'])
-            ->has('latestPosition');
+        $driver = DB::connection()->getDriverName();
+        $limit = 200;
 
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('mmsi', 'like', "%{$search}%")
-                  ->orWhere('imo', 'like', "%{$search}%")
-                  ->orWhere('callsign', 'like', "%{$search}%");
-            });
-        }
+        // Base query on vessel_positions to leverage indexes on lat/lng/observed_at
+        $posQuery = VesselPosition::query();
 
         if ($bbox && count($bbox) === 4) {
             $minLng = (float) $bbox[0];
@@ -144,25 +138,57 @@ class SpatialQueryService
             $maxLng = (float) $bbox[2];
             $maxLat = max((float) $bbox[1], (float) $bbox[3]);
 
-            $query->whereHas('latestPosition', function ($q) use ($minLng, $minLat, $maxLng, $maxLat) {
-                $q->whereBetween('latitude', [$minLat, $maxLat]);
-                if ($minLng > $maxLng) {
-                    $q->where(function ($w) use ($minLng, $maxLng) {
-                        $w->where('longitude', '>=', $minLng)
-                          ->orWhere('longitude', '<=', $maxLng);
-                    });
-                } else {
-                    $q->whereBetween('longitude', [$minLng, $maxLng]);
-                }
-            });
+            $posQuery->whereBetween('latitude', [$minLat, $maxLat]);
+            if ($minLng > $maxLng) {
+                $posQuery->where(function ($w) use ($minLng, $maxLng) {
+                    $w->where('longitude', '>=', $minLng)
+                      ->orWhere('longitude', '<=', $maxLng);
+                });
+            } else {
+                $posQuery->whereBetween('longitude', [$minLng, $maxLng]);
+            }
         }
 
-        $vessels = $query->limit(200)->get();
+        if ($search) {
+            $matchedVesselIds = Vessel::where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('mmsi', 'like', "%{$search}%")
+                  ->orWhere('imo', 'like', "%{$search}%")
+                  ->orWhere('callsign', 'like', "%{$search}%");
+            })->pluck('id');
+
+            $posQuery->whereIn('vessel_id', $matchedVesselIds);
+        }
+
+        if ($driver === 'pgsql') {
+            // PostgreSQL high-speed DISTINCT ON to retrieve the latest position per vessel without correlated subqueries
+            $positionIds = (clone $posQuery)
+                ->select('id')
+                ->distinct('vessel_id')
+                ->orderByRaw('vessel_id, observed_at DESC')
+                ->limit($limit)
+                ->pluck('id');
+
+            $positions = VesselPosition::with(['vessel', 'sourceProvider'])
+                ->whereIn('id', $positionIds)
+                ->get();
+        } else {
+            // SQLite / generic fallback
+            $positionIds = (clone $posQuery)
+                ->selectRaw('MAX(id) as id')
+                ->groupBy('vessel_id')
+                ->limit($limit)
+                ->pluck('id');
+
+            $positions = VesselPosition::with(['vessel', 'sourceProvider'])
+                ->whereIn('id', $positionIds)
+                ->get();
+        }
 
         $features = [];
-        foreach ($vessels as $vessel) {
-            $pos = $vessel->latestPosition;
-            if (!$pos) continue;
+        foreach ($positions as $pos) {
+            $vessel = $pos->vessel;
+            if (!$vessel) continue;
 
             $flagInfo = \App\Services\Maritime\FlagStateService::resolveFromCodeAndMmsi($vessel->flag_state, $vessel->mmsi);
 
@@ -171,7 +197,7 @@ class SpatialQueryService
                 'id' => $pos->id,
                 'geometry' => [
                     'type' => 'Point',
-                    'coordinates' => [$pos->longitude, $pos->latitude],
+                    'coordinates' => [(float) $pos->longitude, (float) $pos->latitude],
                 ],
                 'properties' => [
                     'vessel_id' => $vessel->id,
@@ -187,13 +213,13 @@ class SpatialQueryService
                     'flag_status' => $flagInfo['status'],
                     'flag_verified' => $flagInfo['is_verified'],
                     'vessel_type' => $vessel->vessel_type,
-                    'speed_knots' => $pos->speed_knots,
-                    'course_degrees' => $pos->course_degrees,
-                    'heading_degrees' => $pos->heading_degrees,
+                    'speed_knots' => (float) $pos->speed_knots,
+                    'course_degrees' => (float) $pos->course_degrees,
+                    'heading_degrees' => (float) $pos->heading_degrees,
                     'nav_status' => $pos->nav_status,
                     'observed_at' => $pos->observed_at?->toIso8601String(),
                     'is_fresh' => $pos->isFresh(),
-                    'data_quality_score' => $pos->data_quality_score,
+                    'data_quality_score' => (float) $pos->data_quality_score,
                     'provider' => $pos->sourceProvider?->name ?? 'Native AIS',
                 ]
             ];

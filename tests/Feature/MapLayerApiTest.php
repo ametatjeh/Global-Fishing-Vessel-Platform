@@ -222,4 +222,54 @@ class MapLayerApiTest extends TestCase
         $vessel->refresh();
         $this->assertEquals('2026-10-19 12:00:00', $vessel->last_seen_at->format('Y-m-d H:i:s'));
     }
+
+    public function test_vessels_layer_returns_live_vessels_geojson_with_bbox_filter(): void
+    {
+        $vessel1 = Vessel::create([
+            'name' => 'KM LAUT INDONESIA',
+            'mmsi' => '525999001',
+            'flag_state' => 'ID',
+            'vessel_type' => 'fishing',
+        ]);
+
+        VesselPosition::create([
+            'vessel_id' => $vessel1->id,
+            'latitude' => -5.5000,
+            'longitude' => 105.2000,
+            'speed_knots' => 9.5,
+            'course_degrees' => 120.0,
+            'observed_at' => now(),
+            'received_at' => now(),
+        ]);
+
+        $vessel2 = Vessel::create([
+            'name' => 'NORTH SEA VOYAGER',
+            'mmsi' => '235999002',
+            'flag_state' => 'GB',
+            'vessel_type' => 'cargo',
+        ]);
+
+        VesselPosition::create([
+            'vessel_id' => $vessel2->id,
+            'latitude' => 55.5000,
+            'longitude' => 3.2000,
+            'speed_knots' => 12.0,
+            'course_degrees' => 180.0,
+            'observed_at' => now(),
+            'received_at' => now(),
+        ]);
+
+        // Request inside Indonesian bounding box
+        $resInside = $this->getJson('/api/layers/vessels?bbox=90,-10,140,10');
+        $resInside->assertStatus(200);
+        $this->assertEquals('FeatureCollection', $resInside->json('type'));
+        $this->assertCount(1, $resInside->json('features'));
+        $this->assertEquals('KM LAUT INDONESIA', $resInside->json('features.0.properties.name'));
+        $this->assertEquals('525999001', $resInside->json('features.0.properties.mmsi'));
+
+        // Request global / no bbox returns both
+        $resAll = $this->getJson('/api/layers/vessels');
+        $resAll->assertStatus(200);
+        $this->assertCount(2, $resAll->json('features'));
+    }
 }

@@ -230,7 +230,7 @@ export class GlobalMapController {
             layout: { visibility: this.activeLayers.fao ? 'visible' : 'none' },
             paint: {
                 'fill-color': '#6366f1',
-                'fill-opacity': 0.08
+                'fill-opacity': 0.16
             }
         });
 
@@ -240,9 +240,9 @@ export class GlobalMapController {
             source: 'fao-source',
             layout: { visibility: this.activeLayers.fao ? 'visible' : 'none' },
             paint: {
-                'line-color': '#818cf8',
-                'line-width': 1.5,
-                'line-dasharray': [3, 2]
+                'line-color': '#a5b4fc',
+                'line-width': 2.0,
+                'line-dasharray': [4, 2]
             }
         });
     }
@@ -262,7 +262,7 @@ export class GlobalMapController {
             layout: { visibility: this.activeLayers.eez ? 'visible' : 'none' },
             paint: {
                 'fill-color': '#0d9488',
-                'fill-opacity': 0.10
+                'fill-opacity': 0.18
             }
         });
 
@@ -273,7 +273,7 @@ export class GlobalMapController {
             layout: { visibility: this.activeLayers.eez ? 'visible' : 'none' },
             paint: {
                 'line-color': '#2dd4bf',
-                'line-width': 1.8
+                'line-width': 2.2
             }
         });
     }
@@ -780,7 +780,7 @@ export class GlobalMapController {
 
     /**
      * Safe Auto-Fit to Data Types
-     * Prioritizes valid, finite coordinates
+     * Prioritizes valid, finite coordinates across Point, Polygon, and MultiPolygon
      */
     fitToData(type) {
         if (!this.map) return;
@@ -789,6 +789,8 @@ export class GlobalMapController {
         if (type === 'sar-candidates' || type === 'dark-vessels') sourceId = 'dark-vessels-source';
         else if (type === 'sar-scenes') sourceId = 'sar-scenes-source';
         else if (type === 'vessels') sourceId = 'vessels-source';
+        else if (type === 'eez') sourceId = 'eez-source';
+        else if (type === 'fao') sourceId = 'fao-source';
 
         const source = this.map.getSource(sourceId);
         if (!source || !source._data || !source._data.features || !source._data.features.length) {
@@ -816,6 +818,17 @@ export class GlobalMapController {
                     if (this.isValidCoord(lng, lat)) {
                         bounds.extend([lng, lat]);
                         validCoords++;
+                    }
+                });
+            } else if (geom.type === 'MultiPolygon' && Array.isArray(geom.coordinates)) {
+                geom.coordinates.forEach((poly) => {
+                    if (Array.isArray(poly) && Array.isArray(poly[0])) {
+                        poly[0].forEach(([lng, lat]) => {
+                            if (this.isValidCoord(lng, lat)) {
+                                bounds.extend([lng, lat]);
+                                validCoords++;
+                            }
+                        });
                     }
                 });
             }

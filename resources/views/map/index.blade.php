@@ -21,9 +21,19 @@
             </button>
 
             <!-- Quick Fit Buttons -->
-            <button type="button" id="btnFitVessels" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-sky-300 font-medium transition border border-slate-700 flex items-center gap-1">
+            <button type="button" id="btnFitVessels" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-sky-300 font-medium transition border border-slate-700 flex items-center gap-1" title="Pusatkan peta ke armada kapal terdeteksi">
                 <span>🚢</span>
                 <span>Fit Vessels</span>
+            </button>
+
+            <button type="button" id="btnFitEez" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-teal-300 font-medium transition border border-slate-700 flex items-center gap-1" title="Pusatkan peta ke batas Fishing Ground EEZ">
+                <span>🛡️</span>
+                <span>Fit EEZ</span>
+            </button>
+
+            <button type="button" id="btnFitFao" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-indigo-300 font-medium transition border border-slate-700 flex items-center gap-1" title="Pusatkan peta ke zona Fishing Ground FAO">
+                <span>🌐</span>
+                <span>Fit FAO</span>
             </button>
 
             <button type="button" id="btnFitSarCandidates" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-300 font-medium transition border border-slate-700 flex items-center gap-1">
@@ -266,72 +276,98 @@
 
 @push('scripts')
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    function initializeGlobalMap() {
+        if (typeof window.GlobalMapController !== 'function') {
+            // Module is still hydrating / evaluating, check back shortly
+            setTimeout(initializeGlobalMap, 50);
+            return;
+        }
+
         // Initialize MapLibre Controller
         const mapController = new window.GlobalMapController('global-map-canvas');
+        window.activeMapController = mapController;
 
         // Checkbox Layer Toggles
-        document.getElementById('toggle-layer-fao').addEventListener('change', (e) => {
-            mapController.toggleLayer('fao', e.target.checked);
-        });
+        const layerToggles = [
+            { id: 'toggle-layer-fao', key: 'fao' },
+            { id: 'toggle-layer-eez', key: 'eez' },
+            { id: 'toggle-layer-encounters', key: 'encounters' },
+            { id: 'toggle-layer-vessels', key: 'vessels' },
+            { id: 'toggle-layer-dark-vessels', key: 'darkVessels' },
+            { id: 'toggle-layer-sar-scenes', key: 'sarScenes' },
+        ];
 
-        document.getElementById('toggle-layer-eez').addEventListener('change', (e) => {
-            mapController.toggleLayer('eez', e.target.checked);
-        });
-
-        document.getElementById('toggle-layer-encounters').addEventListener('change', (e) => {
-            mapController.toggleLayer('encounters', e.target.checked);
-        });
-
-        document.getElementById('toggle-layer-vessels').addEventListener('change', (e) => {
-            mapController.toggleLayer('vessels', e.target.checked);
-        });
-
-        document.getElementById('toggle-layer-dark-vessels').addEventListener('change', (e) => {
-            mapController.toggleLayer('darkVessels', e.target.checked);
-        });
-
-        document.getElementById('toggle-layer-sar-scenes').addEventListener('change', (e) => {
-            mapController.toggleLayer('sarScenes', e.target.checked);
+        layerToggles.forEach(({ id, key }) => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('change', (e) => {
+                    mapController.toggleLayer(key, e.target.checked);
+                });
+            }
         });
 
         // Search Vessel
-        document.getElementById('btnFilterSearch').addEventListener('click', () => {
-            mapController.fetchLayerData('vessels');
-        });
+        const btnFilter = document.getElementById('btnFilterSearch');
+        if (btnFilter) {
+            btnFilter.addEventListener('click', () => {
+                mapController.fetchLayerData('vessels');
+            });
+        }
 
-        // Fit Controls
-        document.getElementById('btnFitVessels').addEventListener('click', () => {
-            mapController.fitToData('vessels');
-        });
+        // Quick Fit Controls
+        const fitMappings = [
+            { id: 'btnFitVessels', type: 'vessels' },
+            { id: 'btnFitEez', type: 'eez' },
+            { id: 'btnFitFao', type: 'fao' },
+            { id: 'btnFitSarCandidates', type: 'sar-candidates' },
+            { id: 'btnFitSarScene', type: 'sar-scenes' },
+        ];
 
-        document.getElementById('btnFitSarCandidates').addEventListener('click', () => {
-            mapController.fitToData('sar-candidates');
-        });
-
-        document.getElementById('btnFitSarScene').addEventListener('click', () => {
-            mapController.fitToData('sar-scenes');
+        fitMappings.forEach(({ id, type }) => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    mapController.fitToData(type);
+                });
+            }
         });
 
         // Reset View
-        document.getElementById('btnResetView').addEventListener('click', () => {
-            mapController.map.flyTo({ center: [100.0, 5.0], zoom: 3.5 });
-        });
+        const btnReset = document.getElementById('btnResetView');
+        if (btnReset) {
+            btnReset.addEventListener('click', () => {
+                mapController.map.flyTo({ center: [100.0, 5.0], zoom: 3.5 });
+            });
+        }
 
         // Metadata Modal
         const modal = document.getElementById('metadataModal');
-        document.getElementById('btnOpenMetadataModal').addEventListener('click', () => {
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        });
+        const btnOpen = document.getElementById('btnOpenMetadataModal');
+        const btnClose = document.getElementById('btnCloseMetadataModal');
+        const btnConfirmClose = document.getElementById('btnConfirmCloseMetadata');
+
+        if (modal && btnOpen) {
+            btnOpen.addEventListener('click', () => {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            });
+        }
 
         const closeModal = () => {
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
         };
 
-        document.getElementById('btnCloseMetadataModal').addEventListener('click', closeModal);
-        document.getElementById('btnConfirmCloseMetadata').addEventListener('click', closeModal);
-    });
+        if (btnClose) btnClose.addEventListener('click', closeModal);
+        if (btnConfirmClose) btnConfirmClose.addEventListener('click', closeModal);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeGlobalMap);
+    } else {
+        initializeGlobalMap();
+    }
 </script>
 @endpush
