@@ -110,8 +110,8 @@ php artisan migrate --seed
 ```
 
 ### Akun Bawaan Sistem (Default Credentials):
-- **Super Administrator**: `admin@maritime-intel.org` (Kata Sandi: `Password123!`)
-- **Senior Intelligence Analyst**: `analyst@maritime-intel.org` (Kata Sandi: `Password123!`)
+- **Super Administrator**: `admin@gfw.nagakecil.site` (Kata Sandi: `Password123!`)
+- **Senior Intelligence Analyst**: `analyst@gfw.nagakecil.site` (Kata Sandi: `Password123!`)
 
 ---
 

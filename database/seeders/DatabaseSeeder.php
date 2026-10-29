@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
     {
         // 1. Create Default Administrative & Analyst Users
         User::firstOrCreate(
-            ['email' => 'admin@maritime-intel.org'],
+            ['email' => 'admin@gfw.nagakecil.site'],
             [
                 'name' => 'Chief Maritime Officer',
                 'password' => Hash::make('Password123!'),
@@ -30,7 +30,7 @@ class DatabaseSeeder extends Seeder
         );
 
         User::firstOrCreate(
-            ['email' => 'analyst@maritime-intel.org'],
+            ['email' => 'analyst@gfw.nagakecil.site'],
             [
                 'name' => 'Senior Intelligence Analyst',
                 'password' => Hash::make('Password123!'),
