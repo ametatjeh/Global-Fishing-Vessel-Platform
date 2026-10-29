@@ -27,6 +27,12 @@
             width: 100% !important;
             height: 100% !important;
         }
+        /* Disable particles canvas on mobile screens (< 768px) */
+        @media (max-width: 767px) {
+            #particles-js {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen flex items-center justify-center p-4 relative overflow-x-hidden selection:bg-teal-500 selection:text-slate-950">
@@ -34,8 +40,8 @@
     <!-- Ambient Dark Maritime Gradient -->
     <div class="fixed inset-0 bg-gradient-to-tr from-slate-950 via-slate-900/60 to-slate-950 pointer-events-none" style="z-index: 0;"></div>
 
-    <!-- Interactive Particle Background Canvas (similar to siakad.unida-aceh.ac.id/login) -->
-    <div id="particles-js" aria-hidden="true"></div>
+    <!-- Interactive Particle Background Canvas (Hidden on Mobile < 768px) -->
+    <div id="particles-js" class="hidden md:block" aria-hidden="true"></div>
 
     <div class="w-full max-w-md relative" style="z-index: 10;">
         <!-- Brand Header -->
@@ -133,32 +139,70 @@
         </div>
     </div>
 
-    <!-- Particles.js Engine & Config Loader (siakad.unida-aceh.ac.id/login pattern) -->
+    <!-- Particles.js Engine & Config Loader (Disabled on Mobile) -->
     <script src="{{ asset('particles.min.js') }}"></script>
     <script>
         (function() {
             var configUrl = "{{ asset('particlesjs-config.json') }}";
+            var particlesLoaded = false;
+
+            function isMobileScreen() {
+                return window.innerWidth < 768 || (window.matchMedia && window.matchMedia('(max-width: 767px)').matches);
+            }
 
             function startParticles() {
-                if (typeof window.particlesJS !== 'undefined') {
+                if (isMobileScreen()) {
+                    return;
+                }
+
+                if (typeof window.particlesJS !== 'undefined' && !particlesLoaded) {
+                    particlesLoaded = true;
                     window.particlesJS.load('particles-js', configUrl, function() {
-                        console.log('particles.js loaded via particlesjs-config.json');
+                        console.log('particles.js loaded via particlesjs-config.json (desktop only)');
                     });
                 }
             }
 
-            if (typeof window.particlesJS !== 'undefined') {
-                startParticles();
-            } else {
-                // CDN fallback if local asset is unreachable
-                var script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js';
-                script.onload = startParticles;
-                script.onerror = function() {
-                    console.warn('Gagal memuat script particles.js');
-                };
-                document.head.appendChild(script);
+            function destroyParticles() {
+                if (window.pJSDom && window.pJSDom.length > 0) {
+                    window.pJSDom.forEach(function(item) {
+                        if (item && item.pJS && item.pJS.fn && item.pJS.fn.vendors && item.pJS.fn.vendors.destroypJS) {
+                            item.pJS.fn.vendors.destroypJS();
+                        }
+                    });
+                    window.pJSDom = [];
+                }
+                particlesLoaded = false;
             }
+
+            // Only initialize on desktop/tablet (>= 768px)
+            if (!isMobileScreen()) {
+                if (typeof window.particlesJS !== 'undefined') {
+                    startParticles();
+                } else {
+                    // CDN fallback if local asset is unreachable
+                    var script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js';
+                    script.onload = startParticles;
+                    script.onerror = function() {
+                        console.warn('Gagal memuat script particles.js');
+                    };
+                    document.head.appendChild(script);
+                }
+            }
+
+            // Dynamically manage lifecycle if screen orientation or viewport changes
+            window.addEventListener('resize', function() {
+                if (isMobileScreen()) {
+                    if (particlesLoaded) {
+                        destroyParticles();
+                    }
+                } else {
+                    if (!particlesLoaded) {
+                        startParticles();
+                    }
+                }
+            });
         })();
     </script>
 </body>
