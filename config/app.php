@@ -13,7 +13,9 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Global Fishing Vessel Tracking'),
+    'name' => (env('APP_NAME') === 'Global Fishing Vessel Intelligence Platform' || !env('APP_NAME'))
+        ? 'Global Fishing Vessel Tracking'
+        : env('APP_NAME', 'Global Fishing Vessel Tracking'),
 
     /*
     |--------------------------------------------------------------------------

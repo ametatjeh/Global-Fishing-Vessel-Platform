@@ -213,7 +213,7 @@
         <!-- Global Disclaimer Footer -->
         <footer class="px-6 py-4 border-t border-slate-800 text-[11px] text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2">
             <div>
-                &copy; {{ date('Y') }} {{ config('app.name', 'Global Fishing Vessel Tracking') }}. All rights reserved.
+                &copy; {{ date('Y') }} Global Fishing Vessel Tracking. All rights reserved.
             </div>
             <div class="text-[10px] text-slate-400 max-w-xl text-center sm:text-right">
                 Pemberitahuan: Proximity encounter, batas statistik FAO, dan deteksi SAR merupakan indikasi observasional intelijen maritim dan bukan bukti definitif pelanggaran hukum tanpa pembuktian multi-sumber.

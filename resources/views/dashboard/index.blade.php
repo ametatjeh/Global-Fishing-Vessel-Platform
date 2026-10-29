@@ -14,7 +14,7 @@
                     <span>Global Situation Room</span>
                 </div>
                 <h2 class="text-xl sm:text-2xl font-black text-white tracking-wide">
-                    {{ config('app.name', 'Global Fishing Vessel Tracking') }}
+                    Global Fishing Vessel Tracking
                 </h2>
                 <p class="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl leading-relaxed">
                     Sistem pemantauan armada perikanan global dengan tiga pilar operasional: <strong>Live Vessel Tracking</strong>, <strong>Fishing Compliance</strong>, dan <strong>Dark Vessel Detection</strong> berbasis fusi telemetri AIS, citra radar satelit SAR, serta batas yurisdiksi FAO dan EEZ.
