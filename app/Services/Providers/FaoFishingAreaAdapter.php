@@ -18,8 +18,8 @@ class FaoFishingAreaAdapter implements ProviderAdapterInterface
 
     public function __construct()
     {
-        $this->sourceUrl = config('maritime.fao.source_url', 'https://www.fao.org/fishery/docs/maps/Default.htm');
-        $this->version = config('maritime.fao.version', '2024.1');
+        $this->sourceUrl = config('maritime.fao.source_url', 'https://www.fao.org/fishery/geoserver/wfs');
+        $this->version = config('maritime.fao.version', '2026.1-CWP');
         $this->license = config('maritime.fao.license', 'FAO Open Access Terms / CC-BY-NC-SA 3.0 IGO');
     }
 

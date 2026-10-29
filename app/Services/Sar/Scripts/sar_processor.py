@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Sentinel-1 SAR Real Preprocessing & CA-CFAR Detection Engine
-Global Fishing Vessel Intelligence Platform (GFVIP)
+Global Fishing Vessel Tracking (GFVT)
 """
 
 import sys

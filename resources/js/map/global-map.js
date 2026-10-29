@@ -1,6 +1,6 @@
 /**
  * Global Vessel Map Controller using MapLibre GL JS
- * Global Fishing Vessel Intelligence Platform (GFVIP)
+ * Global Fishing Vessel Tracking (GFVT)
  * ESRI World Dark Gray Canvas Basemap & Live Maritime Intelligence
  */
 import * as maplibregl from 'maplibre-gl';

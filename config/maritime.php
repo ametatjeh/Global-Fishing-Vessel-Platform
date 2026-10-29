@@ -6,7 +6,7 @@ return [
     | Global Maritime Intelligence Platform Settings
     |--------------------------------------------------------------------------
     */
-    'platform_name' => 'Global Fishing Vessel Intelligence Platform',
+    'platform_name' => 'Global Fishing Vessel Tracking',
     'version' => '1.0.0',
 
     /*
@@ -42,8 +42,8 @@ return [
     */
     'fao' => [
         'name' => 'FAO Major Fishing Areas for Statistical Purposes',
-        'version' => '2024.1',
-        'source_url' => 'https://www.fao.org/fishery/docs/maps/Default.htm',
+        'version' => '2026.1-CWP',
+        'source_url' => 'https://www.fao.org/fishery/geoserver/wfs',
         'license' => 'FAO Open Access Terms / CC-BY-NC-SA 3.0 IGO',
         'disclaimer' => 'FAO statistical fishing areas are designated for reporting, assessment, and statistical aggregation. They do not delineate actual, exclusive, or real-time fishing locations.',
     ],

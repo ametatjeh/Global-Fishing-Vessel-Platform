@@ -1,7 +1,7 @@
-# Global Fishing Vessel Intelligence Platform (GFVIP)
+# Global Fishing Vessel Tracking (GFVT)
 ## Offsite Disaster Recovery & Backup Architecture Design
 
-**Document ID:** `GFVIP-ARCH-BCP-001`  
+**Document ID:** `GFVT-ARCH-BCP-001`  
 **Classification:** Internal Operational Architecture  
 **Status:** DRAFT / PENDING OPERATOR APPROVAL  
 **Target Environment:** Production / Multi-Region Secondary Vault  
@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary & The 3-2-1 Backup Strategy
 
-The Global Fishing Vessel Intelligence Platform (GFVIP) processes sensitive maritime spatial data, live AIS telemetry, Copernicus Sentinel-1 SAR imagery products, and forensic investigation audit trails. To ensure operational resilience against site failures, hardware disasters, and ransomware, GFVIP adopts the industry-standard **3-2-1 Backup Strategy**:
+The Global Fishing Vessel Tracking platform processes sensitive maritime spatial data, live AIS telemetry, Copernicus Sentinel-1 SAR imagery products, and forensic investigation audit trails. To ensure operational resilience against site failures, hardware disasters, and ransomware, the platform adopts the industry-standard **3-2-1 Backup Strategy**:
 
 1. **3 Copies of Data:**
    - Primary Operational: Live PostgreSQL 18 + PostGIS database and active storage (`storage/app/sar_*`).

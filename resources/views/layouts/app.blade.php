@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ $title ?? config('app.name', 'Global Fishing Vessel Intelligence Platform') }}</title>
+    <title>{{ $title ?? config('app.name', 'Global Fishing Vessel Tracking') }}</title>
 
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,8 +24,8 @@
             <a href="{{ route('dashboard') }}" class="flex items-center gap-2.5">
                 <span class="text-2xl">🛰️</span>
                 <div class="leading-tight">
-                    <div class="text-xs font-bold text-teal-400 tracking-wider uppercase font-mono">GFVIP OPS</div>
-                    <div class="text-[13px] font-bold text-white tracking-tight truncate max-w-[150px]">Maritime Intel</div>
+                    <div class="text-xs font-bold text-teal-400 tracking-wider uppercase font-mono">GFVT OPS</div>
+                    <div class="text-[13px] font-bold text-white tracking-tight truncate max-w-[150px]">Vessel Tracking</div>
                 </div>
             </a>
             <span class="text-[10px] px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-300 border border-teal-500/30 font-mono">v1.0</span>
@@ -181,7 +181,7 @@
         <!-- Global Disclaimer Footer -->
         <footer class="px-6 py-4 border-t border-slate-800 text-[11px] text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2">
             <div>
-                &copy; {{ date('Y') }} Global Fishing Vessel Intelligence Platform. All rights reserved.
+                &copy; {{ date('Y') }} {{ config('app.name', 'Global Fishing Vessel Tracking') }}. All rights reserved.
             </div>
             <div class="text-[10px] text-slate-400 max-w-xl text-center sm:text-right">
                 Pemberitahuan: Proximity encounter, batas statistik FAO, dan deteksi SAR merupakan indikasi observasional intelijen maritim dan bukan bukti definitif pelanggaran hukum tanpa pembuktian multi-sumber.

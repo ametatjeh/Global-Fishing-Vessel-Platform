@@ -1,4 +1,4 @@
-# Global Fishing Vessel Intelligence Platform (GFVIP)
+# Global Fishing Vessel Tracking (GFVT)
 ## Production Operations & Incident Response Runbook
 
 **Document ID:** `GFVIP-OPS-RUN-001`  

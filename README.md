@@ -1,4 +1,4 @@
-# Global Fishing Vessel Intelligence Platform (GFVIP)
+# Global Fishing Vessel Tracking (GFVT)
 
 Platform intelijen maritim global berbasis Laravel 13, PostgreSQL/PostGIS, dan MapLibre GL JS untuk pemantauan armada perikanan dunia dengan tiga pilar utama:
 1. **Live Vessel Tracking** (Pelacakan telemetri posisi AIS kapal secara waktu nyata).

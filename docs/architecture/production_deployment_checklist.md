@@ -1,4 +1,4 @@
-# Global Fishing Vessel Intelligence Platform (GFVIP)
+# Global Fishing Vessel Tracking (GFVT)
 ## Production Deployment Configuration Checklist
 
 **Document ID:** `GFVIP-OPS-CHK-001`  

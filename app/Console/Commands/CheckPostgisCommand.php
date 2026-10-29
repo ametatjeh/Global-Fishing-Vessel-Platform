@@ -12,7 +12,7 @@ class CheckPostgisCommand extends Command
 
     public function handle(): int
     {
-        $this->info("=== GLOBAL FISHING VESSEL INTELLIGENCE PLATFORM ===");
+        $this->info("=== GLOBAL FISHING VESSEL TRACKING ===");
         $this->info("Pemeriksaan Database Geospasial & PostGIS");
         $this->newLine();
 

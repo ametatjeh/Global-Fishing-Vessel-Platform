@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Global Fishing Vessel Intelligence Platform (GFVIP)
+Global Fishing Vessel Tracking (GFVT)
 Sentinel-1 SAR Evidence Crop & Provenance Generator (Tahap 8)
 
 Extracts high-fidelity, deterministic evidence crops directly from authentic

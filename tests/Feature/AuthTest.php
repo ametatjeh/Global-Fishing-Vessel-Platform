@@ -21,7 +21,7 @@ class AuthTest extends TestCase
     {
         $response = $this->get('/login');
         $response->assertStatus(200);
-        $response->assertSee('Global Fishing Vessel Intelligence');
+        $response->assertSee('Global Fishing Vessel Tracking');
         $response->assertSee('Otentikasi Operasional');
     }
 
