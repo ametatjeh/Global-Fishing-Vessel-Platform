@@ -35,6 +35,7 @@ class MapLayerApiTest extends TestCase
         $layers = collect($response->json('layers'));
         $this->assertNotNull($layers->firstWhere('id', 'layer-live-vessels'));
         $this->assertNotNull($layers->firstWhere('id', 'layer-fao-areas'));
+        $this->assertNotNull($layers->firstWhere('id', 'layer-eez-boundaries'));
         $this->assertNotNull($layers->firstWhere('id', 'layer-eez-zones'));
         $this->assertNotNull($layers->firstWhere('id', 'layer-vessel-encounters'));
         $this->assertNotNull($layers->firstWhere('id', 'layer-dark-vessels'));
@@ -104,6 +105,30 @@ class MapLayerApiTest extends TestCase
         $this->assertCount(1, $response->json('features'));
         $this->assertEquals('Indonesian Exclusive Economic Zone', $response->json('features.0.properties.geoname'));
         $this->assertEquals('Indonesia', $response->json('features.0.properties.sovereign_state'));
+    }
+
+    public function test_eez_boundaries_layer_returns_geojson_line_collection(): void
+    {
+        \App\Models\EezBoundary::create([
+            'line_id' => 3201,
+            'line_name' => 'Indonesia - India Maritime Boundary (Treaty 1974)',
+            'line_type' => 'Treaty',
+            'sovereign1' => 'Indonesia',
+            'sovereign2' => 'India',
+            'length_km' => 89.5,
+            'geometry_geojson' => [
+                'type' => 'MultiLineString',
+                'coordinates' => [[[95.0, 5.0], [96.0, 6.0]]],
+            ],
+        ]);
+
+        $response = $this->getJson('/api/layers/eez-boundaries?bbox=90,0,100,10');
+
+        $response->assertStatus(200);
+        $this->assertEquals('FeatureCollection', $response->json('type'));
+        $this->assertCount(1, $response->json('features'));
+        $this->assertEquals('Indonesia - India Maritime Boundary (Treaty 1974)', $response->json('features.0.properties.line_name'));
+        $this->assertEquals('Treaty', $response->json('features.0.properties.line_type'));
     }
 
     public function test_fma_layer_returns_geojson_feature_collection(): void

@@ -36,6 +36,7 @@ export class GlobalMapController {
         this.activeLayers = Object.assign({
             fao: true,
             eez: true,
+            eezBoundaries: true,
             fma: true,
             encounters: true,
             vessels: true,
@@ -46,6 +47,7 @@ export class GlobalMapController {
         this.loadingState = {
             fao: false,
             eez: false,
+            eezBoundaries: false,
             fma: false,
             encounters: false,
             vessels: false,
@@ -57,6 +59,7 @@ export class GlobalMapController {
         this.layerData = {
             fao: null,
             eez: null,
+            eezBoundaries: null,
             fma: null,
             encounters: null,
             vessels: null,
@@ -236,10 +239,13 @@ export class GlobalMapController {
         this.addFaoLayer();
         this.addFmaLayer();
         this.addEezLayer();
-        this.addGfwLayer();
+        this.addEezBoundariesLayer();
         this.addSarSceneLayer();
+        this.addGfwLayer();
         this.addSarDetectionLayer();
         this.addAisLayers();
+
+        this.ensureLayerOrder();
     }
 
     addFaoLayer() {
@@ -344,10 +350,43 @@ export class GlobalMapController {
                     ['get', 'pol_type'],
                     'Overlapping claim', '#f59e0b',
                     'Joint regime', '#c084fc',
-                    '#2dd4bf'
+                    '#0d9488'
                 ],
-                'line-width': 2.6,
-                'line-opacity': 1.0
+                'line-width': 1.0,
+                'line-opacity': 0.35
+            }
+        });
+    }
+
+    addEezBoundariesLayer() {
+        if (this.map.getSource('eez-boundaries-source')) return;
+
+        this.map.addSource('eez-boundaries-source', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] }
+        });
+
+        this.map.addLayer({
+            id: 'eez-boundaries-layer',
+            type: 'line',
+            source: 'eez-boundaries-source',
+            layout: {
+                'visibility': this.activeLayers.eezBoundaries ? 'visible' : 'none',
+                'line-cap': 'round',
+                'line-join': 'round'
+            },
+            paint: {
+                // Dark slate boundary line (#64748b) for high-clarity maritime delimitation
+                'line-color': '#64748b',
+                'line-opacity': 0.90,
+                'line-width': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    2, 1.0,
+                    6, 1.4,
+                    10, 1.8
+                ]
             }
         });
     }
@@ -487,6 +526,57 @@ export class GlobalMapController {
                 'circle-stroke-color': '#ffffff'
             }
         });
+    }
+
+    ensureLayerOrder() {
+        if (!this.map) return;
+
+        // Visual rendering sequence (from bottom to topmost):
+        // 1. Basemap and ocean (Raster tiles: esri-dark-base, esri-dark-reference)
+        // 2. Polygons / Fills (FAO Major Areas, RFMO/FMA, EEZ Zones)
+        // 3. Official EEZ Maritime Boundaries Lines (eez-boundaries-layer)
+        // 4. Overlays & Analysis (SAR scenes footprint, encounters, dark vessel detections)
+        // 5. Vessels — strictly topmost (vessels-circle-layer)
+        const orderedLayers = [
+            // 2. Polygons & Fills
+            'fao-fill-layer',
+            'fma-fill-layer',
+            'eez-fill-layer',
+            'sar-scenes-fill-layer',
+
+            // 2b. Context outlines
+            'fao-line-layer',
+            'fma-line-layer',
+            'eez-line-layer',
+
+            // 3. Official EEZ Boundaries line layer (Dark, crisp, distinct)
+            'eez-boundaries-layer',
+
+            // 4. Analysis & Detection layers
+            'sar-scenes-line-layer',
+            'encounters-circle-layer',
+            'dark-vessels-circle-layer',
+
+            // 5. Vessel Symbols — strictly topmost
+            'vessels-circle-layer'
+        ];
+
+        orderedLayers.forEach((layerId) => {
+            if (this.map.getLayer(layerId)) {
+                try {
+                    this.map.moveLayer(layerId);
+                } catch (e) {
+                    // Ignore transient layer state
+                }
+            }
+        });
+
+        // Unconditional enforcement: vessel symbols remain on top of everything
+        if (this.map.getLayer('vessels-circle-layer')) {
+            try {
+                this.map.moveLayer('vessels-circle-layer');
+            } catch (e) {}
+        }
     }
 
     attachEventListeners() {
@@ -716,6 +806,35 @@ export class GlobalMapController {
             this.showPopup(e.lngLat, html);
         });
 
+        // Official EEZ Boundaries Line Click Popup
+        this.map.on('click', 'eez-boundaries-layer', (e) => {
+            if (!e.features.length) return;
+            const props = e.features[0].properties;
+            const sovInfo = props.sovereign2 
+                ? `${props.sovereign1 || '-'} &bull; ${props.sovereign2}`
+                : (props.sovereign1 || 'International / UNCLOS');
+
+            const html = `
+                <div class="space-y-2 text-xs font-sans">
+                    <div class="flex items-center justify-between border-b border-slate-700 pb-1">
+                        <span class="font-bold text-slate-200 flex items-center gap-1.5">
+                            <span>📏</span> EEZ Boundary Line
+                        </span>
+                        <span class="px-1.5 py-0.5 rounded text-[9px] bg-slate-800 text-slate-300 border border-slate-700 font-bold uppercase">
+                            ${props.line_type || 'Delimitation'}
+                        </span>
+                    </div>
+                    <div class="text-white font-semibold">${props.line_name || 'Maritime Boundary'}</div>
+                    <div class="text-[11px] text-slate-300">Negara: <strong class="text-teal-300">${sovInfo}</strong></div>
+                    <div class="text-[10px] text-slate-400 font-mono">Panjang: <strong class="text-white">${props.length_km ? Number(props.length_km).toLocaleString() + ' km' : '-'}</strong> &bull; Line ID: ${props.line_id || '-'}</div>
+                    <div class="text-[10px] text-slate-400 bg-slate-900/80 p-2 rounded border border-slate-800">
+                        Sumber: ${props.source1 || 'VLIZ Marine Regions v12'} ${props.doc_date ? `(${props.doc_date})` : ''}
+                    </div>
+                </div>
+            `;
+            this.showPopup(e.lngLat, html);
+        });
+
         // Encounters Click Popup
         this.map.on('click', 'encounters-circle-layer', (e) => {
             if (!e.features.length) return;
@@ -744,6 +863,7 @@ export class GlobalMapController {
             'fao-fill-layer',
             'fma-fill-layer',
             'eez-fill-layer',
+            'eez-boundaries-layer',
             'encounters-circle-layer',
             'vessels-circle-layer',
             'dark-vessels-circle-layer',
@@ -794,6 +914,7 @@ export class GlobalMapController {
             fao: ['fao-fill-layer', 'fao-line-layer'],
             fma: ['fma-fill-layer', 'fma-line-layer'],
             eez: ['eez-fill-layer', 'eez-line-layer'],
+            eezBoundaries: ['eez-boundaries-layer'],
             encounters: ['encounters-circle-layer'],
             vessels: ['vessels-circle-layer'],
             darkVessels: ['dark-vessels-circle-layer'],
@@ -810,6 +931,8 @@ export class GlobalMapController {
         if (visible) {
             this.fetchLayerData(layerKey);
         }
+
+        this.ensureLayerOrder();
     }
 
     refreshAllActiveLayers() {
@@ -826,6 +949,7 @@ export class GlobalMapController {
             fao: `/api/layers/fao?bbox=${bbox || ''}`,
             fma: `/api/layers/fma?bbox=${bbox || ''}`,
             eez: `/api/layers/eez?bbox=${bbox || ''}`,
+            eezBoundaries: `/api/layers/eez-boundaries?bbox=${bbox || ''}`,
             encounters: `/api/layers/encounters?bbox=${bbox || ''}`,
             vessels: `/api/layers/vessels?bbox=${bbox || ''}`,
             darkVessels: `/api/layers/dark-vessels?bbox=${bbox || ''}`,
@@ -836,6 +960,7 @@ export class GlobalMapController {
             fao: 'fao-source',
             fma: 'fma-source',
             eez: 'eez-source',
+            eezBoundaries: 'eez-boundaries-source',
             encounters: 'encounters-source',
             vessels: 'vessels-source',
             darkVessels: 'dark-vessels-source',
@@ -859,6 +984,7 @@ export class GlobalMapController {
                 this.map.getSource(sourceId).setData(geojson);
             }
             this.updateLayerCountBadge(layerKey, geojson.features ? geojson.features.length : 0);
+            this.ensureLayerOrder();
         } catch (err) {
             console.error(`[GlobalMapController] Error loading layer ${layerKey}:`, err);
             this.showLayerError(layerKey);
@@ -911,6 +1037,9 @@ export class GlobalMapController {
         } else if (type === 'eez') {
             sourceId = 'eez-source';
             layerKey = 'eez';
+        } else if (type === 'eez-boundaries' || type === 'boundaries') {
+            sourceId = 'eez-boundaries-source';
+            layerKey = 'eezBoundaries';
         } else if (type === 'fao') {
             sourceId = 'fao-source';
             layerKey = 'fao';
@@ -942,6 +1071,24 @@ export class GlobalMapController {
                     bounds.extend([lng, lat]);
                     validCoords++;
                 }
+            } else if (geom.type === 'LineString' && Array.isArray(geom.coordinates)) {
+                geom.coordinates.forEach(([lng, lat]) => {
+                    if (this.isValidCoord(lng, lat)) {
+                        bounds.extend([lng, lat]);
+                        validCoords++;
+                    }
+                });
+            } else if (geom.type === 'MultiLineString' && Array.isArray(geom.coordinates)) {
+                geom.coordinates.forEach((line) => {
+                    if (Array.isArray(line)) {
+                        line.forEach(([lng, lat]) => {
+                            if (this.isValidCoord(lng, lat)) {
+                                bounds.extend([lng, lat]);
+                                validCoords++;
+                            }
+                        });
+                    }
+                });
             } else if (geom.type === 'Polygon' && Array.isArray(geom.coordinates)) {
                 geom.coordinates[0].forEach(([lng, lat]) => {
                     if (this.isValidCoord(lng, lat)) {

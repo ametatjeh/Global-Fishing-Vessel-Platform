@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\FaoFishingArea;
 use App\Models\FisheriesManagementArea;
 use App\Models\EezZone;
+use App\Models\EezBoundary;
 use App\Models\Vessel;
 use App\Models\VesselPosition;
 use App\Models\VesselEncounter;
@@ -124,6 +125,72 @@ class SpatialQueryService
             'metadata' => [
                 'count' => count($features),
                 'dataset' => 'Maritime Boundaries Geodatabase: Exclusive Economic Zone (200NM) v12 (October 2023)',
+                'doi' => '10.14284/632',
+                'publisher' => 'Flanders Marine Institute (VLIZ) Marine Regions',
+                'license' => 'CC BY 4.0 International',
+            ]
+        ];
+    }
+
+    /**
+     * Get Official Marine Regions EEZ Boundary Lines as GeoJSON FeatureCollection
+     */
+    public function getEezBoundariesFeatureCollection(?array $bbox = null, ?string $search = null): array
+    {
+        $query = EezBoundary::query();
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('line_name', 'like', "%{$search}%")
+                  ->orWhere('sovereign1', 'like', "%{$search}%")
+                  ->orWhere('sovereign2', 'like', "%{$search}%")
+                  ->orWhere('line_type', 'like', "%{$search}%");
+            });
+        }
+
+        $normalizedBBox = $this->normalizeBBox($bbox);
+        if ($normalizedBBox) {
+            $query->inBoundingBox($normalizedBBox[0], $normalizedBBox[1], $normalizedBBox[2], $normalizedBBox[3]);
+        }
+
+        $lines = $query->limit(2500)->get();
+
+        $features = [];
+        foreach ($lines as $line) {
+            $geom = is_array($line->geometry_geojson) 
+                ? $line->geometry_geojson 
+                : json_decode($line->geometry_geojson, true);
+            if (!$geom) continue;
+
+            $features[] = [
+                'type' => 'Feature',
+                'id' => $line->id,
+                'geometry' => $geom,
+                'properties' => [
+                    'id' => $line->id,
+                    'line_id' => $line->line_id,
+                    'line_name' => $line->line_name,
+                    'line_type' => $line->line_type,
+                    'sovereign1' => $line->sovereign1,
+                    'sovereign2' => $line->sovereign2,
+                    'territory1' => $line->territory1,
+                    'territory2' => $line->territory2,
+                    'eez1' => $line->eez1,
+                    'eez2' => $line->eez2,
+                    'source1' => $line->source1,
+                    'url1' => $line->url1,
+                    'doc_date' => $line->doc_date,
+                    'length_km' => $line->length_km,
+                ]
+            ];
+        }
+
+        return [
+            'type' => 'FeatureCollection',
+            'features' => $features,
+            'metadata' => [
+                'count' => count($features),
+                'dataset' => 'Maritime Boundaries Geodatabase: Maritime Boundaries v12 (eez_boundaries_v12)',
                 'doi' => '10.14284/632',
                 'publisher' => 'Flanders Marine Institute (VLIZ) Marine Regions',
                 'license' => 'CC BY 4.0 International',

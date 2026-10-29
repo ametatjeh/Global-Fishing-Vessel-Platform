@@ -164,15 +164,34 @@
             <div class="space-y-1.5 pt-1 border-t border-slate-800">
                 <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Konteks Geospasial Maritim</div>
 
+                <!-- EEZ Boundaries (Official Treaty & 200NM Lines) -->
+                <label class="flex items-start justify-between p-2 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-slate-600 transition cursor-pointer">
+                    <div class="flex items-start gap-2.5">
+                        <input type="checkbox" id="toggle-layer-eez-boundaries" checked class="mt-0.5 rounded bg-slate-800 border-slate-700 text-slate-400 focus:ring-slate-400">
+                        <div>
+                            <div class="font-bold text-slate-200 flex items-center gap-1.5">
+                                <span class="w-3 h-0.5 bg-slate-400"></span>
+                                <span>EEZ Boundaries</span>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Garis batas maritim resmi (Treaty & 200NM)</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span id="loading-eezBoundaries" class="text-[10px] text-slate-400 animate-spin" style="display: none;">⏳</span>
+                        <span id="count-eezBoundaries" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">0</span>
+                    </div>
+                </label>
+
+                <!-- EEZ Zones (Polygons / Fill) -->
                 <label class="flex items-start justify-between p-2 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-teal-500/50 transition cursor-pointer">
                     <div class="flex items-start gap-2.5">
                         <input type="checkbox" id="toggle-layer-eez" checked class="mt-0.5 rounded bg-slate-800 border-slate-700 text-teal-500 focus:ring-teal-400">
                         <div>
                             <div class="font-bold text-slate-200 flex items-center gap-1.5">
-                                <span class="w-2.5 h-0.5 bg-teal-400"></span>
-                                <span>World EEZ (Marine Regions v12)</span>
+                                <span class="w-2.5 h-2.5 rounded-sm bg-teal-500/20 border border-teal-500"></span>
+                                <span>World EEZ Zones (Poligon)</span>
                             </div>
-                            <p class="text-[10px] text-slate-400 mt-0.5">Maritime Boundaries 200NM (VLIZ)</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Maritime Boundaries 200NM (VLIZ v12)</p>
                         </div>
                     </div>
                     <div class="text-right">
@@ -228,8 +247,8 @@
                 <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Matched AIS</div>
                 <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Possible Vessel</div>
                 <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-cyan-400"></span> Possible Ice/Clutter</div>
-                <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-slate-400"></span> Inconclusive</div>
-                <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-yellow-400"></span> Pending Review</div>
+                <div class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-slate-400"></span> EEZ Boundaries</div>
+                <div class="flex items-center gap-1.5"><span class="w-2.5 h-2 bg-teal-500/20 border border-teal-500"></span> EEZ Zones (Fill)</div>
                 <div class="flex items-center gap-1.5"><span class="w-2.5 h-0.5 bg-amber-400"></span> AIS Track</div>
                 <div class="flex items-center gap-1.5"><span class="w-2.5 h-2 bg-purple-500/30 border border-purple-400"></span> SAR Footprint</div>
             </div>
@@ -311,9 +330,10 @@
 
         // Checkbox Layer Toggles
         const layerToggles = [
+            { id: 'toggle-layer-eez-boundaries', key: 'eezBoundaries' },
+            { id: 'toggle-layer-eez', key: 'eez' },
             { id: 'toggle-layer-fao', key: 'fao' },
             { id: 'toggle-layer-fma', key: 'fma' },
-            { id: 'toggle-layer-eez', key: 'eez' },
             { id: 'toggle-layer-encounters', key: 'encounters' },
             { id: 'toggle-layer-vessels', key: 'vessels' },
             { id: 'toggle-layer-dark-vessels', key: 'darkVessels' },

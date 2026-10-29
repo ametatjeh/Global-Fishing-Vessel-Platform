@@ -91,6 +91,8 @@ class MapLibreFullVisualizationTest extends TestCase
         $response->assertSee('btnFitSarCandidates');
         $response->assertSee('btnFitSarScene');
         $response->assertSee('btnResetView');
+        $response->assertSee('toggle-layer-eez-boundaries');
+        $response->assertSee('EEZ Boundaries');
         $response->assertSee('toggle-layer-vessels');
         $response->assertSee('toggle-layer-dark-vessels');
         $response->assertSee('toggle-layer-sar-scenes');

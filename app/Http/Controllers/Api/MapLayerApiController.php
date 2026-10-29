@@ -46,9 +46,22 @@ class MapLayerApiController extends Controller
                     'disclaimer' => config('maritime.fao.disclaimer', 'Wilayah statistik FAO tidak menyatakan pendapat hukum apapun mengenai status hukum negara atau perbatasan laut.'),
                 ],
                 [
+                    'id' => 'layer-eez-boundaries',
+                    'name' => 'EEZ Boundaries',
+                    'type' => 'line',
+                    'color' => '#64748b', // slate-500
+                    'provider_status' => 'connected',
+                    'version' => 'v12 (October 2023)',
+                    'license' => 'Creative Commons Attribution 4.0 International (CC BY 4.0)',
+                    'source_url' => 'https://www.marineregions.org/downloads.php',
+                    'attribution' => 'Flanders Marine Institute (VLIZ) Marine Regions (DOI: 10.14284/632)',
+                    'description' => 'Garis batas resmi delimitasi maritim global Marine Regions v12 (Treaty, 200 NM outer limit, median lines).',
+                    'disclaimer' => 'Batas yurisdiksi hak ekonomi maritim UNCLOS / traktat bilateral. Bukan penetapan batas hukum final untuk klaim tumpang tindih.',
+                ],
+                [
                     'id' => 'layer-eez-zones',
                     'name' => 'World EEZ (Marine Regions v12)',
-                    'type' => 'line',
+                    'type' => 'fill',
                     'color' => '#14b8a6', // teal-500
                     'provider_status' => 'connected',
                     'version' => 'v12 (October 2023)',
@@ -114,6 +127,19 @@ class MapLayerApiController extends Controller
         $search = $request->query('q');
 
         $data = $this->spatial->getEezFeatureCollection($bbox, $search);
+
+        return response()->json($data);
+    }
+
+    /**
+     * Get Marine Regions EEZ Boundaries Line Geometries GeoJSON
+     */
+    public function eezBoundaries(Request $request): JsonResponse
+    {
+        $bbox = $this->parseBBox($request->query('bbox'));
+        $search = $request->query('q');
+
+        $data = $this->spatial->getEezBoundariesFeatureCollection($bbox, $search);
 
         return response()->json($data);
     }
