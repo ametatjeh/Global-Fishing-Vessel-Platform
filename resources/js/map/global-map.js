@@ -7,10 +7,41 @@ import * as maplibregl from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-// Ensure MapLibre Web Worker is loaded correctly via Vite asset pipeline
-if (maplibregl.config) {
-    maplibregl.config.WORKER_URL = maplibreWorkerUrl;
+// Ensure MapLibre Web Worker is loaded correctly across all server environments.
+// If the server serves .mjs as application/octet-stream (e.g. default Nginx on aaPanel/Ubuntu),
+// browsers reject module workers. We create an in-memory Blob URL with explicit text/javascript MIME type,
+// with static /assets/maplibre-gl-worker.js as fallback.
+let resolvedWorkerUrl = null;
+
+async function configureSafeWorker() {
+    if (resolvedWorkerUrl) return resolvedWorkerUrl;
+
+    try {
+        const res = await fetch(maplibreWorkerUrl);
+        if (res.ok) {
+            const script = await res.text();
+            const blob = new Blob([script], { type: 'text/javascript' });
+            resolvedWorkerUrl = URL.createObjectURL(blob);
+            if (maplibregl.config) {
+                maplibregl.config.WORKER_URL = resolvedWorkerUrl;
+            }
+            return resolvedWorkerUrl;
+        }
+    } catch (e) {
+        console.warn('[MapLibre Worker] Blob conversion fallback:', e);
+    }
+
+    // Static fallback with .js extension served as application/javascript by Nginx
+    resolvedWorkerUrl = '/assets/maplibre-gl-worker.js';
+    if (maplibregl.config) {
+        maplibregl.config.WORKER_URL = resolvedWorkerUrl;
+    }
+    return resolvedWorkerUrl;
 }
+
+// Initial worker setup
+configureSafeWorker();
+
 if (typeof window !== 'undefined') {
     window.maplibregl = maplibregl;
 }
@@ -36,6 +67,16 @@ export class GlobalMapController {
             vessels: false,
             darkVessels: false,
             sarScenes: false,
+        };
+
+        // Internal layer GeoJSON cache for reliable bounds fitting and UI interaction
+        this.layerData = {
+            fao: null,
+            eez: null,
+            encounters: null,
+            vessels: null,
+            darkVessels: null,
+            sarScenes: null,
         };
 
         this.debounceTimer = null;
@@ -230,7 +271,7 @@ export class GlobalMapController {
             layout: { visibility: this.activeLayers.fao ? 'visible' : 'none' },
             paint: {
                 'fill-color': '#6366f1',
-                'fill-opacity': 0.16
+                'fill-opacity': 0.14
             }
         });
 
@@ -241,7 +282,8 @@ export class GlobalMapController {
             layout: { visibility: this.activeLayers.fao ? 'visible' : 'none' },
             paint: {
                 'line-color': '#a5b4fc',
-                'line-width': 2.0,
+                'line-width': 2.2,
+                'line-opacity': 1.0,
                 'line-dasharray': [4, 2]
             }
         });
@@ -262,7 +304,7 @@ export class GlobalMapController {
             layout: { visibility: this.activeLayers.eez ? 'visible' : 'none' },
             paint: {
                 'fill-color': '#0d9488',
-                'fill-opacity': 0.18
+                'fill-opacity': 0.16
             }
         });
 
@@ -273,7 +315,8 @@ export class GlobalMapController {
             layout: { visibility: this.activeLayers.eez ? 'visible' : 'none' },
             paint: {
                 'line-color': '#2dd4bf',
-                'line-width': 2.2
+                'line-width': 2.8,
+                'line-opacity': 1.0
             }
         });
     }
@@ -743,6 +786,9 @@ export class GlobalMapController {
             if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
             const geojson = await res.json();
 
+            // Cache data in controller instance
+            this.layerData[layerKey] = geojson;
+
             if (this.map.getSource(sourceId)) {
                 this.map.getSource(sourceId).setData(geojson);
             }
@@ -786,20 +832,34 @@ export class GlobalMapController {
         if (!this.map) return;
 
         let sourceId = 'vessels-source';
-        if (type === 'sar-candidates' || type === 'dark-vessels') sourceId = 'dark-vessels-source';
-        else if (type === 'sar-scenes') sourceId = 'sar-scenes-source';
-        else if (type === 'vessels') sourceId = 'vessels-source';
-        else if (type === 'eez') sourceId = 'eez-source';
-        else if (type === 'fao') sourceId = 'fao-source';
+        let layerKey = 'vessels';
+        if (type === 'sar-candidates' || type === 'dark-vessels') {
+            sourceId = 'dark-vessels-source';
+            layerKey = 'darkVessels';
+        } else if (type === 'sar-scenes') {
+            sourceId = 'sar-scenes-source';
+            layerKey = 'sarScenes';
+        } else if (type === 'vessels') {
+            sourceId = 'vessels-source';
+            layerKey = 'vessels';
+        } else if (type === 'eez') {
+            sourceId = 'eez-source';
+            layerKey = 'eez';
+        } else if (type === 'fao') {
+            sourceId = 'fao-source';
+            layerKey = 'fao';
+        }
 
         const source = this.map.getSource(sourceId);
-        if (!source || !source._data || !source._data.features || !source._data.features.length) {
+        const cached = this.layerData[layerKey];
+        const features = cached?.features || source?._data?.geojson?.features || source?._data?.features || [];
+
+        if (!features || !features.length) {
             // Default view: Southeast Asia / Global Maritime Baseline
             this.map.flyTo({ center: [100.0, 5.0], zoom: 4 });
             return;
         }
 
-        const features = source._data.features;
         const bounds = new maplibregl.LngLatBounds();
         let validCoords = 0;
 

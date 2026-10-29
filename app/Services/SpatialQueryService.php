@@ -24,8 +24,9 @@ class SpatialQueryService
             $query->search($search);
         }
 
-        if ($bbox && count($bbox) === 4) {
-            $query->inBoundingBox($bbox[0], $bbox[1], $bbox[2], $bbox[3]);
+        $normalizedBBox = $this->normalizeBBox($bbox);
+        if ($normalizedBBox) {
+            $query->inBoundingBox($normalizedBBox[0], $normalizedBBox[1], $normalizedBBox[2], $normalizedBBox[3]);
         }
 
         $areas = $query->limit(50)->get();
@@ -76,8 +77,9 @@ class SpatialQueryService
             $query->search($search);
         }
 
-        if ($bbox && count($bbox) === 4) {
-            $query->inBoundingBox($bbox[0], $bbox[1], $bbox[2], $bbox[3]);
+        $normalizedBBox = $this->normalizeBBox($bbox);
+        if ($normalizedBBox) {
+            $query->inBoundingBox($normalizedBBox[0], $normalizedBBox[1], $normalizedBBox[2], $normalizedBBox[3]);
         }
 
         $eezs = $query->limit(60)->get();
@@ -403,5 +405,40 @@ class SpatialQueryService
                 'dataset' => 'Sentinel-1 C-SAR Scenes',
             ],
         ];
+    }
+
+    /**
+     * Normalize and sanitize bounding box coordinates
+     * Clamps latitudes to [-90, 90] and ignores BBox if zoomed out to full world
+     *
+     * @param array|null $bbox [minLng, minLat, maxLng, maxLat]
+     * @return array|null
+     */
+    protected function normalizeBBox(?array $bbox): ?array
+    {
+        if (!$bbox || count($bbox) !== 4) {
+            return null;
+        }
+
+        $minLng = (float) $bbox[0];
+        $minLat = (float) $bbox[1];
+        $maxLng = (float) $bbox[2];
+        $maxLat = (float) $bbox[3];
+
+        // If viewport spans full world (>= 360 degrees) or covers global bounds, skip bbox filter
+        if (abs($maxLng - $minLng) >= 360 || ($minLng <= -179 && $maxLng >= 179)) {
+            return null;
+        }
+
+        // Clamp latitude to valid [-90, 90]
+        $minLat = max(-90.0, min(90.0, $minLat));
+        $maxLat = max(-90.0, min(90.0, $maxLat));
+
+        // Clamp longitude boundaries if within single globe view
+        if ($minLng < -180 && $maxLng > 180) {
+            return null;
+        }
+
+        return [$minLng, $minLat, $maxLng, $maxLat];
     }
 }
