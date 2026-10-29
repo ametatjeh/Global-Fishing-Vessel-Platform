@@ -329,6 +329,8 @@ class SystemHealthService
                 'status' => 'DIRECTORY_MISSING',
                 'message' => 'Direktori backup belum ditemukan pada ' . $backupDir,
                 'backup_root' => $backupDir,
+                'last_backup_utc' => null,
+                'dump_size_mb' => 0,
             ];
         }
 
@@ -338,6 +340,8 @@ class SystemHealthService
                 'status' => 'NOT_VERIFIED',
                 'message' => 'No backup manifest found at ' . $manifestFile,
                 'backup_root' => $backupDir,
+                'last_backup_utc' => null,
+                'dump_size_mb' => 0,
             ];
         }
 
@@ -347,6 +351,8 @@ class SystemHealthService
                 'status' => 'CORRUPTED',
                 'message' => 'Manifest backup ditemukan pada ' . $manifestFile . ' namun format JSON rusak atau tidak sesuai skema.',
                 'backup_root' => $backupDir,
+                'last_backup_utc' => null,
+                'dump_size_mb' => 0,
             ];
         }
 
@@ -399,6 +405,8 @@ class SystemHealthService
                 'status' => 'FAILED',
                 'message' => 'Failed to parse backup manifest: ' . $e->getMessage(),
                 'backup_root' => $backupDir,
+                'last_backup_utc' => null,
+                'dump_size_mb' => 0,
             ];
         }
     }
@@ -417,6 +425,16 @@ class SystemHealthService
                 'status' => 'NOT_VERIFIED',
                 'message' => 'No disaster recovery test report found at ' . $reportFile,
                 'backup_root' => $backupDir,
+                'last_dr_test_utc' => null,
+                'age_days' => null,
+                'dump_tested' => null,
+                'isolated_database' => null,
+                'verification_passed' => false,
+                'verified_detections' => null,
+                'verified_scenes' => null,
+                'candidate_0054_verified' => false,
+                'sar_evidence_verified' => false,
+                'conclusion' => 'No disaster recovery test report found.',
             ];
         }
 
@@ -433,6 +451,7 @@ class SystemHealthService
 
             return [
                 'status' => $status,
+                'backup_root' => $backupDir,
                 'last_dr_test_utc' => $report['tested_at_utc'] ?? null,
                 'age_days' => $ageDays,
                 'dump_tested' => $report['dump_tested'] ?? 'unknown',
@@ -448,6 +467,17 @@ class SystemHealthService
             return [
                 'status' => 'FAILED',
                 'message' => 'Failed to parse recovery report: ' . $e->getMessage(),
+                'backup_root' => $backupDir,
+                'last_dr_test_utc' => null,
+                'age_days' => null,
+                'dump_tested' => null,
+                'isolated_database' => null,
+                'verification_passed' => false,
+                'verified_detections' => null,
+                'verified_scenes' => null,
+                'candidate_0054_verified' => false,
+                'sar_evidence_verified' => false,
+                'conclusion' => 'Failed to parse recovery report.',
             ];
         }
     }

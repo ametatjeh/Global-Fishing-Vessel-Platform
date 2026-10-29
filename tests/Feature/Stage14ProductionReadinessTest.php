@@ -85,6 +85,23 @@ class Stage14ProductionReadinessTest extends TestCase
         $this->assertStringNotContainsString('bearer ', strtolower($content));
     }
 
+    public function test_api_health_endpoint_detailed_succeeds_even_when_dr_report_is_missing(): void
+    {
+        // Point backup root to an empty temporary directory (simulates fresh server / missing DR report on aaPanel)
+        $emptyDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'empty_backup_dir_' . uniqid();
+        config(['maritime.backup.root_dir' => $emptyDir]);
+
+        $response = $this->getJson('/api/health?detail=1');
+
+        $response->assertStatus(200);
+        $json = $response->json();
+
+        $this->assertEquals('NOT_VERIFIED', $json['backup_and_dr']['dr_status']);
+        $this->assertNull($json['backup_and_dr']['last_dr_test_utc']);
+        $this->assertNull($json['backup_and_dr']['verified_detections']);
+        $this->assertFalse($json['backup_and_dr']['evidence_crops_verified']);
+    }
+
     public function test_viewer_is_forbidden_from_updating_offsite_backup_gate(): void
     {
         $response = $this->actingAs($this->viewer)

@@ -159,17 +159,32 @@
                     @php
                         $lat = $v->latestPosition?->latitude;
                         $lng = $v->latestPosition?->longitude;
+                        $hasValidPos = $lat !== null && $lng !== null && is_finite($lat) && is_finite($lng) && $lat >= -90.0 && $lat <= 90.0 && $lng >= -180.0 && $lng <= 180.0 && !($lat == 0.0 && $lng == 0.0);
                         $flagInfo = $v->flag_info;
+                        $observedTime = $v->latestPosition?->observed_at?->format('Y-m-d H:i:s') ?? '-';
+                        $speedKnots = $v->latestPosition?->speed_knots !== null ? (float)$v->latestPosition->speed_knots : 0;
+                        $courseDeg = $v->latestPosition?->course_degrees !== null ? (float)$v->latestPosition->course_degrees : 0;
                     @endphp
-                    <button type="button" 
-                            onclick="focusVessel({{ $lat ?? 0 }}, {{ $lng ?? 0 }}, '{{ addslashes($v->name) }}', '{{ $v->mmsi }}', '{{ addslashes($flagInfo['label']) }}', {{ $v->latestPosition?->speed_knots ?? 0 }}, {{ $v->latestPosition?->course_degrees ?? 0 }}, '{{ $v->latestPosition?->observed_at?->format('Y-m-d H:i:s') ?? '-' }}', '{{ route('vessels.show', $v->id) }}')"
-                            class="w-full text-left p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800/90 border border-slate-800 hover:border-sky-500/40 transition flex items-center justify-between group">
+                    <button type="button"
+                            class="vessel-focus-btn w-full text-left p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800/90 border border-slate-800 hover:border-sky-500/40 transition flex items-center justify-between group {{ !$hasValidPos ? 'opacity-50 cursor-not-allowed' : '' }}"
+                            data-has-coords="{{ $hasValidPos ? 'true' : 'false' }}"
+                            data-lat="{{ $lat ?? '' }}"
+                            data-lng="{{ $lng ?? '' }}"
+                            data-name="{{ $v->name }}"
+                            data-mmsi="{{ $v->mmsi }}"
+                            data-flag="{{ $flagInfo['label'] }}"
+                            data-sog="{{ $speedKnots }}"
+                            data-cog="{{ $courseDeg }}"
+                            data-time="{{ $observedTime }}"
+                            data-url="{{ route('vessels.show', $v->id) }}"
+                            {{ !$hasValidPos ? 'disabled' : '' }}
+                            title="{{ $hasValidPos ? 'Pusatkan radar ke kapal ini' : 'Koordinat posisi belum tersedia' }}">
                         <div class="truncate">
                             <div class="font-bold text-slate-200 group-hover:text-white truncate flex items-center gap-1.5">
                                 <span>{{ $flagInfo['flag_emoji'] }}</span>
                                 <span class="truncate">{{ $v->name }}</span>
                             </div>
-                            <div class="text-[10px] text-slate-500">MMSI: {{ $v->mmsi }} &bull; {{ $v->latestPosition?->speed_knots ?? 0 }} kn &bull; {{ $flagInfo['iso2'] }}</div>
+                            <div class="text-[10px] text-slate-500">MMSI: {{ $v->mmsi }} &bull; {{ $speedKnots }} kn &bull; {{ $flagInfo['iso2'] }}</div>
                         </div>
                         <span class="text-sky-400 text-xs shrink-0">&bull;&rarr;</span>
                     </button>
@@ -299,6 +314,28 @@
                 }
             });
         }
+
+        // Attach click listeners to Quick Radar Focus vessel buttons
+        document.querySelectorAll('.vessel-focus-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const hasCoords = btn.getAttribute('data-has-coords') === 'true';
+                if (!hasCoords) {
+                    alert('Posisi koordinat kapal ini belum tersedia atau tidak valid.');
+                    return;
+                }
+                const lat = parseFloat(btn.getAttribute('data-lat'));
+                const lng = parseFloat(btn.getAttribute('data-lng'));
+                const name = btn.getAttribute('data-name') || '-';
+                const mmsi = btn.getAttribute('data-mmsi') || '-';
+                const flag = btn.getAttribute('data-flag') || 'UN';
+                const sog = parseFloat(btn.getAttribute('data-sog')) || 0;
+                const cog = parseFloat(btn.getAttribute('data-cog')) || 0;
+                const time = btn.getAttribute('data-time') || '-';
+                const linkUrl = btn.getAttribute('data-url') || '';
+
+                focusVessel(lat, lng, name, mmsi, flag, sog, cog, time, linkUrl);
+            });
+        });
     }
 
     if (document.readyState === 'loading') {
@@ -308,7 +345,12 @@
     }
 
     function focusVessel(lat, lng, name, mmsi, flag, sog, cog, time, linkUrl) {
-        if (trackingMapController && trackingMapController.map && lat && lng && isFinite(lat) && isFinite(lng)) {
+        if (typeof lat !== 'number' || typeof lng !== 'number' || !isFinite(lat) || !isFinite(lng) || lat < -90.0 || lat > 90.0 || lng < -180.0 || lng > 180.0 || (lat === 0.0 && lng === 0.0)) {
+            console.warn('[Tracking] Invalid coordinates rejected in focusVessel:', { lat, lng, mmsi });
+            return;
+        }
+
+        if (trackingMapController && trackingMapController.map) {
             trackingMapController.setSelectedVesselByMmsi(mmsi);
 
             trackingMapController.map.flyTo({
@@ -317,22 +359,33 @@
                 essential: true
             });
 
-            // Update Telemetry Sidebar content
-            document.getElementById('tel-vessel-name').innerText = name;
-            document.getElementById('tel-vessel-mmsi').innerText = mmsi;
-            document.getElementById('tel-vessel-flag').innerText = flag || 'UN';
-            document.getElementById('tel-vessel-sog').innerText = sog + ' kn';
-            document.getElementById('tel-vessel-cog').innerText = cog + '°';
-            document.getElementById('tel-vessel-coords').innerText = lat.toFixed(4) + '°, ' + lng.toFixed(4) + '°';
-            document.getElementById('tel-vessel-time').innerText = time + ' UTC';
-            document.getElementById('selected-vessel-badge').innerText = 'FOKUS AKTIF';
-            document.getElementById('selected-vessel-badge').className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
-
+            // Update Telemetry Sidebar content safely using textContent
+            const elName = document.getElementById('tel-vessel-name');
+            const elMmsi = document.getElementById('tel-vessel-mmsi');
+            const elFlag = document.getElementById('tel-vessel-flag');
+            const elSog = document.getElementById('tel-vessel-sog');
+            const elCog = document.getElementById('tel-vessel-cog');
+            const elCoords = document.getElementById('tel-vessel-coords');
+            const elTime = document.getElementById('tel-vessel-time');
+            const elBadge = document.getElementById('selected-vessel-badge');
             const linkEl = document.getElementById('tel-vessel-link');
+
+            if (elName) elName.textContent = name;
+            if (elMmsi) elMmsi.textContent = mmsi;
+            if (elFlag) elFlag.textContent = flag || 'UN';
+            if (elSog) elSog.textContent = sog + ' kn';
+            if (elCog) elCog.textContent = cog + '°';
+            if (elCoords) elCoords.textContent = lat.toFixed(4) + '°, ' + lng.toFixed(4) + '°';
+            if (elTime) elTime.textContent = time + ' UTC';
+            if (elBadge) {
+                elBadge.textContent = 'FOKUS AKTIF';
+                elBadge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+            }
             if (linkEl && linkUrl) {
                 linkEl.href = linkUrl;
             }
         }
     }
+    window.focusVessel = focusVessel;
 </script>
 @endpush
