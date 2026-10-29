@@ -164,5 +164,8 @@ class DatabaseSeeder extends Seeder
         // 4. Automatically Import Official Seed Geodatasets (FAO & Marine Regions EEZ)
         app(FaoFishingAreaAdapter::class)->sync();
         app(MarineRegionsEezAdapter::class)->sync();
+
+        // 5. Seed Vessel Registry
+        $this->call(VesselSeeder::class);
     }
 }
