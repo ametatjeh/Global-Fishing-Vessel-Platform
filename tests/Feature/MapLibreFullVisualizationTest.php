@@ -96,9 +96,11 @@ class MapLibreFullVisualizationTest extends TestCase
         $response->assertSee('toggle-layer-vessels');
         $response->assertSee('toggle-layer-dark-vessels');
         $response->assertSee('toggle-layer-sar-scenes');
-        $response->assertSee('Armada Kapal AIS');
-        $response->assertSee('Haluan/COG Kapal');
-        $response->assertSee('Posisi Netral');
+        $response->assertSee('Live AIS Vessels (Posisi Aktual)');
+        $response->assertSee('Heading: Arah haluan (heading valid)');
+        $response->assertSee('COG fallback: Arah gerak lintasan bumi');
+        $response->assertSee('Direction unavailable: Orientasi tidak diketahui');
+        $response->assertSee('Selected vessel: Cincin sorot kapal terpilih');
         $response->assertDontSee('Cluster Padat');
         $response->assertDontSee('Cluster Kecil');
     }

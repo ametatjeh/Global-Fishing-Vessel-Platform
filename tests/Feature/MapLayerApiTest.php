@@ -400,6 +400,7 @@ class MapLayerApiTest extends TestCase
         // Check 1: Heading priority
         $this->assertTrue($features->has('525000001'));
         $f1 = $features->get('525000001');
+        $this->assertEquals('heading', $f1['properties']['orientation_source']);
         $this->assertEquals('heading', $f1['properties']['orientation_type']);
         $this->assertEquals(45.0, $f1['properties']['orientation_degrees']);
         $this->assertTrue($f1['properties']['has_orientation']);
@@ -407,6 +408,7 @@ class MapLayerApiTest extends TestCase
         // Check 2: COG fallback
         $this->assertTrue($features->has('525000002'));
         $f2 = $features->get('525000002');
+        $this->assertEquals('cog', $f2['properties']['orientation_source']);
         $this->assertEquals('cog', $f2['properties']['orientation_type']);
         $this->assertEquals(135.0, $f2['properties']['orientation_degrees']);
         $this->assertTrue($f2['properties']['has_orientation']);
@@ -414,17 +416,57 @@ class MapLayerApiTest extends TestCase
         // Check 3: NMEA 511 ignored and fallback to COG
         $this->assertTrue($features->has('525000003'));
         $f3 = $features->get('525000003');
+        $this->assertEquals('cog', $f3['properties']['orientation_source']);
         $this->assertEquals('cog', $f3['properties']['orientation_type']);
         $this->assertEquals(220.0, $f3['properties']['orientation_degrees']);
         $this->assertNull($f3['properties']['heading_degrees']);
 
-        // Check 4: Neutral when neither heading nor COG available
+        // Check 4: Neutral / unavailable when neither heading nor COG available
         $this->assertTrue($features->has('525000004'));
         $f4 = $features->get('525000004');
+        $this->assertEquals('unavailable', $f4['properties']['orientation_source']);
         $this->assertEquals('neutral', $f4['properties']['orientation_type']);
         $this->assertFalse($f4['properties']['has_orientation']);
 
         // Check 5: Invalid coordinates vessel is excluded
         $this->assertFalse($features->has('525000005'));
+    }
+
+    public function test_vessels_cardinal_angles_and_nmea_sentinel_handling(): void
+    {
+        $cardinals = [
+            ['mmsi' => '525000010', 'heading' => 0.0, 'cog' => null, 'expected_deg' => 0.0, 'expected_src' => 'heading'],
+            ['mmsi' => '525000011', 'heading' => 90.0, 'cog' => null, 'expected_deg' => 90.0, 'expected_src' => 'heading'],
+            ['mmsi' => '525000012', 'heading' => 180.0, 'cog' => null, 'expected_deg' => 180.0, 'expected_src' => 'heading'],
+            ['mmsi' => '525000013', 'heading' => 270.0, 'cog' => null, 'expected_deg' => 270.0, 'expected_src' => 'heading'],
+            ['mmsi' => '525000014', 'heading' => null, 'cog' => 0.0, 'expected_deg' => 0.0, 'expected_src' => 'cog'],
+            ['mmsi' => '525000015', 'heading' => null, 'cog' => 3600.0, 'expected_deg' => 0.0, 'expected_src' => 'unavailable'],
+        ];
+
+        foreach ($cardinals as $item) {
+            $vessel = Vessel::create(['name' => 'VESSEL ' . $item['mmsi'], 'mmsi' => $item['mmsi']]);
+            VesselPosition::create([
+                'vessel_id' => $vessel->id,
+                'latitude' => -5.0,
+                'longitude' => 105.0,
+                'heading_degrees' => $item['heading'],
+                'course_degrees' => $item['cog'],
+                'speed_knots' => 7.5,
+                'observed_at' => now(),
+                'received_at' => now(),
+            ]);
+        }
+
+        $response = $this->getJson('/api/layers/vessels');
+        $response->assertStatus(200);
+
+        $features = collect($response->json('features'))->keyBy('properties.mmsi');
+
+        foreach ($cardinals as $item) {
+            $this->assertTrue($features->has($item['mmsi']));
+            $feat = $features->get($item['mmsi']);
+            $this->assertEquals($item['expected_src'], $feat['properties']['orientation_source']);
+            $this->assertEquals($item['expected_deg'], $feat['properties']['orientation_degrees']);
+        }
     }
 }

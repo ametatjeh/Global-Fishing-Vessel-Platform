@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Route;
 // System Health & Observability Endpoint (Tahap 14)
 Route::get('/health', [HealthApiController::class, 'index'])->name('api.health');
 
+// Unified Map Search (Vessels & SAR Candidates)
+Route::get('/map/search', [MapLayerApiController::class, 'search'])->name('api.map.search');
+
 Route::prefix('layers')->group(function () {
     Route::get('/', [MapLayerApiController::class, 'layers'])->name('api.layers');
     Route::get('/fao', [MapLayerApiController::class, 'fao'])->name('api.layers.fao');

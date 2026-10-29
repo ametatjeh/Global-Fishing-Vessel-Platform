@@ -3,21 +3,51 @@
 @section('header_title', 'Global Vessel Map — MapLibre GL JS Spatial Platform')
 
 @section('content')
+@php
+    $flags = $filterMeta['flags'] ?? [];
+    $vesselTypes = $filterMeta['vessel_types'] ?? [];
+    $reviewStatuses = $filterMeta['review_statuses'] ?? [];
+    $correlationStatuses = $filterMeta['correlation_statuses'] ?? [];
+    $platforms = $filterMeta['platforms'] ?? [];
+@endphp
 <div class="relative h-[calc(100vh-8.5rem)] min-h-[580px] rounded-2xl overflow-hidden border border-slate-800 shadow-2xl flex flex-col bg-slate-950">
 
     <!-- Top Floating Toolbar: Quick Actions, Search & Fit Controls -->
     <div class="absolute top-4 left-4 right-4 z-10 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
         
-        <!-- Search & View Navigation Controls -->
-        <div class="pointer-events-auto flex flex-wrap items-center gap-2 p-1.5 rounded-xl glass-panel border border-slate-700/80 shadow-lg text-xs">
+        <!-- Search, Filter & View Navigation Controls -->
+        <div class="pointer-events-auto flex flex-wrap items-center gap-2 p-1.5 rounded-xl glass-panel border border-slate-700/80 shadow-lg text-xs relative">
             <div class="relative">
-                <input type="text" id="inputVesselSearch" placeholder="Cari kapal, MMSI, IMO, Callsign..." 
-                    class="pl-7 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-teal-400 w-52 sm:w-64 text-xs font-mono">
+                <input type="text" id="inputVesselSearch" placeholder="Search vessel, MMSI, or candidate..."
+                    class="pl-7 pr-7 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-teal-400 w-56 sm:w-72 text-xs font-mono">
                 <span class="absolute left-2.5 top-1.5 text-slate-400">🔍</span>
+                <button type="button" id="btnClearSearch" class="hidden absolute right-2 top-1.5 text-slate-400 hover:text-white text-xs font-bold" title="Hapus pencarian">&times;</button>
             </div>
 
-            <button type="button" id="btnFilterSearch" class="px-3 py-1.5 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold transition">
-                Cari
+            <!-- Unified Search Dropdown Panel (Live Query Results) -->
+            <div id="searchResultsDropdown" class="hidden absolute top-full left-0 mt-2 w-72 sm:w-96 max-h-80 overflow-y-auto glass-panel p-2 rounded-xl border border-slate-700/90 shadow-2xl z-30 space-y-2 text-xs divide-y divide-slate-800/80">
+                <!-- Injected via JavaScript from /api/map/search -->
+            </div>
+
+            <button type="button" id="btnFilterSearch" class="px-3 py-1.5 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold transition flex items-center gap-1.5">
+                <span>Cari</span>
+            </button>
+
+            <!-- Advanced Filters Toggle Button with Sliders Icon & Active Count Badge -->
+            <button type="button" id="btnToggleAdvancedFilters" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-teal-300 font-semibold transition border border-slate-700 flex items-center gap-1.5 relative" title="Buka/Tutup Panel Advanced Filters">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="4" y1="21" x2="4" y2="14"></line>
+                    <line x1="4" y1="10" x2="4" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12" y2="3"></line>
+                    <line x1="20" y1="21" x2="20" y2="16"></line>
+                    <line x1="20" y1="12" x2="20" y2="3"></line>
+                    <line x1="1" y1="14" x2="7" y2="14"></line>
+                    <line x1="9" y1="8" x2="15" y2="8"></line>
+                    <line x1="17" y1="16" x2="23" y2="16"></line>
+                </svg>
+                <span>Filters</span>
+                <span id="activeFilterBadgeToolbar" class="active-filter-badge hidden px-1.5 py-0.2 rounded-full text-[9px] bg-teal-400 text-slate-950 font-bold">0</span>
             </button>
 
             <!-- Quick Fit Buttons -->
@@ -62,6 +92,203 @@
 
     <!-- Map Canvas Container -->
     <div id="global-map-canvas" class="w-full h-full flex-1 bg-slate-950 min-h-[480px]"></div>
+
+    <!-- LEFT: Modern Advanced Maritime Filters Panel (Overlay, non-blocking) -->
+    <div id="advancedFiltersPanel" class="hidden absolute top-20 left-4 z-20 w-84 sm:w-96 max-h-[calc(100%-6rem)] overflow-y-auto glass-panel p-4 rounded-2xl border border-slate-700/80 shadow-2xl space-y-3.5 text-xs">
+
+        <!-- Panel Header -->
+        <div class="flex items-center justify-between border-b border-slate-700/80 pb-2.5">
+            <div class="flex items-center gap-2">
+                <span class="text-base text-teal-400">🎚️</span>
+                <div>
+                    <h3 class="font-bold uppercase tracking-wider text-white text-[12px]">Advanced Maritime Filters</h3>
+                    <p class="text-[10px] text-slate-400">Filter operasi intelijen armada & satelit radar</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="active-filter-badge hidden px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-teal-500/20 text-teal-300 border border-teal-500/40">0 Aktif</span>
+                <button type="button" id="btnCloseFiltersPanel" class="text-slate-400 hover:text-white text-lg font-bold p-1 leading-none transition" title="Tutup panel (Esc)">&times;</button>
+            </div>
+        </div>
+
+        <form id="formAdvancedFilters" class="space-y-3.5" onsubmit="return false;">
+
+            <!-- SECTION A: VESSEL IDENTITY -->
+            <div class="space-y-2 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800">
+                <div class="text-[10px] uppercase font-bold text-sky-400 tracking-wider flex items-center justify-between">
+                    <span>1. Identitas Armada Kapal (AIS)</span>
+                    <span>🚢</span>
+                </div>
+
+                <!-- Flag State -->
+                <div>
+                    <label for="filter-vessel-flag" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Bendera Negara (Flag State)</label>
+                    <select id="filter-vessel-flag" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400">
+                        <option value="">Semua Bendera Negara (All Flags)</option>
+                        @foreach($flags as $f)
+                            <option value="{{ $f['code'] }}">{{ $f['label'] }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Vessel Type -->
+                <div>
+                    <label for="filter-vessel-type" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Tipe Kapal (Vessel Type)</label>
+                    <select id="filter-vessel-type" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400 capitalize">
+                        <option value="">Semua Tipe Kapal</option>
+                        @foreach($vesselTypes as $vt)
+                            <option value="{{ $vt }}">{{ ucfirst($vt) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- SOG Range (Speed Over Ground) -->
+                <div>
+                    <label class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Rentang Kecepatan SOG (knots)</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="number" id="filter-min-sog" placeholder="Min (0 kn)" min="0" max="60" step="0.5" class="px-2 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400 font-mono">
+                        <input type="number" id="filter-max-sog" placeholder="Max (kn)" min="0" max="60" step="0.5" class="px-2 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400 font-mono">
+                    </div>
+                </div>
+
+                <!-- COG Range (Course Over Ground) -->
+                <div>
+                    <label class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Rentang Arah Gerak COG (derajat)</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="number" id="filter-min-cog" placeholder="Min (0°)" min="0" max="360" step="1" class="px-2 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400 font-mono">
+                        <input type="number" id="filter-max-cog" placeholder="Max (360°)" min="0" max="360" step="1" class="px-2 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400 font-mono">
+                    </div>
+                </div>
+
+                <!-- Heading Availability -->
+                <div>
+                    <label for="filter-heading-status" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Ketersediaan Haluan (Heading)</label>
+                    <select id="filter-heading-status" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400">
+                        <option value="">Semua Status Orientasi</option>
+                        <option value="has_heading">Heading Valid (Arah Haluan Lambung)</option>
+                        <option value="cog_fallback">COG Fallback (Arah Vektor Gerak)</option>
+                        <option value="unavailable">Direction Unavailable (Beacon Netral)</option>
+                    </select>
+                </div>
+
+                <!-- Data Freshness -->
+                <div>
+                    <label for="filter-freshness" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Usia Telemetri AIS (Freshness)</label>
+                    <select id="filter-freshness" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400">
+                        <option value="">Semua Usia Telemetri</option>
+                        <option value="live">● Live AIS (&lt; 2 Jam Terakhir)</option>
+                        <option value="stale">⏳ Stale AIS (&ge; 2 Jam Terakhir)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- SECTION B: SAR CANDIDATES -->
+            <div class="space-y-2 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800">
+                <div class="text-[10px] uppercase font-bold text-amber-400 tracking-wider flex items-center justify-between">
+                    <span>2. Kandidat Anomali Radar SAR</span>
+                    <span>🎯</span>
+                </div>
+
+                <!-- Review Status -->
+                <div>
+                    <label for="filter-sar-review" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Status Review Analis</label>
+                    <select id="filter-sar-review" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400">
+                        <option value="">Semua Status Review</option>
+                        @foreach($reviewStatuses as $val => $lbl)
+                            <option value="{{ $val }}">{{ $lbl }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Correlation Status -->
+                <div>
+                    <label for="filter-sar-correlation" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Status Korelasi AIS</label>
+                    <select id="filter-sar-correlation" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400">
+                        <option value="">Semua Status Korelasi</option>
+                        @foreach($correlationStatuses as $cVal => $cLbl)
+                            <option value="{{ $cVal }}">{{ $cLbl }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- TCR Range -->
+                <div>
+                    <label class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Rentang TCR Hamburan Radar (dB)</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="number" id="filter-min-tcr" placeholder="Min (dB)" step="0.5" class="px-2 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400 font-mono">
+                        <input type="number" id="filter-max-tcr" placeholder="Max (dB)" step="0.5" class="px-2 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400 font-mono">
+                    </div>
+                </div>
+
+                <!-- Platform -->
+                <div>
+                    <label for="filter-sar-platform" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Platform Satelit Radar</label>
+                    <select id="filter-sar-platform" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400">
+                        <option value="">Semua Platform Satelit</option>
+                        @foreach($platforms as $p)
+                            <option value="{{ $p }}">{{ $p }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+
+            <!-- SECTION C: TEMPORAL & TRACK WINDOW -->
+            <div class="space-y-2 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800">
+                <div class="text-[10px] uppercase font-bold text-teal-400 tracking-wider flex items-center justify-between">
+                    <span>3. Rentang Waktu & Trajektori</span>
+                    <span>⏱️</span>
+                </div>
+
+                <!-- Date Range Preset -->
+                <div>
+                    <label for="filter-date-range" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Rentang Waktu Observasi</label>
+                    <select id="filter-date-range" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400">
+                        <option value="all">Semua Waktu Observasi</option>
+                        <option value="24h">24 Jam Terakhir</option>
+                        <option value="7d">7 Hari Terakhir</option>
+                        <option value="30d">30 Hari Terakhir</option>
+                        <option value="custom">Rentang Tanggal Khusus...</option>
+                    </select>
+                </div>
+
+                <!-- Custom Date Range Inputs (Shown conditionally) -->
+                <div id="customDateRangeContainer" class="hidden grid grid-cols-2 gap-2 pt-1">
+                    <div>
+                        <label class="block text-[9px] text-slate-400 font-mono mb-0.5">Mulai:</label>
+                        <input type="date" id="filter-start-date" class="w-full px-2 py-1 rounded bg-slate-950 border border-slate-700 text-slate-200 text-[11px] font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-[9px] text-slate-400 font-mono mb-0.5">Selesai:</label>
+                        <input type="date" id="filter-end-date" class="w-full px-2 py-1 rounded bg-slate-950 border border-slate-700 text-slate-200 text-[11px] font-mono">
+                    </div>
+                </div>
+
+                <!-- Track Window -->
+                <div>
+                    <label for="filter-track-window" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Jendela Historis AIS Track</label>
+                    <select id="filter-track-window" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400">
+                        <option value="off">Off (Hanya Posisi Terkini)</option>
+                        <option value="60">Jendela 60 Menit</option>
+                        <option value="180">Jendela 180 Menit (3 Jam)</option>
+                        <option value="360">Jendela 360 Menit (6 Jam)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Action Buttons: Apply & Reset -->
+            <div class="pt-2 flex items-center gap-2 border-t border-slate-800">
+                <button type="button" id="btnApplyFilters" class="flex-1 py-2 px-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-center transition flex items-center justify-center gap-1.5 shadow-md">
+                    <span>✓</span>
+                    <span>Terapkan Filter</span>
+                </button>
+                <button type="button" id="btnResetFilters" class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold transition border border-slate-700 text-center">
+                    Reset
+                </button>
+            </div>
+
+        </form>
+
+    </div>
 
     <!-- Right Floating "Map Layers & Legend" Control Panel -->
     <div class="absolute top-20 right-4 z-10 w-76 max-h-[calc(100%-6rem)] overflow-y-auto glass-panel p-4 rounded-2xl border border-slate-700/80 shadow-2xl space-y-4 text-xs">
@@ -221,12 +448,40 @@
                 <span class="text-teal-400 font-mono text-[9px]">WGS84</span>
             </div>
 
-            <!-- Vessel Heading & Individual Markers Legend -->
-            <div class="p-2 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1.5 text-[10px] font-mono">
-                <div class="text-[9px] uppercase font-bold text-sky-400">Armada Kapal AIS</div>
-                <div class="grid grid-cols-2 gap-1.5 text-slate-300">
-                    <div class="flex items-center gap-1.5"><span class="text-sky-400 font-bold">▲</span> Haluan/COG Kapal</div>
-                    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sky-400 border border-white"></span> Posisi Netral</div>
+            <!-- Live AIS Scientific Symbology Legend -->
+            <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2 text-[10px] font-mono">
+                <div class="text-[9px] uppercase font-bold text-sky-400 tracking-wider flex items-center justify-between">
+                    <span>Live AIS Vessels (Posisi Aktual)</span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>
+                </div>
+                <div class="space-y-1.5 text-slate-300">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2 C16 6 16.5 11 16 15 L8 15 C7.5 11 8 6 12 2 Z" fill="#38bdf8" stroke="#0284c7" stroke-width="1.5"/>
+                            <circle cx="12" cy="8.5" r="1.2" fill="#ffffff" stroke="#0284c7" stroke-width="0.5"/>
+                        </svg>
+                        <span>Heading: Arah haluan (heading valid)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2 L17.5 14 L14.5 14 L12 10 L9.5 14 L6.5 14 Z" fill="#0284c7" stroke="#38bdf8" stroke-width="1.5" stroke-linejoin="round"/>
+                            <line x1="12" y1="5" x2="12" y2="9" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"/>
+                        </svg>
+                        <span>COG fallback: Arah gerak lintasan bumi</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="4.5" fill="#38bdf8" stroke="#ffffff" stroke-width="1.5"/>
+                        </svg>
+                        <span>Direction unavailable: Orientasi tidak diketahui</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="5" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="2 2"/>
+                            <circle cx="12" cy="12" r="1.5" fill="#38bdf8"/>
+                        </svg>
+                        <span>Selected vessel: Cincin sorot kapal terpilih</span>
+                    </div>
                 </div>
             </div>
 
@@ -338,11 +593,277 @@
             }
         });
 
-        // Search Vessel
-        const btnFilter = document.getElementById('btnFilterSearch');
-        if (btnFilter) {
-            btnFilter.addEventListener('click', () => {
-                mapController.fetchLayerData('vessels');
+        // ----------------------------------------------------
+        // SEARCH & AUTOCOMPLETE LOGIC
+        // ----------------------------------------------------
+        const searchInput = document.getElementById('inputVesselSearch');
+        const searchDropdown = document.getElementById('searchResultsDropdown');
+        const btnClearSearch = document.getElementById('btnClearSearch');
+        const btnFilterSearch = document.getElementById('btnFilterSearch');
+        let searchDebounceTimer = null;
+
+        function closeSearchDropdown() {
+            if (searchDropdown) {
+                searchDropdown.classList.add('hidden');
+                searchDropdown.innerHTML = '';
+            }
+        }
+
+        async function executeSearchAutocomplete(query) {
+            if (!query || query.trim().length < 1) {
+                closeSearchDropdown();
+                return;
+            }
+
+            searchDropdown.classList.remove('hidden');
+            searchDropdown.innerHTML = `
+                <div class="p-3 text-center text-slate-400 font-mono flex items-center justify-center gap-2">
+                    <span class="animate-spin text-teal-400">⏳</span> Memindai intelijen kapal & SAR...
+                </div>
+            `;
+
+            try {
+                const res = await fetch(`/api/map/search?q=${encodeURIComponent(query.trim())}`);
+                if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+                const data = await res.json();
+
+                if (!data.results || data.results.length === 0) {
+                    searchDropdown.innerHTML = `
+                        <div class="p-3 text-center text-slate-400 font-mono">
+                            Tidak ada kapal atau kandidat SAR yang cocok dengan "<strong>${escapeHtml(query)}</strong>".
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Group results
+                const vessels = data.results.filter(r => r.type === 'vessel');
+                const sars = data.results.filter(r => r.type === 'sar_candidate');
+
+                let html = '';
+
+                if (vessels.length > 0) {
+                    html += `
+                        <div class="pt-1 first:pt-0">
+                            <div class="px-2 py-1 text-[10px] uppercase font-bold text-sky-400 font-mono tracking-wider flex items-center justify-between">
+                                <span>Armada Kapal AIS (${vessels.length})</span>
+                                <span>🚢</span>
+                            </div>
+                            <div class="space-y-1 mt-1">
+                                ${vessels.map(v => `
+                                    <div class="search-result-item p-2 rounded-lg hover:bg-slate-800/80 cursor-pointer transition flex items-center justify-between border border-transparent hover:border-slate-700"
+                                         data-type="vessel" data-id="${v.id}" data-lat="${v.lat}" data-lng="${v.lng}" data-title="${escapeHtml(v.title)}">
+                                        <div class="space-y-0.5 truncate pr-2">
+                                            <div class="font-bold text-white flex items-center gap-1.5 truncate">
+                                                <span>${v.flag_emoji || '🌐'}</span>
+                                                <span class="truncate">${escapeHtml(v.title)}</span>
+                                            </div>
+                                            <div class="text-[10px] font-mono text-slate-400 truncate">${v.subtitle}</div>
+                                            ${v.sog ? `<div class="text-[9px] font-mono text-sky-300">${v.sog} &bull; ${v.cog || '0°'}</div>` : ''}
+                                        </div>
+                                        <div class="text-right shrink-0">
+                                            <span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-sky-950 text-sky-300 border border-sky-800">${v.badge}</span>
+                                            <div class="text-[9px] text-teal-400 mt-1 font-mono">Fokus &rarr;</div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (sars.length > 0) {
+                    html += `
+                        <div class="pt-2">
+                            <div class="px-2 py-1 text-[10px] uppercase font-bold text-amber-400 font-mono tracking-wider flex items-center justify-between">
+                                <span>Kandidat Radar SAR (${sars.length})</span>
+                                <span>🎯</span>
+                            </div>
+                            <div class="space-y-1 mt-1">
+                                ${sars.map(s => `
+                                    <div class="search-result-item p-2 rounded-lg hover:bg-slate-800/80 cursor-pointer transition flex items-center justify-between border border-transparent hover:border-slate-700"
+                                         data-type="sar_candidate" data-id="${s.id}" data-lat="${s.lat}" data-lng="${s.lng}" data-title="${escapeHtml(s.title)}">
+                                        <div class="space-y-0.5 truncate pr-2">
+                                            <div class="font-bold text-amber-300 font-mono flex items-center gap-1.5 truncate">
+                                                <span>🎯</span>
+                                                <span class="truncate">${escapeHtml(s.title)}</span>
+                                            </div>
+                                            <div class="text-[10px] font-mono text-slate-400 truncate">${s.subtitle}</div>
+                                        </div>
+                                        <div class="text-right shrink-0">
+                                            <span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-950 text-amber-300 border border-amber-800">${s.badge}</span>
+                                            <div class="text-[9px] text-teal-400 mt-1 font-mono">Fokus &rarr;</div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                searchDropdown.innerHTML = html;
+
+                // Attach click handlers to search items
+                searchDropdown.querySelectorAll('.search-result-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const type = item.getAttribute('data-type');
+                        const id = item.getAttribute('data-id');
+                        const lat = parseFloat(item.getAttribute('data-lat'));
+                        const lng = parseFloat(item.getAttribute('data-lng'));
+                        const title = item.getAttribute('data-title');
+
+                        searchInput.value = title;
+                        btnClearSearch.classList.remove('hidden');
+                        closeSearchDropdown();
+
+                        mapController.focusEntity(type, id, lat, lng);
+                    });
+                });
+
+            } catch (err) {
+                console.error('[Search] Error fetching autocomplete:', err);
+                searchDropdown.innerHTML = `
+                    <div class="p-3 text-center text-rose-400 font-mono">
+                        Terjadi kesalahan saat memuat hasil pencarian.
+                    </div>
+                `;
+            }
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const val = e.target.value;
+                if (btnClearSearch) {
+                    btnClearSearch.classList.toggle('hidden', !val);
+                }
+                clearTimeout(searchDebounceTimer);
+                if (val.trim().length >= 1) {
+                    searchDebounceTimer = setTimeout(() => executeSearchAutocomplete(val), 250);
+                } else {
+                    closeSearchDropdown();
+                }
+            });
+
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    closeSearchDropdown();
+                    mapController.applyFilters({ search: searchInput.value.trim() });
+                }
+            });
+        }
+
+        if (btnClearSearch) {
+            btnClearSearch.addEventListener('click', () => {
+                searchInput.value = '';
+                btnClearSearch.classList.add('hidden');
+                closeSearchDropdown();
+                mapController.applyFilters({ search: '' });
+            });
+        }
+
+        if (btnFilterSearch) {
+            btnFilterSearch.addEventListener('click', () => {
+                closeSearchDropdown();
+                const q = searchInput ? searchInput.value.trim() : '';
+                mapController.applyFilters({ search: q });
+            });
+        }
+
+        // Close search dropdown on click outside
+        document.addEventListener('click', (e) => {
+            if (searchDropdown && !searchDropdown.contains(e.target) && !searchInput.contains(e.target)) {
+                closeSearchDropdown();
+            }
+        });
+
+        // ----------------------------------------------------
+        // ADVANCED FILTERS PANEL LOGIC
+        // ----------------------------------------------------
+        const panelFilters = document.getElementById('advancedFiltersPanel');
+        const btnToggleFilters = document.getElementById('btnToggleAdvancedFilters');
+        const btnCloseFilters = document.getElementById('btnCloseFiltersPanel');
+        const btnApplyFilters = document.getElementById('btnApplyFilters');
+        const btnResetFilters = document.getElementById('btnResetFilters');
+        const selectDateRange = document.getElementById('filter-date-range');
+        const customDateRangeContainer = document.getElementById('customDateRangeContainer');
+
+        if (btnToggleFilters && panelFilters) {
+            btnToggleFilters.addEventListener('click', () => {
+                panelFilters.classList.toggle('hidden');
+            });
+        }
+
+        if (btnCloseFilters && panelFilters) {
+            btnCloseFilters.addEventListener('click', () => {
+                panelFilters.classList.add('hidden');
+            });
+        }
+
+        // Close filter panel on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (panelFilters && !panelFilters.classList.contains('hidden')) {
+                    panelFilters.classList.add('hidden');
+                }
+                closeSearchDropdown();
+            }
+        });
+
+        // Custom date range visibility
+        if (selectDateRange && customDateRangeContainer) {
+            selectDateRange.addEventListener('change', (e) => {
+                customDateRangeContainer.classList.toggle('hidden', e.target.value !== 'custom');
+            });
+        }
+
+        // Apply filters
+        if (btnApplyFilters) {
+            btnApplyFilters.addEventListener('click', () => {
+                const minSogVal = document.getElementById('filter-min-sog')?.value;
+                const maxSogVal = document.getElementById('filter-max-sog')?.value;
+                const minCogVal = document.getElementById('filter-min-cog')?.value;
+                const maxCogVal = document.getElementById('filter-max-cog')?.value;
+                const minTcrVal = document.getElementById('filter-min-tcr')?.value;
+                const maxTcrVal = document.getElementById('filter-max-tcr')?.value;
+
+                const collected = {
+                    search: searchInput ? searchInput.value.trim() : '',
+                    flag: document.getElementById('filter-vessel-flag')?.value || '',
+                    vesselType: document.getElementById('filter-vessel-type')?.value || '',
+                    minSog: minSogVal !== '' && !isNaN(minSogVal) ? parseFloat(minSogVal) : null,
+                    maxSog: maxSogVal !== '' && !isNaN(maxSogVal) ? parseFloat(maxSogVal) : null,
+                    minCog: minCogVal !== '' && !isNaN(minCogVal) ? parseFloat(minCogVal) : null,
+                    maxCog: maxCogVal !== '' && !isNaN(maxCogVal) ? parseFloat(maxCogVal) : null,
+                    headingStatus: document.getElementById('filter-heading-status')?.value || '',
+                    freshness: document.getElementById('filter-freshness')?.value || '',
+                    reviewStatus: document.getElementById('filter-sar-review')?.value || '',
+                    correlationStatus: document.getElementById('filter-sar-correlation')?.value || '',
+                    minTcr: minTcrVal !== '' && !isNaN(minTcrVal) ? parseFloat(minTcrVal) : null,
+                    maxTcr: maxTcrVal !== '' && !isNaN(maxTcrVal) ? parseFloat(maxTcrVal) : null,
+                    platform: document.getElementById('filter-sar-platform')?.value || '',
+                    dateRange: selectDateRange?.value || 'all',
+                    startDate: document.getElementById('filter-start-date')?.value || '',
+                    endDate: document.getElementById('filter-end-date')?.value || '',
+                    trackWindow: document.getElementById('filter-track-window')?.value || 'off',
+                };
+
+                mapController.applyFilters(collected);
+
+                // On mobile, automatically hide panel after applying
+                if (window.innerWidth < 640 && panelFilters) {
+                    panelFilters.classList.add('hidden');
+                }
+            });
+        }
+
+        // Reset filters
+        if (btnResetFilters) {
+            btnResetFilters.addEventListener('click', () => {
+                const form = document.getElementById('formAdvancedFilters');
+                if (form) form.reset();
+                if (customDateRangeContainer) customDateRangeContainer.classList.add('hidden');
+                mapController.resetFilters();
             });
         }
 
@@ -394,6 +915,16 @@
 
         if (btnClose) btnClose.addEventListener('click', closeModal);
         if (btnConfirmClose) btnConfirmClose.addEventListener('click', closeModal);
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
     if (document.readyState === 'loading') {

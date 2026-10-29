@@ -309,6 +309,8 @@
 
     function focusVessel(lat, lng, name, mmsi, flag, sog, cog, time, linkUrl) {
         if (trackingMapController && trackingMapController.map && lat && lng && isFinite(lat) && isFinite(lng)) {
+            trackingMapController.setSelectedVesselByMmsi(mmsi);
+
             trackingMapController.map.flyTo({
                 center: [lng, lat],
                 zoom: 8.5,

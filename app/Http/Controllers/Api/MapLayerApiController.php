@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\DataProvider;
+use App\Models\SatelliteDetection;
+use App\Models\Vessel;
 use App\Models\VesselEncounter;
+use App\Services\Maritime\FlagStateService;
 use App\Services\SpatialQueryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -165,9 +168,108 @@ class MapLayerApiController extends Controller
         $bbox = $this->parseBBox($request->query('bbox'));
         $search = $request->query('q');
 
-        $data = $this->spatial->getLiveVesselsFeatureCollection($bbox, $search);
+        $filters = [
+            'flag' => $request->query('flag'),
+            'vessel_type' => $request->query('vessel_type'),
+            'min_sog' => $request->query('min_sog'),
+            'max_sog' => $request->query('max_sog'),
+            'min_cog' => $request->query('min_cog'),
+            'max_cog' => $request->query('max_cog'),
+            'heading_status' => $request->query('heading_status'),
+            'freshness' => $request->query('freshness'),
+            'date_range' => $request->query('date_range'),
+            'start_date' => $request->query('start_date'),
+            'end_date' => $request->query('end_date'),
+        ];
+
+        $data = $this->spatial->getLiveVesselsFeatureCollection($bbox, $search, 200, $filters);
 
         return response()->json($data);
+    }
+
+    /**
+     * Unified Global Search across Vessels and SAR Candidates
+     */
+    public function search(Request $request): JsonResponse
+    {
+        $query = trim((string) $request->query('q', ''));
+        if (strlen($query) < 1) {
+            return response()->json(['results' => [], 'count' => 0]);
+        }
+
+        $results = [];
+
+        // 1. Search Vessels (name, mmsi, imo, callsign)
+        $vessels = Vessel::with('latestPosition')
+            ->where(function ($q) use ($query) {
+                $q->where('name', 'like', "%{$query}%")
+                  ->orWhere('mmsi', 'like', "%{$query}%")
+                  ->orWhere('imo', 'like', "%{$query}%")
+                  ->orWhere('callsign', 'like', "%{$query}%");
+            })
+            ->limit(8)
+            ->get();
+
+        foreach ($vessels as $v) {
+            $pos = $v->latestPosition;
+            $lat = $pos ? (float) $pos->latitude : null;
+            $lng = $pos ? (float) $pos->longitude : null;
+            $hasCoords = $lat !== null && $lng !== null && is_finite($lat) && is_finite($lng) && $lat >= -90.0 && $lat <= 90.0 && $lng >= -180.0 && $lng <= 180.0;
+
+            $flagInfo = FlagStateService::resolveFromCodeAndMmsi($v->flag_state, $v->mmsi);
+
+            $results[] = [
+                'type' => 'vessel',
+                'id' => $v->id,
+                'vessel_id' => $v->id,
+                'title' => $v->name ?? 'Unknown Vessel',
+                'subtitle' => "MMSI: {$v->mmsi} • {$flagInfo['country_name']} ({$flagInfo['iso2']})",
+                'badge' => strtoupper($v->vessel_type ?? 'Vessel'),
+                'badge_color' => 'sky',
+                'flag_emoji' => $flagInfo['flag_emoji'],
+                'has_coords' => $hasCoords,
+                'lat' => $lat,
+                'lng' => $lng,
+                'sog' => $pos && $pos->speed_knots !== null ? "{$pos->speed_knots} kn" : null,
+                'cog' => $pos && $pos->course_degrees !== null ? "{$pos->course_degrees}°" : null,
+                'observed_at' => $pos?->observed_at?->toIso8601String(),
+            ];
+        }
+
+        // 2. Search SAR Candidates (detection_identifier, analyst_notes)
+        $candidates = SatelliteDetection::with('scene')
+            ->where(function ($q) use ($query) {
+                $q->where('detection_identifier', 'like', "%{$query}%")
+                  ->orWhere('analyst_notes', 'like', "%{$query}%");
+            })
+            ->limit(8)
+            ->get();
+
+        foreach ($candidates as $c) {
+            $lat = (float) $c->latitude;
+            $lng = (float) $c->longitude;
+            $hasCoords = is_finite($lat) && is_finite($lng) && $lat >= -90.0 && $lat <= 90.0 && $lng >= -180.0 && $lng <= 180.0;
+
+            $results[] = [
+                'type' => 'sar_candidate',
+                'id' => $c->id,
+                'title' => $c->detection_identifier,
+                'subtitle' => "SAR Candidate • Conf: " . round($c->confidence_score * 100) . "% • TCR: " . ($c->tcr_db !== null ? "{$c->tcr_db} dB" : '-'),
+                'badge' => strtoupper(str_replace('_', ' ', $c->review_status)),
+                'badge_color' => 'amber',
+                'flag_emoji' => '🎯',
+                'has_coords' => $hasCoords,
+                'lat' => $lat,
+                'lng' => $lng,
+                'detected_at' => $c->detected_at?->toIso8601String(),
+            ];
+        }
+
+        return response()->json([
+            'query' => $query,
+            'count' => count($results),
+            'results' => $results,
+        ]);
     }
 
     /**
@@ -207,7 +309,19 @@ class MapLayerApiController extends Controller
         $bbox = $this->parseBBox($request->query('bbox'));
         $onlyCandidates = $request->boolean('candidates_only', false);
 
-        $data = $this->spatial->getSatelliteDetectionsFeatureCollection($bbox, $onlyCandidates);
+        $filters = [
+            'search' => $request->query('q'),
+            'review_status' => $request->query('review_status'),
+            'correlation_status' => $request->query('correlation_status'),
+            'min_tcr' => $request->query('min_tcr'),
+            'max_tcr' => $request->query('max_tcr'),
+            'platform' => $request->query('platform'),
+            'date_range' => $request->query('date_range'),
+            'start_date' => $request->query('start_date'),
+            'end_date' => $request->query('end_date'),
+        ];
+
+        $data = $this->spatial->getSatelliteDetectionsFeatureCollection($bbox, $onlyCandidates, $filters);
 
         return response()->json($data);
     }
