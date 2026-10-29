@@ -31,7 +31,21 @@ class AuthController extends Controller
         ]);
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
+            if (Auth::user()->is_active === false) {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                throw ValidationException::withMessages([
+                    'email' => __('Akun ini telah dinonaktifkan oleh administrator. Silakan hubungi Super Admin.'),
+                ]);
+            }
+
             $request->session()->regenerate();
+
+            $authUser = Auth::user();
+            $authUser->last_login_at = now();
+            $authUser->save();
 
             AuditLog::log('login', 'user', (string) Auth::id(), [
                 'email' => Auth::user()->email,
@@ -95,6 +109,9 @@ class AuthController extends Controller
                 if (!$user->email_verified_at) {
                     $user->email_verified_at = now();
                 }
+                if ($user->password && !$user->password_set_at) {
+                    $user->password_set_at = now();
+                }
                 $user->save();
             } else {
                 // 3. Register new user with safe default role
@@ -106,12 +123,20 @@ class AuthController extends Controller
                     'organization' => 'External / Google SSO',
                     'email_verified_at' => now(),
                     'password' => Hash::make(Str::random(32)),
+                    'password_set_at' => null,
                 ]);
             }
         }
 
+        if ($user && $user->is_active === false) {
+            return redirect()->route('login')->with('error', 'Akun ini telah dinonaktifkan oleh administrator. Silakan hubungi Super Admin.');
+        }
+
         Auth::login($user, true);
         $request->session()->regenerate();
+
+        $user->last_login_at = now();
+        $user->save();
 
         AuditLog::log('google_login', 'user', (string) $user->id, [
             'email' => $user->email,

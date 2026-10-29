@@ -20,14 +20,25 @@ class EnsureUserRole
             return redirect()->route('login');
         }
 
-        $userRole = $request->user()->role;
+        if ($request->user()->is_active === false) {
+            auth()->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+            abort(403, 'Akses ditolak: Akun pengguna Anda telah dinonaktifkan oleh administrator.');
+        }
 
-        // Administrative roles have full access
-        if (in_array($userRole, ['super_admin', 'admin', 'administrator'], true)) {
+        $userRole = $request->user()->role;
+        $effectiveRole = match ($userRole) {
+            'administrator' => 'admin',
+            default => $userRole,
+        };
+
+        // Super Admin has universal access
+        if ($effectiveRole === 'super_admin') {
             return $next($request);
         }
 
-        if (!in_array($userRole, $roles, true)) {
+        if (!in_array($effectiveRole, $roles, true)) {
             abort(403, 'Akses ditolak: Peran pengguna (' . $userRole . ') tidak memiliki otorisasi untuk tindakan operasional ini.');
         }
 

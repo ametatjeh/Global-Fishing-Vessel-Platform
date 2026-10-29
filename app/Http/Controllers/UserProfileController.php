@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 class UserProfileController extends Controller
@@ -142,6 +144,50 @@ class UserProfileController extends Controller
         }
 
         return back()->with('warning', 'Anda belum memiliki foto profil kustom.');
+    }
+
+    /**
+     * Update user password or establish local password for Google SSO user.
+     */
+    public function updatePassword(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        $hasSetPassword = $user->hasSetPassword();
+
+        $rules = [
+            'password' => ['required', 'string', Password::min(8), 'confirmed'],
+        ];
+
+        $messages = [
+            'current_password.required' => 'Kata sandi saat ini wajib diisi.',
+            'current_password.current_password' => 'Kata sandi saat ini tidak cocok dengan data kami.',
+            'password.required' => 'Kata sandi baru wajib diisi.',
+            'password.min' => 'Kata sandi baru minimal harus terdiri dari :min karakter.',
+            'password.confirmed' => 'Konfirmasi kata sandi baru tidak cocok.',
+        ];
+
+        if ($hasSetPassword) {
+            $rules['current_password'] = ['required', 'string', 'current_password'];
+        }
+
+        $validated = $request->validate($rules, $messages);
+
+        $user->password = Hash::make($validated['password']);
+        $user->password_set_at = now();
+        $user->save();
+
+        $request->session()->regenerate();
+
+        AuditLog::log($hasSetPassword ? 'update_password' : 'set_local_password', 'user', (string) $user->id, [
+            'email' => $user->email,
+            'action' => $hasSetPassword ? 'password_changed' : 'local_password_created',
+        ]);
+
+        $message = $hasSetPassword
+            ? 'Kata sandi berhasil diperbarui.'
+            : 'Kata sandi lokal berhasil dibuat. Anda kini dapat masuk menggunakan email & kata sandi selain Google SSO.';
+
+        return back()->with('status', $message);
     }
 }
 

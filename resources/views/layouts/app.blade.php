@@ -109,6 +109,18 @@
                 <span>📜</span>
                 <span>Activity Logs</span>
             </a>
+
+            @if(auth()->user()?->isSuperAdmin())
+            <div class="pt-4 px-2 pb-1 text-[10px] uppercase font-bold text-amber-400 tracking-wider flex items-center justify-between">
+                <span>Administrasi Root</span>
+                <span class="px-1.5 py-0.5 rounded text-[8px] bg-amber-500/20 text-amber-300 font-mono border border-amber-500/30">SUPER ADMIN</span>
+            </div>
+
+            <a href="{{ route('admin.users.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('admin.users.*') ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                <span>🛡️</span>
+                <span>Manajemen Akun</span>
+            </a>
+            @endif
         </nav>
 
         <!-- User Footer & Logout -->

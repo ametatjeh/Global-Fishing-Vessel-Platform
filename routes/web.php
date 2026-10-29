@@ -108,4 +108,19 @@ Route::middleware('auth')->group(function () {
     Route::patch('/settings/profile', [UserProfileController::class, 'update'])->name('profile.update');
     Route::post('/settings/profile/avatar', [UserProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
     Route::delete('/settings/profile/avatar', [UserProfileController::class, 'destroyAvatar'])->name('profile.avatar.destroy');
+    Route::match(['patch', 'put'], '/settings/password', [UserProfileController::class, 'updatePassword'])
+        ->middleware('throttle:15,1')
+        ->name('profile.password.update');
+
+    // 12. User Account & Access Control Management (Super Admin Exclusive)
+    Route::middleware('role:super_admin')->prefix('admin/users')->name('admin.users.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\UserManagementController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\UserManagementController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\UserManagementController::class, 'store'])->name('store');
+        Route::get('/{id}', [\App\Http\Controllers\UserManagementController::class, 'show'])->name('show');
+        Route::get('/{id}/edit', [\App\Http\Controllers\UserManagementController::class, 'edit'])->name('edit');
+        Route::patch('/{id}', [\App\Http\Controllers\UserManagementController::class, 'update'])->name('update');
+        Route::post('/{id}/toggle-status', [\App\Http\Controllers\UserManagementController::class, 'toggleStatus'])->name('toggle-status');
+        Route::post('/{id}/reset-password', [\App\Http\Controllers\UserManagementController::class, 'resetPassword'])->name('reset-password');
+    });
 });

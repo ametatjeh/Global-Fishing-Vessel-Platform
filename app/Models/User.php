@@ -12,7 +12,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
 
-#[Fillable(['name', 'email', 'password', 'role', 'organization', 'avatar_path', 'google_id', 'email_verified_at'])]
+#[Fillable(['name', 'email', 'password', 'role', 'is_active', 'organization', 'avatar_path', 'google_id', 'email_verified_at', 'password_set_at', 'last_login_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -28,7 +28,10 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'password_set_at' => 'datetime',
+            'last_login_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -60,6 +63,18 @@ class User extends Authenticatable
     public function hasRole(string ...$roles): bool
     {
         return in_array($this->role, $roles, true);
+    }
+
+    /**
+     * Determine if the user has an established local password.
+     */
+    public function hasSetPassword(): bool
+    {
+        if (empty($this->google_id)) {
+            return true;
+        }
+
+        return $this->password_set_at !== null;
     }
 
     /**

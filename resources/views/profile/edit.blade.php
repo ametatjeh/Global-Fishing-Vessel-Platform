@@ -223,6 +223,121 @@
                 </div>
             </div>
 
+            <!-- Card 3: Password Management (Ubah Password / Buat Password Lokal) -->
+            <div class="glass-panel p-5 rounded-2xl border border-slate-800 space-y-5 shadow-xl">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-teal-300 flex items-center gap-2">
+                        <span>🔒</span>
+                        <span>{{ $user->hasSetPassword() ? 'Ubah Kata Sandi' : 'Buat Kata Sandi Lokal' }}</span>
+                    </h3>
+                    <span class="text-[10px] font-mono {{ $user->hasSetPassword() ? 'text-teal-400 bg-teal-500/10 border border-teal-500/20' : 'text-amber-300 bg-amber-500/10 border border-amber-500/20' }} px-2 py-0.5 rounded">
+                        {{ $user->hasSetPassword() ? 'Kredensial Aktif' : 'Belum Ditetapkan' }}
+                    </span>
+                </div>
+
+                <div class="text-[11px] text-slate-400 leading-relaxed">
+                    @if($user->hasSetPassword())
+                        Untuk menjaga keamanan akun dinas Anda, gunakan kata sandi yang kuat dengan minimal 8 karakter. Anda harus memasukkan kata sandi saat ini untuk melakukan perubahan.
+                    @else
+                        Akun Anda terdaftar melalui Google SSO dan belum memiliki kata sandi lokal mandiri. Tetapkan kata sandi lokal di bawah ini agar Anda dapat masuk melalui email &amp; kata sandi selain Google SSO.
+                    @endif
+                </div>
+
+                <form action="{{ route('profile.password.update') }}" method="POST" class="space-y-4 text-xs">
+                    @csrf
+                    @method('PATCH')
+
+                    @if($user->hasSetPassword())
+                    <div>
+                        <label for="current_password" class="block font-semibold text-slate-300 mb-1">
+                            Kata Sandi Saat Ini <span class="text-rose-400">*</span>
+                        </label>
+                        <div class="relative">
+                            <input type="password" id="current_password" name="current_password" required autocomplete="current-password"
+                                class="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-900 border @error('current_password') border-rose-500 focus:border-rose-400 focus:ring-rose-400 @else border-slate-700 focus:border-teal-400 focus:ring-teal-400 @enderror text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 transition text-xs font-mono">
+                            <button type="button" onclick="togglePasswordVisibility('current_password', this)" aria-label="Tampilkan kata sandi"
+                                class="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-teal-300 transition cursor-pointer">
+                                <svg class="icon-eye w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                <svg class="icon-eye-slash w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                                </svg>
+                            </button>
+                        </div>
+                        @error('current_password')
+                            <p class="text-[11px] text-rose-400 mt-1 flex items-center gap-1 font-medium">
+                                <span>⚠️</span> {{ $message }}
+                            </p>
+                        @enderror
+                    </div>
+                    @endif
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="password" class="block font-semibold text-slate-300 mb-1">
+                                Kata Sandi Baru <span class="text-rose-400">*</span>
+                            </label>
+                            <div class="relative">
+                                <input type="password" id="password" name="password" required autocomplete="new-password" minlength="8"
+                                    class="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-900 border @error('password') border-rose-500 focus:border-rose-400 focus:ring-rose-400 @else border-slate-700 focus:border-teal-400 focus:ring-teal-400 @enderror text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 transition text-xs font-mono">
+                                <button type="button" onclick="togglePasswordVisibility('password', this)" aria-label="Tampilkan kata sandi"
+                                    class="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-teal-300 transition cursor-pointer">
+                                    <svg class="icon-eye w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                    <svg class="icon-eye-slash w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                                    </svg>
+                                </button>
+                            </div>
+                            @error('password')
+                                <p class="text-[11px] text-rose-400 mt-1 flex items-center gap-1 font-medium">
+                                    <span>⚠️</span> {{ $message }}
+                                </p>
+                            @else
+                                <p class="text-[10px] text-slate-400 mt-1">Minimal 8 karakter.</p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label for="password_confirmation" class="block font-semibold text-slate-300 mb-1">
+                                Konfirmasi Kata Sandi Baru <span class="text-rose-400">*</span>
+                            </label>
+                            <div class="relative">
+                                <input type="password" id="password_confirmation" name="password_confirmation" required autocomplete="new-password" minlength="8"
+                                    class="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-900 border @error('password_confirmation') border-rose-500 focus:border-rose-400 focus:ring-rose-400 @else border-slate-700 focus:border-teal-400 focus:ring-teal-400 @enderror text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 transition text-xs font-mono">
+                                <button type="button" onclick="togglePasswordVisibility('password_confirmation', this)" aria-label="Tampilkan kata sandi"
+                                    class="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-teal-300 transition cursor-pointer">
+                                    <svg class="icon-eye w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                    <svg class="icon-eye-slash w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                                    </svg>
+                                </button>
+                            </div>
+                            @error('password_confirmation')
+                                <p class="text-[11px] text-rose-400 mt-1 flex items-center gap-1 font-medium">
+                                    <span>⚠️</span> {{ $message }}
+                                </p>
+                            @else
+                                <p class="text-[10px] text-slate-400 mt-1">Ulangi kata sandi baru secara identik.</p>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <div class="pt-2 flex justify-end">
+                        <button type="submit" class="py-2.5 px-5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-teal-500/20 cursor-pointer">
+                            {{ $user->hasSetPassword() ? 'Simpan Kata Sandi' : 'Tetapkan Kata Sandi Lokal' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+
         </div>
 
     </div>
@@ -267,6 +382,27 @@ function handleAvatarSelected(event) {
         btnSave.disabled = false;
     };
     reader.readAsDataURL(file);
+}
+
+function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+
+    const iconEye = btn.querySelector('.icon-eye');
+    const iconEyeSlash = btn.querySelector('.icon-eye-slash');
+    if (iconEye && iconEyeSlash) {
+        if (isPassword) {
+            iconEye.classList.add('hidden');
+            iconEyeSlash.classList.remove('hidden');
+            btn.setAttribute('aria-label', 'Sembunyikan kata sandi');
+        } else {
+            iconEye.classList.remove('hidden');
+            iconEyeSlash.classList.add('hidden');
+            btn.setAttribute('aria-label', 'Tampilkan kata sandi');
+        }
+    }
 }
 </script>
 @endpush
