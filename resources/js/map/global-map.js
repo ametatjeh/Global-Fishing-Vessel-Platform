@@ -5,44 +5,26 @@
  */
 import * as maplibregl from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
+import workerSource from 'maplibre-gl/dist/maplibre-gl-worker.mjs?raw';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-// Ensure MapLibre Web Worker is loaded correctly across all server environments.
-// If the server serves .mjs as application/octet-stream (e.g. default Nginx on aaPanel/Ubuntu),
-// browsers reject module workers. We create an in-memory Blob URL with explicit text/javascript MIME type,
-// with static /assets/maplibre-gl-worker.js as fallback.
-let resolvedWorkerUrl = null;
-
-async function configureSafeWorker() {
-    if (resolvedWorkerUrl) return resolvedWorkerUrl;
-
+// Ensure MapLibre Web Worker is loaded correctly and safely across all server environments.
+// 1. Importing maplibreWorkerUrl ensures the worker binary is registered in Vite manifest.json.
+// 2. Creating an in-memory Blob worker URL with explicit text/javascript MIME type completely
+//    prevents browser MIME-type blocking (e.g. Nginx serving .mjs as application/octet-stream).
+if (typeof window !== 'undefined' && typeof Blob !== 'undefined' && typeof URL !== 'undefined') {
     try {
-        const res = await fetch(maplibreWorkerUrl);
-        if (res.ok) {
-            const script = await res.text();
-            const blob = new Blob([script], { type: 'text/javascript' });
-            resolvedWorkerUrl = URL.createObjectURL(blob);
-            if (maplibregl.config) {
-                maplibregl.config.WORKER_URL = resolvedWorkerUrl;
-            }
-            return resolvedWorkerUrl;
+        const workerBlob = new Blob([workerSource], { type: 'text/javascript' });
+        const blobWorkerUrl = URL.createObjectURL(workerBlob);
+        if (maplibregl.config) {
+            maplibregl.config.WORKER_URL = blobWorkerUrl;
         }
     } catch (e) {
-        console.warn('[MapLibre Worker] Blob conversion fallback:', e);
+        console.warn('[GlobalMapController] Blob worker initialization fallback:', e);
+        if (maplibregl.config) {
+            maplibregl.config.WORKER_URL = maplibreWorkerUrl;
+        }
     }
-
-    // Static fallback with .js extension served as application/javascript by Nginx
-    resolvedWorkerUrl = '/assets/maplibre-gl-worker.js';
-    if (maplibregl.config) {
-        maplibregl.config.WORKER_URL = resolvedWorkerUrl;
-    }
-    return resolvedWorkerUrl;
-}
-
-// Initial worker setup
-configureSafeWorker();
-
-if (typeof window !== 'undefined') {
     window.maplibregl = maplibregl;
 }
 
