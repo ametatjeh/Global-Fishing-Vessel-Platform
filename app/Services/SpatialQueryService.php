@@ -325,14 +325,41 @@ class SpatialQueryService
             $vessel = $pos->vessel;
             if (!$vessel) continue;
 
+            $lat = (float) $pos->latitude;
+            $lng = (float) $pos->longitude;
+            if (!is_finite($lat) || !is_finite($lng) || $lat < -90.0 || $lat > 90.0 || $lng < -180.0 || $lng > 180.0) {
+                continue;
+            }
+
             $flagInfo = \App\Services\Maritime\FlagStateService::resolveFromCodeAndMmsi($vessel->flag_state, $vessel->mmsi);
+
+            // Priority: 1. True Heading (0-360, excluding 511 NMEA not-available) -> 2. COG (0-360) -> 3. Neutral
+            $heading = null;
+            if ($pos->heading_degrees !== null) {
+                $hVal = (float) $pos->heading_degrees;
+                if ($hVal >= 0.0 && $hVal <= 360.0 && (int) $hVal !== 511) {
+                    $heading = $hVal;
+                }
+            }
+
+            $cog = null;
+            if ($pos->course_degrees !== null) {
+                $cVal = (float) $pos->course_degrees;
+                if ($cVal >= 0.0 && $cVal <= 360.0 && (int) $cVal !== 3600) {
+                    $cog = $cVal;
+                }
+            }
+
+            $orientation = $heading ?? $cog;
+            $orientationType = $heading !== null ? 'heading' : ($cog !== null ? 'cog' : 'neutral');
+            $hasOrientation = $orientation !== null;
 
             $features[] = [
                 'type' => 'Feature',
                 'id' => $pos->id,
                 'geometry' => [
                     'type' => 'Point',
-                    'coordinates' => [(float) $pos->longitude, (float) $pos->latitude],
+                    'coordinates' => [$lng, $lat],
                 ],
                 'properties' => [
                     'vessel_id' => $vessel->id,
@@ -348,9 +375,12 @@ class SpatialQueryService
                     'flag_status' => $flagInfo['status'],
                     'flag_verified' => $flagInfo['is_verified'],
                     'vessel_type' => $vessel->vessel_type,
-                    'speed_knots' => (float) $pos->speed_knots,
-                    'course_degrees' => (float) $pos->course_degrees,
-                    'heading_degrees' => (float) $pos->heading_degrees,
+                    'speed_knots' => $pos->speed_knots !== null ? (float) $pos->speed_knots : null,
+                    'course_degrees' => $cog,
+                    'heading_degrees' => $heading,
+                    'orientation_degrees' => $orientation !== null ? $orientation : 0.0,
+                    'orientation_type' => $orientationType,
+                    'has_orientation' => $hasOrientation,
                     'nav_status' => $pos->nav_status,
                     'observed_at' => $pos->observed_at?->toIso8601String(),
                     'is_fresh' => $pos->isFresh(),

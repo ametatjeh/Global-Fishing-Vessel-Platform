@@ -24,7 +24,6 @@ export class GlobalMapController {
             fao: true,
             eez: true,
             eezBoundaries: true,
-            fma: true,
             encounters: true,
             vessels: true,
             darkVessels: true,
@@ -35,7 +34,6 @@ export class GlobalMapController {
             fao: false,
             eez: false,
             eezBoundaries: false,
-            fma: false,
             encounters: false,
             vessels: false,
             darkVessels: false,
@@ -47,7 +45,6 @@ export class GlobalMapController {
             fao: null,
             eez: null,
             eezBoundaries: null,
-            fma: null,
             encounters: null,
             vessels: null,
             darkVessels: null,
@@ -57,6 +54,7 @@ export class GlobalMapController {
         this.debounceTimer = null;
         this.currentPopup = null;
         this.basemapErrorNotified = false;
+        this.livePollingInterval = null;
 
         this.init();
     }
@@ -96,6 +94,7 @@ export class GlobalMapController {
         // ESRI World Dark Gray Canvas (Watermark-Free, Production Stable, No API Key Required)
         return {
             version: 8,
+            glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
             sources: {
                 'esri-dark-base': {
                     type: 'raster',
@@ -197,14 +196,20 @@ export class GlobalMapController {
     setupLifecycleHooks() {
         this.map.on('load', () => {
             this.resizeMap();
+            this.registerVesselIcons();
             this.setupSourcesAndLayers();
             this.attachEventListeners();
             this.refreshAllActiveLayers();
+            this.startLiveVesselPolling(30000);
         });
 
         // Window resize observer
         window.addEventListener('resize', () => {
             this.resizeMap();
+        });
+
+        window.addEventListener('beforeunload', () => {
+            this.stopLiveVesselPolling();
         });
 
         // Periodic resize sync for smooth container transitions
@@ -224,7 +229,6 @@ export class GlobalMapController {
 
     setupSourcesAndLayers() {
         this.addFaoLayer();
-        this.addFmaLayer();
         this.addEezLayer();
         this.addEezBoundariesLayer();
         this.addSarSceneLayer();
@@ -264,39 +268,6 @@ export class GlobalMapController {
                 'line-width': 1.8,
                 'line-opacity': 0.9,
                 'line-dasharray': [4, 2]
-            }
-        });
-    }
-
-    addFmaLayer() {
-        if (this.map.getSource('fma-source')) return;
-
-        this.map.addSource('fma-source', {
-            type: 'geojson',
-            data: { type: 'FeatureCollection', features: [] }
-        });
-
-        this.map.addLayer({
-            id: 'fma-fill-layer',
-            type: 'fill',
-            source: 'fma-source',
-            layout: { visibility: this.activeLayers.fma ? 'visible' : 'none' },
-            paint: {
-                'fill-color': '#8b5cf6',
-                'fill-opacity': 0.10
-            }
-        });
-
-        this.map.addLayer({
-            id: 'fma-line-layer',
-            type: 'line',
-            source: 'fma-source',
-            layout: { visibility: this.activeLayers.fma ? 'visible' : 'none' },
-            paint: {
-                'line-color': '#c084fc',
-                'line-width': 2.0,
-                'line-opacity': 0.9,
-                'line-dasharray': [2, 2]
             }
         });
     }
@@ -407,25 +378,111 @@ export class GlobalMapController {
         });
     }
 
+    registerVesselIcons() {
+        if (!this.map) return;
+
+        try {
+            // 1. Live Vessel Chevron (Pointing True North 0°)
+            if (!this.map.hasImage('vessel-oriented-live')) {
+                const size = 32;
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.beginPath();
+                    ctx.moveTo(16, 2);   // Bow
+                    ctx.lineTo(27, 27);  // Starboard stern outer
+                    ctx.lineTo(16, 21);  // Transom center notch
+                    ctx.lineTo(5, 27);   // Port stern outer
+                    ctx.closePath();
+
+                    ctx.fillStyle = '#38bdf8'; // Bright cyan
+                    ctx.fill();
+                    ctx.lineWidth = 2.0;
+                    ctx.strokeStyle = '#0284c7'; // Deep blue outline
+                    ctx.stroke();
+
+                    this.map.addImage('vessel-oriented-live', ctx.getImageData(0, 0, size, size), { pixelRatio: 2 });
+                }
+            }
+
+            // 2. Stale Vessel Chevron (> 2h, Slate)
+            if (!this.map.hasImage('vessel-oriented-stale')) {
+                const size = 32;
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.beginPath();
+                    ctx.moveTo(16, 2);
+                    ctx.lineTo(27, 27);
+                    ctx.lineTo(16, 21);
+                    ctx.lineTo(5, 27);
+                    ctx.closePath();
+
+                    ctx.fillStyle = '#64748b'; // Slate 500
+                    ctx.fill();
+                    ctx.lineWidth = 2.0;
+                    ctx.strokeStyle = '#334155'; // Slate 700 outline
+                    ctx.stroke();
+
+                    this.map.addImage('vessel-oriented-stale', ctx.getImageData(0, 0, size, size), { pixelRatio: 2 });
+                }
+            }
+        } catch (e) {
+            console.warn('[GlobalMapController] Canvas image registration warning:', e);
+        }
+    }
+
     addAisLayers() {
         if (this.map.getSource('vessels-source')) return;
 
+        this.registerVesselIcons();
+
+        // High-performance GeoJSON source for individual vessel markers
         this.map.addSource('vessels-source', {
             type: 'geojson',
             data: { type: 'FeatureCollection', features: [] }
         });
 
+        // 1. Individual Vessels with Valid Orientation (Heading or COG Chevron)
+        this.map.addLayer({
+            id: 'vessels-oriented-layer',
+            type: 'symbol',
+            source: 'vessels-source',
+            filter: ['==', ['get', 'has_orientation'], true],
+            layout: {
+                'icon-image': [
+                    'case',
+                    ['boolean', ['get', 'is_fresh'], false],
+                    'vessel-oriented-live',
+                    'vessel-oriented-stale'
+                ],
+                'icon-rotate': ['get', 'orientation_degrees'],
+                'icon-rotation-alignment': 'map',
+                'icon-pitch-alignment': 'map',
+                'icon-allow-overlap': true,
+                'icon-ignore-placement': true,
+                'icon-size': 0.85,
+                'visibility': this.activeLayers.vessels ? 'visible' : 'none'
+            }
+        });
+
+        // 2. Individual Vessels with Neutral / Unknown Orientation (Beacon Circle)
         this.map.addLayer({
             id: 'vessels-circle-layer',
             type: 'circle',
             source: 'vessels-source',
+            filter: ['!=', ['get', 'has_orientation'], true],
             layout: { visibility: this.activeLayers.vessels ? 'visible' : 'none' },
             paint: {
                 'circle-radius': [
                     'case',
                     ['boolean', ['get', 'is_fresh'], false],
-                    6.0,
-                    4.5
+                    5.5,
+                    4.0
                 ],
                 'circle-color': [
                     'case',
@@ -434,12 +491,7 @@ export class GlobalMapController {
                     '#64748b'  // Stale (> 2h) - Muted slate
                 ],
                 'circle-stroke-width': 1.5,
-                'circle-stroke-color': [
-                    'case',
-                    ['boolean', ['get', 'is_fresh'], false],
-                    '#0284c7',
-                    '#334155'
-                ]
+                'circle-stroke-color': '#ffffff'
             }
         });
     }
@@ -527,13 +579,11 @@ export class GlobalMapController {
         const orderedLayers = [
             // 2. Polygons & Fills
             'fao-fill-layer',
-            'fma-fill-layer',
             'eez-fill-layer',
             'sar-scenes-fill-layer',
 
             // 2b. Context outlines
             'fao-line-layer',
-            'fma-line-layer',
             'eez-line-layer',
 
             // 3. Official EEZ Boundaries line layer (Dark, crisp, distinct)
@@ -544,8 +594,9 @@ export class GlobalMapController {
             'encounters-circle-layer',
             'dark-vessels-circle-layer',
 
-            // 5. Vessel Symbols — strictly topmost
-            'vessels-circle-layer'
+            // 5. Vessels — strictly topmost individual oriented and neutral markers
+            'vessels-circle-layer',
+            'vessels-oriented-layer'
         ];
 
         orderedLayers.forEach((layerId) => {
@@ -558,12 +609,14 @@ export class GlobalMapController {
             }
         });
 
-        // Unconditional enforcement: vessel symbols remain on top of everything
-        if (this.map.getLayer('vessels-circle-layer')) {
-            try {
-                this.map.moveLayer('vessels-circle-layer');
-            } catch (e) {}
-        }
+        // Unconditional enforcement: vessel layers remain on top of everything
+        ['vessels-circle-layer', 'vessels-oriented-layer'].forEach((id) => {
+            if (this.map.getLayer(id)) {
+                try {
+                    this.map.moveLayer(id);
+                } catch (e) {}
+            }
+        });
     }
 
     attachEventListeners() {
@@ -593,80 +646,14 @@ export class GlobalMapController {
             this.showPopup(e.lngLat, html);
         });
 
-        // Live AIS Vessels Click Popup
+        // Individual Vessel Click (Oriented Chevron)
+        this.map.on('click', 'vessels-oriented-layer', (e) => {
+            this.handleVesselClick(e);
+        });
+
+        // Individual Vessel Click (Neutral Circle)
         this.map.on('click', 'vessels-circle-layer', (e) => {
-            if (!e.features.length) return;
-            const props = e.features[0].properties;
-            const isFresh = props.is_fresh === true || props.is_fresh === 'true';
-            const freshnessBadge = isFresh
-                ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">● LIVE (&lt; 2h)</span>`
-                : `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-amber-300 border border-amber-500/30">⏳ KEDALUWARSA</span>`;
-
-            const dateStr = props.observed_at ? new Date(props.observed_at).toUTCString() : 'N/A';
-            const coordsStr = e.lngLat ? `${e.lngLat.lat.toFixed(4)}° S, ${e.lngLat.lng.toFixed(4)}° E` : 'N/A';
-
-            const flagEmoji = props.flag_emoji || '🌐';
-            const flagCountry = props.flag_country || 'Flag state unknown';
-            const flagStateCode = props.flag_state || 'UN';
-            const flagStatus = props.flag_status || 'unknown';
-            const flagStatusBadge = flagStatus === 'verified_explicit'
-                ? `<span class="px-1 py-0.2 rounded text-[9px] bg-emerald-950 text-emerald-300 border border-emerald-500/40 font-bold">Verified</span>`
-                : (flagStatus === 'mid_administrative_indicator'
-                    ? `<span class="px-1 py-0.2 rounded text-[9px] bg-slate-800 text-amber-300 border border-amber-500/40 font-bold" title="MMSI MID ITU, bukan bukti definitif flag state">MID Clue</span>`
-                    : (flagStatus === 'conflict_detected'
-                        ? `<span class="px-1 py-0.2 rounded text-[9px] bg-rose-950 text-rose-300 border border-rose-500/40 font-bold">Conflict</span>`
-                        : `<span class="px-1 py-0.2 rounded text-[9px] bg-slate-800 text-slate-400">Unknown</span>`));
-
-            const html = `
-                <div class="space-y-2 text-xs font-sans">
-                    <div class="flex items-center justify-between border-b border-sky-900 pb-1">
-                        <span class="font-bold text-sky-300 flex items-center gap-1.5">
-                            <span class="text-sm">${flagEmoji}</span>
-                            <span>${props.name || 'AIS Vessel'}</span>
-                        </span>
-                        <div class="flex items-center gap-1">
-                            ${freshnessBadge}
-                            <span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-sky-500/20 text-sky-300 border border-sky-500/30 flex items-center gap-1">
-                                <span>${flagEmoji}</span>
-                                <span>${flagStateCode}</span>
-                            </span>
-                        </div>
-                    </div>
-                    <div class="p-1.5 rounded-lg bg-slate-900/90 border border-slate-800 space-y-1 text-[11px] font-mono">
-                        <div class="flex items-center justify-between">
-                            <span class="text-slate-400">Flag State:</span>
-                            <div class="flex items-center gap-1.5">
-                                <span class="text-white font-semibold flex items-center gap-1">
-                                    <span>${flagEmoji}</span>
-                                    <span>${flagCountry}</span>
-                                    <span class="text-[10px] text-teal-300">(${flagStateCode})</span>
-                                </span>
-                                ${flagStatusBadge}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2 text-[11px] font-mono">
-                        <div><span class="text-slate-400">MMSI:</span> <span class="font-bold text-white">${props.mmsi || '-'}</span></div>
-                        <div><span class="text-slate-400">IMO:</span> <span class="font-bold text-white">${props.imo || '-'}</span></div>
-                        <div><span class="text-slate-400">Callsign:</span> <span class="font-bold text-white">${props.callsign || '-'}</span></div>
-                        <div><span class="text-slate-400">Tipe:</span> <span class="font-bold text-slate-300 capitalize">${props.vessel_type || 'vessel'}</span></div>
-                        <div><span class="text-slate-400">SOG (Kecepatan):</span> <span class="text-sky-300 font-bold">${props.speed_knots || 0} kn</span></div>
-                        <div><span class="text-slate-400">COG (Haluan):</span> <span class="text-sky-300 font-bold">${props.course_degrees || 0}&deg;</span></div>
-                    </div>
-                    <div class="text-[10px] font-mono text-slate-400">
-                        Posisi: <span class="text-slate-200">${coordsStr}</span>
-                    </div>
-                    <div class="text-[10px] text-slate-400 pt-1 border-t border-slate-800 flex justify-between">
-                        <span>Waktu: ${dateStr}</span>
-                        <span>${props.provider || 'AIS Stream'}</span>
-                    </div>
-                    ${props.vessel_id ? `
-                    <div class="pt-1 text-right">
-                        <a href="/vessels/${props.vessel_id}" class="text-[11px] text-sky-400 hover:text-sky-300 font-semibold underline">Profil & Track Kapal &rarr;</a>
-                    </div>` : ''}
-                </div>
-            `;
-            this.showPopup(e.lngLat, html);
+            this.handleVesselClick(e);
         });
 
         // SAR Candidate / Dark Vessel Click Popup
@@ -737,27 +724,6 @@ export class GlobalMapController {
                     <div class="text-[11px] text-blue-200">Ocean Basin: <strong class="text-white">${props.ocean_basin || '-'}</strong></div>
                     <div class="text-[10px] text-blue-300/80 bg-blue-950/60 p-2 rounded border border-blue-800/40">
                         <strong>Perhatian:</strong> Poligon FAO adalah wilayah statistik pelaporan perikanan global, bukan batas yurisdiksi atau kewenangan hukum.
-                    </div>
-                </div>
-            `;
-            this.showPopup(e.lngLat, html);
-        });
-
-        // Fisheries Management Areas (RFMO) Click Popup
-        this.map.on('click', 'fma-fill-layer', (e) => {
-            if (!e.features.length) return;
-            const props = e.features[0].properties;
-            const html = `
-                <div class="space-y-2 text-xs font-sans">
-                    <div class="flex items-center gap-1.5 font-bold text-purple-300 border-b border-purple-900 pb-1">
-                        <span>🏛️</span>
-                        <span>${props.rfb_code || 'RFMO'} &bull; ${props.mandate_type || 'Regional Body'}</span>
-                    </div>
-                    <div class="text-slate-100 font-semibold">${props.name || 'Fisheries Management Area'}</div>
-                    <div class="text-[11px] text-purple-200">Ocean Basin: <strong class="text-white">${props.ocean_basin || '-'}</strong></div>
-                    <div class="text-[10px] text-slate-300">Instrumen: ${props.legal_instrument || '-'}</div>
-                    <div class="text-[10px] text-purple-300/90 bg-purple-950/70 p-2 rounded border border-purple-800/40">
-                        <strong>Mandat:</strong> ${props.disclaimer || 'Wilayah kompetensi pengelolaan perikanan multilateral berdasarkan instrumen traktat internasional. Bukan batas kedaulatan maritim.'}
                     </div>
                 </div>
             `;
@@ -848,10 +814,10 @@ export class GlobalMapController {
         // Cursor pointer styling on hover
         const clickableLayers = [
             'fao-fill-layer',
-            'fma-fill-layer',
             'eez-fill-layer',
             'eez-boundaries-layer',
             'encounters-circle-layer',
+            'vessels-oriented-layer',
             'vessels-circle-layer',
             'dark-vessels-circle-layer',
             'sar-scenes-fill-layer'
@@ -877,6 +843,112 @@ export class GlobalMapController {
             .addTo(this.map);
     }
 
+    handleVesselClick(e) {
+        if (!e.features || !e.features.length) return;
+        const feat = e.features[0];
+        const props = feat.properties;
+        const coords = feat.geometry?.coordinates || [e.lngLat.lng, e.lngLat.lat];
+        this.showVesselPopup(props, { lng: coords[0], lat: coords[1] });
+    }
+
+    showVesselPopup(props, lngLat) {
+        const isFresh = props.is_fresh === true || props.is_fresh === 'true';
+        const freshnessBadge = isFresh
+            ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">● LIVE (&lt; 2h)</span>`
+            : `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-amber-300 border border-amber-500/30">⏳ KEDALUWARSA</span>`;
+
+        const dateStr = props.observed_at ? new Date(props.observed_at).toUTCString() : 'N/A';
+        const coordsStr = `${lngLat.lat.toFixed(4)}°, ${lngLat.lng.toFixed(4)}°`;
+
+        const flagEmoji = props.flag_emoji || '🌐';
+        const flagCountry = props.flag_country || 'Flag state unknown';
+        const flagStateCode = props.flag_state || 'UN';
+        const flagStatus = props.flag_status || 'unknown';
+        const flagStatusBadge = flagStatus === 'verified_explicit'
+            ? `<span class="px-1 py-0.2 rounded text-[9px] bg-emerald-950 text-emerald-300 border border-emerald-500/40 font-bold">Verified</span>`
+            : (flagStatus === 'mid_administrative_indicator'
+                ? `<span class="px-1 py-0.2 rounded text-[9px] bg-slate-800 text-amber-300 border border-amber-500/40 font-bold" title="MMSI MID ITU, bukan bukti definitif flag state">MID Clue</span>`
+                : (flagStatus === 'conflict_detected'
+                    ? `<span class="px-1 py-0.2 rounded text-[9px] bg-rose-950 text-rose-300 border border-rose-500/40 font-bold">Conflict</span>`
+                    : `<span class="px-1 py-0.2 rounded text-[9px] bg-slate-800 text-slate-400">Unknown</span>`));
+
+        // Orientation status badge
+        let orientationBadge = '<span class="text-slate-400">Netral (Tanpa Haluan)</span>';
+        if (props.orientation_type === 'heading') {
+            orientationBadge = `<span class="text-emerald-300 font-bold">🧭 Heading Aktual (${Number(props.heading_degrees).toFixed(1)}°)</span>`;
+        } else if (props.orientation_type === 'cog' || (props.course_degrees !== null && props.course_degrees !== undefined)) {
+            orientationBadge = `<span class="text-sky-300 font-bold">⚓ COG Fallback (${Number(props.course_degrees).toFixed(1)}°)</span>`;
+        }
+
+        const headingDisplay = (props.heading_degrees !== null && props.heading_degrees !== undefined && props.heading_degrees !== '')
+            ? `${Number(props.heading_degrees).toFixed(1)}°`
+            : '<span class="text-slate-500 italic">N/A</span>';
+
+        const cogDisplay = (props.course_degrees !== null && props.course_degrees !== undefined && props.course_degrees !== '')
+            ? `${Number(props.course_degrees).toFixed(1)}°`
+            : '<span class="text-slate-500 italic">N/A</span>';
+
+        const sogDisplay = (props.speed_knots !== null && props.speed_knots !== undefined && props.speed_knots !== '')
+            ? `${Number(props.speed_knots).toFixed(1)} kn`
+            : '0.0 kn';
+
+        const html = `
+            <div class="space-y-2 text-xs font-sans max-w-xs">
+                <div class="flex items-center justify-between border-b border-sky-900 pb-1">
+                    <span class="font-bold text-sky-300 flex items-center gap-1.5 truncate mr-2">
+                        <span class="text-sm">${flagEmoji}</span>
+                        <span class="truncate">${props.name || 'AIS Vessel'}</span>
+                    </span>
+                    <div class="flex items-center gap-1 shrink-0">
+                        ${freshnessBadge}
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-sky-500/20 text-sky-300 border border-sky-500/30 flex items-center gap-1">
+                            <span>${flagEmoji}</span>
+                            <span>${flagStateCode}</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="p-1.5 rounded-lg bg-slate-900/90 border border-slate-800 space-y-1 text-[11px] font-mono">
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-400">Flag State:</span>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-white font-semibold flex items-center gap-1 truncate max-w-[130px]" title="${flagCountry}">
+                                <span class="truncate">${flagCountry}</span>
+                                <span class="text-[10px] text-teal-300">(${flagStateCode})</span>
+                            </span>
+                            ${flagStatusBadge}
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                    <div><span class="text-slate-400">MMSI:</span> <strong class="text-white">${props.mmsi || '-'}</strong></div>
+                    <div><span class="text-slate-400">IMO:</span> <strong class="text-white">${props.imo || '-'}</strong></div>
+                    <div><span class="text-slate-400">Callsign:</span> <strong class="text-white">${props.callsign || '-'}</strong></div>
+                    <div><span class="text-slate-400">Tipe:</span> <span class="text-slate-300 capitalize">${props.vessel_type || 'vessel'}</span></div>
+                    <div><span class="text-slate-400">SOG (Kecepatan):</span> <strong class="text-sky-300">${sogDisplay}</strong></div>
+                    <div><span class="text-slate-400">COG (Arah Gerak):</span> <strong class="text-sky-300">${cogDisplay}</strong></div>
+                    <div><span class="text-slate-400">Heading (Haluan):</span> <strong class="text-emerald-300">${headingDisplay}</strong></div>
+                    <div><span class="text-slate-400">Status Nav:</span> <span class="text-slate-300 capitalize">${props.nav_status || 'under_way'}</span></div>
+                </div>
+                <div class="p-1 rounded bg-slate-900 border border-slate-800 text-[10px] font-mono flex items-center justify-between">
+                    <span class="text-slate-400">Arah Simbol:</span>
+                    <div>${orientationBadge}</div>
+                </div>
+                <div class="text-[10px] font-mono text-slate-400">
+                    Posisi: <span class="text-slate-200">${coordsStr}</span>
+                </div>
+                <div class="text-[10px] text-slate-400 pt-1 border-t border-slate-800 flex justify-between">
+                    <span>Waktu: ${dateStr}</span>
+                    <span>${props.provider || 'AIS Live Gateway'}</span>
+                </div>
+                ${props.vessel_id ? `
+                <div class="pt-1 text-right">
+                    <a href="/vessels/${props.vessel_id}" class="text-[11px] text-sky-400 hover:text-sky-300 font-semibold underline">Profil & Track Kapal &rarr;</a>
+                </div>` : ''}
+            </div>
+        `;
+        this.showPopup(lngLat, html);
+    }
+
     handleViewportChange() {
         clearTimeout(this.debounceTimer);
         this.debounceTimer = setTimeout(() => {
@@ -899,11 +971,13 @@ export class GlobalMapController {
 
         const layerMap = {
             fao: ['fao-fill-layer', 'fao-line-layer'],
-            fma: ['fma-fill-layer', 'fma-line-layer'],
             eez: ['eez-fill-layer', 'eez-line-layer'],
             eezBoundaries: ['eez-boundaries-layer'],
             encounters: ['encounters-circle-layer'],
-            vessels: ['vessels-circle-layer'],
+            vessels: [
+                'vessels-oriented-layer',
+                'vessels-circle-layer'
+            ],
             darkVessels: ['dark-vessels-circle-layer'],
             sarScenes: ['sar-scenes-fill-layer', 'sar-scenes-line-layer'],
         };
@@ -930,11 +1004,10 @@ export class GlobalMapController {
         });
     }
 
-    async fetchLayerData(layerKey) {
+    async fetchLayerData(layerKey, options = {}) {
         const bbox = this.getViewportBBoxString();
         const urls = {
             fao: `/api/layers/fao?bbox=${bbox || ''}`,
-            fma: `/api/layers/fma?bbox=${bbox || ''}`,
             eez: `/api/layers/eez?bbox=${bbox || ''}`,
             eezBoundaries: `/api/layers/eez-boundaries?bbox=${bbox || ''}`,
             encounters: `/api/layers/encounters?bbox=${bbox || ''}`,
@@ -945,7 +1018,6 @@ export class GlobalMapController {
 
         const sources = {
             fao: 'fao-source',
-            fma: 'fma-source',
             eez: 'eez-source',
             eezBoundaries: 'eez-boundaries-source',
             encounters: 'encounters-source',
@@ -957,26 +1029,66 @@ export class GlobalMapController {
         const sourceId = sources[layerKey];
         if (!sourceId || !this.map || !this.map.getSource(sourceId)) return;
 
-        this.setLoadingBadge(layerKey, true);
+        if (!options.silent) {
+            this.setLoadingBadge(layerKey, true);
+        }
 
         try {
-            const res = await fetch(urls[layerKey]);
+            let requestUrl = urls[layerKey];
+            if (layerKey === 'vessels') {
+                const searchInput = document.getElementById('inputVesselSearch');
+                if (searchInput && searchInput.value && searchInput.value.trim()) {
+                    requestUrl += `&q=${encodeURIComponent(searchInput.value.trim())}`;
+                }
+            }
+
+            const res = await fetch(requestUrl);
             if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
             const geojson = await res.json();
+
+            // Validate coordinates before updating map
+            if (geojson && Array.isArray(geojson.features)) {
+                geojson.features = geojson.features.filter((f) => {
+                    const coords = f.geometry?.coordinates;
+                    return coords && Array.isArray(coords) &&
+                           this.isValidCoord(coords[0], coords[1]);
+                });
+            }
 
             // Cache data in controller instance
             this.layerData[layerKey] = geojson;
 
-            if (this.map.getSource(sourceId)) {
-                this.map.getSource(sourceId).setData(geojson);
+            const source = this.map.getSource(sourceId);
+            if (source && typeof source.setData === 'function') {
+                source.setData(geojson);
             }
             this.updateLayerCountBadge(layerKey, geojson.features ? geojson.features.length : 0);
             this.ensureLayerOrder();
         } catch (err) {
             console.error(`[GlobalMapController] Error loading layer ${layerKey}:`, err);
-            this.showLayerError(layerKey);
+            if (!options.silent) {
+                this.showLayerError(layerKey);
+            }
         } finally {
-            this.setLoadingBadge(layerKey, false);
+            if (!options.silent) {
+                this.setLoadingBadge(layerKey, false);
+            }
+        }
+    }
+
+    startLiveVesselPolling(intervalMs = 30000) {
+        this.stopLiveVesselPolling();
+        this.livePollingInterval = setInterval(() => {
+            if (this.activeLayers.vessels && this.map) {
+                this.fetchLayerData('vessels', { silent: true });
+            }
+        }, intervalMs);
+    }
+
+    stopLiveVesselPolling() {
+        if (this.livePollingInterval) {
+            clearInterval(this.livePollingInterval);
+            this.livePollingInterval = null;
         }
     }
 
@@ -1030,9 +1142,6 @@ export class GlobalMapController {
         } else if (type === 'fao') {
             sourceId = 'fao-source';
             layerKey = 'fao';
-        } else if (type === 'fma' || type === 'rfmo') {
-            sourceId = 'fma-source';
-            layerKey = 'fma';
         }
 
         const source = this.map.getSource(sourceId);

@@ -96,6 +96,11 @@ class MapLibreFullVisualizationTest extends TestCase
         $response->assertSee('toggle-layer-vessels');
         $response->assertSee('toggle-layer-dark-vessels');
         $response->assertSee('toggle-layer-sar-scenes');
+        $response->assertSee('Armada Kapal AIS');
+        $response->assertSee('Haluan/COG Kapal');
+        $response->assertSee('Posisi Netral');
+        $response->assertDontSee('Cluster Padat');
+        $response->assertDontSee('Cluster Kecil');
     }
 
     public function test_tracking_page_renders_dedicated_maplibre_canvas_and_telemetry(): void
@@ -208,6 +213,7 @@ class MapLibreFullVisualizationTest extends TestCase
 
     public function test_candidate_historical_track_api_returns_valid_linestring_and_points(): void
     {
+        // 1. Candidate without AIS positions (Coverage gap scenario)
         $response = $this->actingAs($this->analyst)->getJson(route('api.sar.candidates.track', [
             'id' => $this->detection->id,
             'window' => 60,
@@ -218,7 +224,104 @@ class MapLibreFullVisualizationTest extends TestCase
         $this->assertEquals('FeatureCollection', $data['type']);
         $this->assertArrayHasKey('features', $data);
         $this->assertEquals(60, $data['properties']['window_minutes']);
-        $this->assertArrayHasKey('position_count', $data['properties']);
+        $this->assertEquals(0, $data['properties']['position_count']);
+        $this->assertEquals('empty', $data['properties']['track_status']);
+
+        // 2. Candidate with correlated vessel and historical track positions (>= 2 points)
+        $vessel = Vessel::create([
+            'mmsi' => '525999888',
+            'name' => 'PACIFIC SURVEYOR',
+            'first_seen_at' => now(),
+            'last_seen_at' => now(),
+        ]);
+
+        $detTime = \Carbon\Carbon::parse($this->detection->detected_at);
+
+        // Position 1: 20 mins before SAR (role: before_sar)
+        VesselPosition::create([
+            'vessel_id' => $vessel->id,
+            'latitude' => $this->detection->latitude - 0.05,
+            'longitude' => $this->detection->longitude - 0.05,
+            'speed_knots' => 10.2,
+            'course_degrees' => 45.0,
+            'heading_degrees' => 45.0,
+            'observed_at' => $detTime->copy()->subMinutes(20),
+            'received_at' => $detTime->copy()->subMinutes(20),
+        ]);
+
+        // Position 2: 2 mins after SAR, closest to candidate (role: nearest)
+        VesselPosition::create([
+            'vessel_id' => $vessel->id,
+            'latitude' => $this->detection->latitude + 0.005,
+            'longitude' => $this->detection->longitude + 0.005,
+            'speed_knots' => 10.0,
+            'course_degrees' => 46.0,
+            'heading_degrees' => 45.0,
+            'observed_at' => $detTime->copy()->addMinutes(2),
+            'received_at' => $detTime->copy()->addMinutes(2),
+        ]);
+
+        // Position 3: 25 mins after SAR (role: after_sar)
+        VesselPosition::create([
+            'vessel_id' => $vessel->id,
+            'latitude' => $this->detection->latitude + 0.06,
+            'longitude' => $this->detection->longitude + 0.06,
+            'speed_knots' => 9.8,
+            'course_degrees' => 48.0,
+            'heading_degrees' => 47.0,
+            'observed_at' => $detTime->copy()->addMinutes(25),
+            'received_at' => $detTime->copy()->addMinutes(25),
+        ]);
+
+        // Position 4: 90 mins after SAR (outside 60m window)
+        VesselPosition::create([
+            'vessel_id' => $vessel->id,
+            'latitude' => $this->detection->latitude + 0.20,
+            'longitude' => $this->detection->longitude + 0.20,
+            'speed_knots' => 10.0,
+            'course_degrees' => 50.0,
+            'observed_at' => $detTime->copy()->addMinutes(90),
+            'received_at' => $detTime->copy()->addMinutes(90),
+        ]);
+
+        $trackResponse = $this->actingAs($this->analyst)->getJson(route('api.sar.candidates.track', [
+            'id' => $this->detection->id,
+            'window' => 60,
+        ]));
+
+        $trackResponse->assertOk();
+        $trackData = $trackResponse->json();
+
+        $this->assertEquals(3, $trackData['properties']['position_count']);
+        $this->assertEquals('available', $trackData['properties']['track_status']);
+
+        // Must have exactly 1 LineString feature
+        $lineStrings = array_values(array_filter($trackData['features'], fn($f) => $f['geometry']['type'] === 'LineString'));
+        $this->assertCount(1, $lineStrings);
+        $this->assertEquals('ais_track_line', $lineStrings[0]['properties']['feature_type']);
+        $this->assertCount(3, $lineStrings[0]['geometry']['coordinates']);
+
+        // Check coordinate format [longitude, latitude]
+        $firstCoord = $lineStrings[0]['geometry']['coordinates'][0];
+        $this->assertCount(2, $firstCoord);
+        $this->assertEquals(round($this->detection->longitude - 0.05, 4), round($firstCoord[0], 4)); // lng
+        $this->assertEquals(round($this->detection->latitude - 0.05, 4), round($firstCoord[1], 4)); // lat
+
+        // Observation point features
+        $points = array_values(array_filter($trackData['features'], fn($f) => $f['geometry']['type'] === 'Point' && ($f['properties']['feature_type'] ?? '') === 'ais_position'));
+        $this->assertCount(3, $points);
+
+        $roles = array_column(array_column($points, 'properties'), 'role');
+        $this->assertContains('before_sar', $roles);
+        $this->assertContains('nearest', $roles);
+        $this->assertContains('after_sar', $roles);
+
+        // Window expansion (180 mins) includes position 4
+        $expandedResponse = $this->actingAs($this->analyst)->getJson(route('api.sar.candidates.track', [
+            'id' => $this->detection->id,
+            'window' => 180,
+        ]));
+        $this->assertEquals(4, $expandedResponse->json('properties.position_count'));
     }
 
     public function test_invalid_coordinates_handled_gracefully(): void

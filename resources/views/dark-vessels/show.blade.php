@@ -889,43 +889,64 @@ document.addEventListener('DOMContentLoaded', function() {
         aisTrackMarkers.forEach(m => m.remove());
         aisTrackMarkers = [];
 
-        // Remove existing source/layer if any
-        if (map.getLayer('ais-track-line-layer')) map.removeLayer('ais-track-line-layer');
-        if (map.getSource('ais-track-source')) map.removeSource('ais-track-source');
-
         fetch(`/api/sar/candidates/${candidateId}/track?window=${windowVal}`)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+                return res.json();
+            })
             .then(geoJson => {
                 const count = geoJson.properties?.position_count ?? 0;
+                const isChecked = document.getElementById('toggle-ais-track').checked;
+
+                // 1. Maintain or update GeoJSON source smoothly without tearing down layers
+                const existingSource = map.getSource('ais-track-source');
+                if (existingSource && typeof existingSource.setData === 'function') {
+                    existingSource.setData(geoJson);
+                } else {
+                    map.addSource('ais-track-source', {
+                        type: 'geojson',
+                        data: geoJson
+                    });
+                }
+
+                // 2. Ensure LineString layer exists with robust MapLibre geometry-type expression
+                if (!map.getLayer('ais-track-line-layer')) {
+                    map.addLayer({
+                        id: 'ais-track-line-layer',
+                        type: 'line',
+                        source: 'ais-track-source',
+                        filter: ['==', ['geometry-type'], 'LineString'],
+                        layout: {
+                            'visibility': isChecked ? 'visible' : 'none',
+                            'line-join': 'round',
+                            'line-cap': 'round'
+                        },
+                        paint: {
+                            'line-color': '#f59e0b',
+                            'line-width': 3.0,
+                            'line-dasharray': [3, 1.5]
+                        }
+                    });
+                } else {
+                    map.setLayoutProperty('ais-track-line-layer', 'visibility', isChecked ? 'visible' : 'none');
+                }
+
+                // 3. Informative Status Messaging
                 if (count === 0) {
-                    statusBadge.innerText = `0 posisi AIS dalam ±${windowVal} mnt (Coverage Gap)`;
+                    statusBadge.innerText = `Insufficient AIS positions to draw a track for the selected time window (±${windowVal} mnt).`;
                     statusBadge.className = 'absolute top-2 left-2 px-2.5 py-1 rounded bg-slate-950/80 backdrop-blur-md border border-slate-800 text-[10px] font-mono text-slate-400';
                     return;
                 }
 
-                statusBadge.innerText = `${count} posisi AIS terpantau (±${windowVal} mnt)`;
-                statusBadge.className = 'absolute top-2 left-2 px-2.5 py-1 rounded bg-slate-950/80 backdrop-blur-md border border-slate-800 text-[10px] font-mono text-emerald-300';
+                if (count < 2) {
+                    statusBadge.innerText = `Insufficient AIS positions to draw a track for the selected time window (1 posisi terpantau, butuh ≥2 posisi).`;
+                    statusBadge.className = 'absolute top-2 left-2 px-2.5 py-1 rounded bg-slate-950/80 backdrop-blur-md border border-slate-800 text-[10px] font-mono text-amber-300';
+                } else {
+                    statusBadge.innerText = `${count} posisi AIS terpantau & lintasan terhubung (±${windowVal} mnt)`;
+                    statusBadge.className = 'absolute top-2 left-2 px-2.5 py-1 rounded bg-slate-950/80 backdrop-blur-md border border-slate-800 text-[10px] font-mono text-emerald-300';
+                }
 
-                // Add GeoJSON source
-                map.addSource('ais-track-source', {
-                    type: 'geojson',
-                    data: geoJson
-                });
-
-                // Line layer for track
-                map.addLayer({
-                    id: 'ais-track-line-layer',
-                    type: 'line',
-                    source: 'ais-track-source',
-                    filter: ['==', '$type', 'LineString'],
-                    paint: {
-                        'line-color': '#f59e0b',
-                        'line-width': 2.5,
-                        'line-dasharray': [2, 1]
-                    }
-                });
-
-                // Add point markers
+                // 4. Add point observation markers
                 geoJson.features.forEach(feat => {
                     if (feat.geometry.type !== 'Point' || feat.properties.feature_type === 'sar_candidate') {
                         return;
@@ -950,6 +971,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
 
                     markerEl.className = `w-5 h-5 rounded-full ${colorClass} border flex items-center justify-center text-[9px] text-white font-bold cursor-pointer shadow-md transition-transform hover:scale-150`;
+                    markerEl.style.display = isChecked ? 'flex' : 'none';
                     markerEl.innerHTML = icon;
 
                     const popupHtml = `
@@ -974,6 +996,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     aisTrackMarkers.push(marker);
                 });
+
+                // 5. Auto-fit bounds if multiple points are available
+                if (count >= 2) {
+                    try {
+                        const bounds = new maplibregl.LngLatBounds();
+                        bounds.extend([candidateLng, candidateLat]);
+                        geoJson.features.forEach(f => {
+                            if (f.geometry?.coordinates) {
+                                if (f.geometry.type === 'Point') {
+                                    bounds.extend(f.geometry.coordinates);
+                                } else if (f.geometry.type === 'LineString') {
+                                    f.geometry.coordinates.forEach(c => bounds.extend(c));
+                                }
+                            }
+                        });
+                        map.fitBounds(bounds, { padding: 40, maxZoom: 12, duration: 600 });
+                    } catch (e) {}
+                }
             })
             .catch(err => {
                 console.error('Failed to load AIS track:', err);

@@ -326,4 +326,105 @@ class MapLayerApiTest extends TestCase
         $resAll->assertStatus(200);
         $this->assertCount(2, $resAll->json('features'));
     }
+
+    public function test_vessels_layer_heading_and_cog_orientation_priority(): void
+    {
+        // 1. Vessel with valid heading (45°) and COG (55°) -> Priority: Heading
+        $vessel1 = Vessel::create(['name' => 'VESSEL HEADING', 'mmsi' => '525000001']);
+        VesselPosition::create([
+            'vessel_id' => $vessel1->id,
+            'latitude' => -6.0,
+            'longitude' => 106.0,
+            'heading_degrees' => 45.0,
+            'course_degrees' => 55.0,
+            'speed_knots' => 10.0,
+            'observed_at' => now(),
+            'received_at' => now(),
+        ]);
+
+        // 2. Vessel with null heading and valid COG (135°) -> Priority: COG fallback
+        $vessel2 = Vessel::create(['name' => 'VESSEL COG', 'mmsi' => '525000002']);
+        VesselPosition::create([
+            'vessel_id' => $vessel2->id,
+            'latitude' => -7.0,
+            'longitude' => 107.0,
+            'heading_degrees' => null,
+            'course_degrees' => 135.0,
+            'speed_knots' => 8.0,
+            'observed_at' => now(),
+            'received_at' => now(),
+        ]);
+
+        // 3. Vessel with 511 NMEA not-available heading and valid COG (220°) -> Fallback: COG
+        $vessel3 = Vessel::create(['name' => 'VESSEL 511 NMEA', 'mmsi' => '525000003']);
+        VesselPosition::create([
+            'vessel_id' => $vessel3->id,
+            'latitude' => -8.0,
+            'longitude' => 108.0,
+            'heading_degrees' => 511.0,
+            'course_degrees' => 220.0,
+            'speed_knots' => 6.0,
+            'observed_at' => now(),
+            'received_at' => now(),
+        ]);
+
+        // 4. Vessel with null heading and null COG -> Neutral orientation
+        $vessel4 = Vessel::create(['name' => 'VESSEL NEUTRAL', 'mmsi' => '525000004']);
+        VesselPosition::create([
+            'vessel_id' => $vessel4->id,
+            'latitude' => -9.0,
+            'longitude' => 109.0,
+            'heading_degrees' => null,
+            'course_degrees' => null,
+            'speed_knots' => 0.0,
+            'observed_at' => now(),
+            'received_at' => now(),
+        ]);
+
+        // 5. Vessel with out-of-range coordinates -> Rejected from FeatureCollection
+        $vessel5 = Vessel::create(['name' => 'VESSEL INVALID COORDS', 'mmsi' => '525000005']);
+        VesselPosition::create([
+            'vessel_id' => $vessel5->id,
+            'latitude' => 150.0, // Invalid latitude (> 90)
+            'longitude' => 300.0, // Invalid longitude (> 180)
+            'heading_degrees' => 90.0,
+            'observed_at' => now(),
+            'received_at' => now(),
+        ]);
+
+        $response = $this->getJson('/api/layers/vessels');
+        $response->assertStatus(200);
+
+        $features = collect($response->json('features'))->keyBy('properties.mmsi');
+
+        // Check 1: Heading priority
+        $this->assertTrue($features->has('525000001'));
+        $f1 = $features->get('525000001');
+        $this->assertEquals('heading', $f1['properties']['orientation_type']);
+        $this->assertEquals(45.0, $f1['properties']['orientation_degrees']);
+        $this->assertTrue($f1['properties']['has_orientation']);
+
+        // Check 2: COG fallback
+        $this->assertTrue($features->has('525000002'));
+        $f2 = $features->get('525000002');
+        $this->assertEquals('cog', $f2['properties']['orientation_type']);
+        $this->assertEquals(135.0, $f2['properties']['orientation_degrees']);
+        $this->assertTrue($f2['properties']['has_orientation']);
+
+        // Check 3: NMEA 511 ignored and fallback to COG
+        $this->assertTrue($features->has('525000003'));
+        $f3 = $features->get('525000003');
+        $this->assertEquals('cog', $f3['properties']['orientation_type']);
+        $this->assertEquals(220.0, $f3['properties']['orientation_degrees']);
+        $this->assertNull($f3['properties']['heading_degrees']);
+
+        // Check 4: Neutral when neither heading nor COG available
+        $this->assertTrue($features->has('525000004'));
+        $f4 = $features->get('525000004');
+        $this->assertEquals('neutral', $f4['properties']['orientation_type']);
+        $this->assertFalse($f4['properties']['has_orientation']);
+
+        // Check 5: Invalid coordinates vessel is excluded
+        $this->assertFalse($features->has('525000005'));
+    }
 }
