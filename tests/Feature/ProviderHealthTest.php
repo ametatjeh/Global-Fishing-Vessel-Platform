@@ -3,7 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\DataProvider;
+use App\Models\ProviderIngestionRun;
 use App\Models\User;
+use App\Models\Vessel;
+use App\Models\VesselPosition;
+use App\Services\Providers\AisStreamAdapter;
 use App\Services\Providers\CopernicusSarAdapter;
 use App\Services\Providers\GlobalFishingWatchAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -209,5 +213,148 @@ class ProviderHealthTest extends TestCase
         $this->assertStringContainsString('concurrency lock', $result['errors'][0]);
 
         $lock->release();
+    }
+
+    public function test_ais_stream_health_check_returns_not_configured_when_key_is_missing(): void
+    {
+        config(['maritime.providers.ais_stream.api_key' => null]);
+
+        $adapter = app(AisStreamAdapter::class);
+        $result = $adapter->healthCheck();
+
+        $this->assertEquals('not_configured', $result['status']);
+        $this->assertStringContainsString('AIS Stream API Key belum dikonfigurasi', $result['message']);
+    }
+
+    public function test_ais_stream_health_check_returns_unreachable_when_tls_fails(): void
+    {
+        config(['maritime.providers.ais_stream.api_key' => 'test-valid-key']);
+
+        $adapter = app(AisStreamAdapter::class);
+        $result = $adapter->healthCheck(forceTlsConnected: false);
+
+        $this->assertEquals('unreachable', $result['status']);
+        $this->assertStringContainsString('Gagal membuka koneksi TLS', $result['message']);
+
+        $provider = DataProvider::where('slug', 'ais-stream')->first();
+        $this->assertEquals('unreachable', $provider->health_status);
+    }
+
+    public function test_ais_stream_health_check_returns_awaiting_telemetry_when_tls_connected_without_positions(): void
+    {
+        config(['maritime.providers.ais_stream.api_key' => 'test-valid-key']);
+
+        $adapter = app(AisStreamAdapter::class);
+        $result = $adapter->healthCheck(forceTlsConnected: true);
+
+        $this->assertEquals('awaiting_telemetry', $result['status']);
+        $this->assertStringContainsString('Menunggu', $result['message']);
+
+        $provider = DataProvider::where('slug', 'ais-stream')->first();
+        $this->assertEquals('awaiting_telemetry', $provider->health_status);
+    }
+
+    public function test_ais_stream_health_check_returns_stale_when_latest_position_is_old(): void
+    {
+        config(['maritime.providers.ais_stream.api_key' => 'test-valid-key']);
+
+        $provider = DataProvider::create([
+            'slug' => 'ais-stream',
+            'name' => 'AIS Live Stream Telemetry',
+            'type' => 'ais_stream',
+            'health_status' => 'reachable',
+        ]);
+
+        $vessel = Vessel::create([
+            'mmsi' => '525111222',
+            'name' => 'KM HISTORIS',
+            'first_seen_at' => now()->subHours(4),
+            'last_seen_at' => now()->subHours(4),
+        ]);
+
+        VesselPosition::create([
+            'vessel_id' => $vessel->id,
+            'source_provider_id' => $provider->id,
+            'latitude' => -5.5,
+            'longitude' => 105.5,
+            'observed_at' => now()->subHours(3),
+            'received_at' => now()->subHours(3),
+        ]);
+
+        $adapter = app(AisStreamAdapter::class);
+        $result = $adapter->healthCheck(forceTlsConnected: true);
+
+        $this->assertEquals('stale', $result['status']);
+        $this->assertStringContainsString('Telemetri AIS historis tersedia', $result['message']);
+
+        $provider->refresh();
+        $this->assertEquals('stale', $provider->health_status);
+    }
+
+    public function test_ais_stream_health_check_returns_streaming_when_position_is_fresh(): void
+    {
+        config(['maritime.providers.ais_stream.api_key' => 'test-valid-key']);
+
+        $provider = DataProvider::create([
+            'slug' => 'ais-stream',
+            'name' => 'AIS Live Stream Telemetry',
+            'type' => 'ais_stream',
+            'health_status' => 'reachable',
+        ]);
+
+        $vessel = Vessel::create([
+            'mmsi' => '525333444',
+            'name' => 'KM SEGAR',
+            'first_seen_at' => now()->subMinutes(15),
+            'last_seen_at' => now()->subMinutes(15),
+        ]);
+
+        VesselPosition::create([
+            'vessel_id' => $vessel->id,
+            'source_provider_id' => $provider->id,
+            'latitude' => -5.6,
+            'longitude' => 105.6,
+            'observed_at' => now()->subMinutes(10),
+            'received_at' => now()->subMinutes(10),
+        ]);
+
+        $adapter = app(AisStreamAdapter::class);
+        $result = $adapter->healthCheck(forceTlsConnected: true);
+
+        $this->assertEquals('streaming', $result['status']);
+        $this->assertStringContainsString('aktif menerima pesan telemetri', $result['message']);
+
+        $provider->refresh();
+        $this->assertEquals('streaming', $provider->health_status);
+    }
+
+    public function test_ais_stream_health_check_detects_persistence_error(): void
+    {
+        config(['maritime.providers.ais_stream.api_key' => 'test-valid-key']);
+
+        $provider = DataProvider::create([
+            'slug' => 'ais-stream',
+            'name' => 'AIS Live Stream Telemetry',
+            'type' => 'ais_stream',
+            'health_status' => 'reachable',
+        ]);
+
+        ProviderIngestionRun::create([
+            'data_provider_id' => $provider->id,
+            'run_type' => 'sync_ais',
+            'status' => 'failed',
+            'error_message' => 'SQLSTATE[42P01]: Undefined table: 7 ERROR: relation "vessel_positions" does not exist',
+            'started_at' => now()->subMinutes(5),
+            'completed_at' => now()->subMinutes(4),
+        ]);
+
+        $adapter = app(AisStreamAdapter::class);
+        $result = $adapter->healthCheck(forceTlsConnected: true);
+
+        $this->assertEquals('persistence_error', $result['status']);
+        $this->assertStringContainsString('Kegagalan penyimpanan database telemetri', $result['message']);
+
+        $provider->refresh();
+        $this->assertEquals('persistence_error', $provider->health_status);
     }
 }

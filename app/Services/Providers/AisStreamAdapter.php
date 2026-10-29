@@ -26,7 +26,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
         return !empty($this->apiKey);
     }
 
-    public function healthCheck(): array
+    public function healthCheck(?bool $forceTlsConnected = null): array
     {
         if (!$this->isConfigured()) {
             $this->updateProviderStatus('not_configured', 'AIS Stream API Key belum dikonfigurasi dalam .env (AIS_STREAM_API_KEY).');
@@ -39,12 +39,111 @@ class AisStreamAdapter implements ProviderAdapterInterface
         }
 
         $startTime = microtime(true);
-        $connected = false;
-        $errno = 0;
         $errstr = '';
 
+        if ($forceTlsConnected !== null) {
+            $connected = $forceTlsConnected;
+            if (!$connected) {
+                $errstr = 'Connection timeout / host unreachable';
+            }
+        } else {
+            [$connected, $errstr] = $this->probeTls('stream.aisstream.io', 443, 5);
+        }
+
+        $latency = round((microtime(true) - $startTime) * 1000, 2);
+
+        if (!$connected) {
+            $errorMsg = 'Gagal membuka koneksi TLS ke stream.aisstream.io: ' . ($errstr ?: 'Connection timeout / host unreachable');
+            $this->updateProviderStatus('unreachable', $errorMsg, $latency);
+
+            return [
+                'status' => 'unreachable',
+                'message' => $errorMsg,
+                'latency_ms' => $latency,
+                'timestamp' => now()->toISOString(),
+            ];
+        }
+
+        // 1. Check for persistence error (database connectivity or recent failed ingestion run with SQL/PostGIS error)
+        $persistenceError = null;
         try {
-            $fp = @fsockopen('ssl://stream.aisstream.io', 443, $errno, $errstr, 5);
+            DB::connection()->getPdo();
+        } catch (\Throwable $dbEx) {
+            $persistenceError = 'Koneksi database PostgreSQL tidak dapat diakses: ' . $dbEx->getMessage();
+        }
+
+        $provider = DataProvider::where('slug', $this->providerSlug)->first();
+
+        if (!$persistenceError && $provider) {
+            $lastFailedRun = ProviderIngestionRun::where('data_provider_id', $provider->id)
+                ->where('run_type', 'sync_ais')
+                ->latest('id')
+                ->first();
+
+            if ($lastFailedRun && $lastFailedRun->status === 'failed' && !empty($lastFailedRun->error_message)) {
+                $errMsgLower = strtolower($lastFailedRun->error_message);
+                if (str_contains($errMsgLower, 'sql') || str_contains($errMsgLower, 'database') || str_contains($errMsgLower, 'geom') || str_contains($errMsgLower, 'postgis') || str_contains($errMsgLower, 'insert into')) {
+                    $persistenceError = 'Kegagalan penyimpanan database telemetri: ' . $lastFailedRun->error_message;
+                }
+            }
+        }
+
+        if ($persistenceError) {
+            $this->updateProviderStatus('persistence_error', $persistenceError, $latency);
+            return [
+                'status' => 'persistence_error',
+                'message' => $persistenceError,
+                'latency_ms' => $latency,
+                'timestamp' => now()->toISOString(),
+            ];
+        }
+
+        // 2. Check telemetry freshness and worker state
+        $latestPos = null;
+        if ($provider) {
+            $latestPos = VesselPosition::where('source_provider_id', $provider->id)
+                ->orderBy('observed_at', 'desc')
+                ->first();
+        }
+
+        $isWorkerAlive = \Illuminate\Support\Facades\Cache::has('ais_stream_active_worker_alive');
+
+        if ($latestPos && $latestPos->observed_at && $latestPos->observed_at->gt(now()->subHours(2))) {
+            $status = 'streaming';
+            $workerNotice = $isWorkerAlive ? ' [Daemon: aktif]' : ' [Daemon: standby/idle]';
+            $message = "Endpoint stream.aisstream.io terhubung dan aktif menerima pesan telemetri (data riil diterima dalam 2 jam terakhir){$workerNotice}.";
+        } elseif ($latestPos) {
+            $status = 'stale';
+            $message = "Telemetri AIS historis tersedia (terakhir {$latestPos->observed_at?->toIso8601String()}), namun stream aktif belum menerima data segar (> 2 jam).";
+        } elseif ($isWorkerAlive) {
+            $status = 'awaiting_telemetry';
+            $message = 'Endpoint stream.aisstream.io TLS terhubung dan worker aktif. Sedang menunggu frame stream telemetri pertama masuk.';
+        } else {
+            $status = 'awaiting_telemetry';
+            $message = 'Endpoint stream.aisstream.io TLS terhubung (reachable). Menunggu worker daemon (ais:listen) aktif dan menerima frame telemetri pertama.';
+        }
+
+        $this->updateProviderStatus($status, null, $latency);
+
+        return [
+            'status' => $status,
+            'message' => $message,
+            'latency_ms' => $latency,
+            'timestamp' => now()->toISOString(),
+        ];
+    }
+
+    /**
+     * Probe TLS connectivity to the external endpoint.
+     */
+    protected function probeTls(string $host = 'stream.aisstream.io', int $port = 443, int $timeout = 5): array
+    {
+        $errno = 0;
+        $errstr = '';
+        $connected = false;
+
+        try {
+            $fp = @fsockopen("ssl://{$host}", $port, $errno, $errstr, $timeout);
             if ($fp) {
                 $connected = true;
                 fclose($fp);
@@ -53,50 +152,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
             $errstr = $e->getMessage();
         }
 
-        $latency = round((microtime(true) - $startTime) * 1000, 2);
-
-        if ($connected) {
-            $provider = DataProvider::where('slug', $this->providerSlug)->first();
-            $latestPos = null;
-            if ($provider) {
-                $latestPos = VesselPosition::where('source_provider_id', $provider->id)
-                    ->orderBy('observed_at', 'desc')
-                    ->first();
-            }
-
-            if ($latestPos && $latestPos->observed_at->gt(now()->subHours(2))) {
-                $status = 'receiving_data';
-                $message = 'Endpoint stream.aisstream.io terhubung dan aktif menerima pesan telemetri (data riil diterima dalam 2 jam terakhir).';
-            } elseif ($latestPos) {
-                $status = 'stale';
-                $message = "Telemetri AIS historis tersedia (terakhir {$latestPos->observed_at->toIso8601String()}), namun stream aktif belum menerima data segar (> 2 jam).";
-            } elseif ($provider && $provider->last_sync_at) {
-                $status = 'connected';
-                $message = "Endpoint stream.aisstream.io WebSocket terhubung. Terakhir aktif: {$provider->last_sync_at->toIso8601String()}.";
-            } else {
-                $status = 'reachable';
-                $message = 'Endpoint stream.aisstream.io TLS terhubung (reachable). Menunggu penerimaan frame stream telemetri pertama.';
-            }
-
-            $this->updateProviderStatus($status, null, $latency);
-
-            return [
-                'status' => $status,
-                'message' => $message,
-                'latency_ms' => $latency,
-                'timestamp' => now()->toISOString(),
-            ];
-        }
-
-        $errorMsg = 'Gagal membuka koneksi TLS ke stream.aisstream.io: ' . ($errstr ?: 'Connection timeout / host unreachable');
-        $this->updateProviderStatus('disconnected', $errorMsg, $latency);
-
-        return [
-            'status' => 'disconnected',
-            'message' => $errorMsg,
-            'latency_ms' => $latency,
-            'timestamp' => now()->toISOString(),
-        ];
+        return [$connected, $errstr];
     }
 
     protected function updateProviderStatus(string $status, ?string $error = null, ?float $latency = null): void
@@ -400,7 +456,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
 
         if ($inserted > 0) {
             $provider->update([
-                'health_status' => 'receiving_data',
+                'health_status' => 'streaming',
                 'last_sync_at' => now(),
                 'last_error_message' => null,
             ]);
@@ -477,7 +533,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 'name' => 'AIS Live Stream Provider',
                 'type' => 'ais_stream',
                 'is_enabled' => true,
-                'health_status' => 'receiving_data',
+                'health_status' => 'streaming',
             ]
         );
 
@@ -575,7 +631,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
 
             // Update provider receiving state
             $provider->update([
-                'health_status' => 'receiving_data',
+                'health_status' => 'streaming',
                 'last_sync_at' => now(),
                 'last_error_message' => null,
             ]);

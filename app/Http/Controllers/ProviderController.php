@@ -47,7 +47,7 @@ class ProviderController extends Controller
 
         AuditLog::log('check_provider_health', 'data_provider', $slug, $result);
 
-        $msgType = $result['status'] === 'connected' ? 'status' : 'warning';
+        $msgType = in_array($result['status'], ['connected', 'receiving_data', 'streaming', 'authenticated']) ? 'status' : 'warning';
         return redirect()->route('providers.index')
             ->with($msgType, "Health check untuk [{$slug}]: {$result['message']}");
     }

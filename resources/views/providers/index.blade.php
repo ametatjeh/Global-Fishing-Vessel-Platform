@@ -36,17 +36,25 @@
                     </div>
 
                     <div class="flex items-center gap-2">
-                        @if($provider->health_status === 'receiving_data')
+                        @if($provider->health_status === 'receiving_data' || $provider->health_status === 'streaming')
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Receiving Live Data
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Streaming Live Data
                             </span>
                         @elseif($provider->health_status === 'authenticated')
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40">
                                 <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span> Authenticated
                             </span>
-                        @elseif($provider->health_status === 'reachable')
+                        @elseif($provider->health_status === 'awaiting_telemetry' || $provider->health_status === 'reachable')
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Reachable (Idle)
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Awaiting Telemetry
+                            </span>
+                        @elseif($provider->health_status === 'stale')
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Stale Telemetry (>2h)
+                            </span>
+                        @elseif($provider->health_status === 'persistence_error')
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                                <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> Persistence Error
                             </span>
                         @elseif($provider->health_status === 'connected')
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">

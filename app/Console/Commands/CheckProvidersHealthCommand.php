@@ -36,8 +36,8 @@ class CheckProvidersHealthCommand extends Command
         foreach ($providers as $name => $adapter) {
             $check = $adapter->healthCheck();
             $statusColor = match ($check['status']) {
-                'connected' => 'green',
-                'not_configured' => 'yellow',
+                'connected', 'receiving_data', 'streaming', 'authenticated' => 'green',
+                'not_configured', 'reachable', 'awaiting_telemetry', 'stale', 'delayed' => 'yellow',
                 default => 'red',
             };
 

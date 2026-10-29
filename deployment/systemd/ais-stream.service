@@ -1,8 +1,10 @@
 # -----------------------------------------------------------------------------
 # GFVIP - Systemd Unit File for AIS Live Stream Service
-# Path on Linux: /etc/systemd/system/ais-stream.service
-# Enable: sudo systemctl enable --now ais-stream.service
+# Path on Linux/aaPanel: /etc/systemd/system/ais-stream.service
+# Enable: sudo systemctl daemon-reload && sudo systemctl enable --now ais-stream.service
 # Logs:   sudo journalctl -u ais-stream.service -f
+# Note:   User & group default pada aaPanel adalah www:www.
+#         Verifikasi user PHP-FPM dengan: ps aux | grep php-fpm
 # -----------------------------------------------------------------------------
 
 [Unit]
@@ -12,14 +14,14 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=www-data
-Group=www-data
-WorkingDirectory=/var/www/global-fishing-vessel-intelligence
-ExecStart=/usr/bin/php /var/www/global-fishing-vessel-intelligence/artisan ais:listen --daemon --timeout=30 --max-reconnects=50
+User=www
+Group=www
+WorkingDirectory=/www/wwwroot/gfw.nagakecil.site
+ExecStart=/usr/bin/php /www/wwwroot/gfw.nagakecil.site/artisan ais:listen --daemon --timeout=30 --max-reconnects=50
 Restart=always
 RestartSec=10s
-StandardOutput=append:/var/www/global-fishing-vessel-intelligence/storage/logs/ais-stream-service.log
-StandardError=append:/var/www/global-fishing-vessel-intelligence/storage/logs/ais-stream-service.error.log
+StandardOutput=append:/www/wwwroot/gfw.nagakecil.site/storage/logs/ais-stream.log
+StandardError=append:/www/wwwroot/gfw.nagakecil.site/storage/logs/ais-stream-error.log
 TimeoutStopSec=30s
 KillMode=process
 
