@@ -60,14 +60,16 @@
 
                 <div>
                     <label for="email" class="block font-semibold text-slate-300 mb-1">Email Dinas / Analis</label>
-                    <input type="email" id="email" name="email" value="{{ old('email', 'admin@gfw.nagakecil.site') }}" required autofocus
-                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition">
+                    <input type="email" id="email" name="email" value="{{ old('email') }}" required autofocus
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition"
+                        placeholder="analis@instansi.go.id">
                 </div>
 
                 <div>
                     <label for="password" class="block font-semibold text-slate-300 mb-1">Kata Sandi</label>
-                    <input type="password" id="password" name="password" value="Password123!" required
-                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition font-mono">
+                    <input type="password" id="password" name="password" required
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition font-mono"
+                        placeholder="••••••••">
                 </div>
 
                 <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
@@ -75,7 +77,6 @@
                         <input type="checkbox" name="remember" class="rounded bg-slate-900 border-slate-700 text-teal-500 focus:ring-teal-400">
                         <span>Ingat sesi ini</span>
                     </label>
-                    <span class="text-teal-400 font-mono">Akun Default: admin@gfw.nagakecil.site</span>
                 </div>
 
                 <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-teal-500/20 cursor-pointer mt-2">
