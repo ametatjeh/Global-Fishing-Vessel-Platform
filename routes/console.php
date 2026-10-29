@@ -29,3 +29,8 @@ Schedule::command('providers:sync ais --limit=25')
     ->withoutOverlapping()
     ->description('Consume batch of live AIS telemetry to maintain real-time track freshness');
 
+Schedule::command('backup:create')
+    ->dailyAt('02:30')
+    ->withoutOverlapping()
+    ->description('Execute automated PostgreSQL database dump, archive SAR storage, and generate health manifest');
+
