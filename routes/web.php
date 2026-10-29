@@ -11,6 +11,7 @@ use App\Http\Controllers\MapController;
 use App\Http\Controllers\ProviderController;
 use App\Http\Controllers\SystemController;
 use App\Http\Controllers\TrackingController;
+use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\VesselController;
 use Illuminate\Support\Facades\Route;
 
@@ -18,6 +19,10 @@ use Illuminate\Support\Facades\Route;
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// Google SSO Routes
+Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogle'])->name('auth.google.redirect');
+Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('auth.google.callback');
 
 // Protected Portal Routes
 Route::middleware('auth')->group(function () {
@@ -97,4 +102,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/audit-logs', [SystemController::class, 'auditLogs'])
         ->middleware('role:super_admin,admin')
         ->name('audit-logs.index');
+
+    // 11. User Profile & Account Settings
+    Route::get('/settings/profile', [UserProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/settings/profile', [UserProfileController::class, 'update'])->name('profile.update');
+    Route::post('/settings/profile/avatar', [UserProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
+    Route::delete('/settings/profile/avatar', [UserProfileController::class, 'destroyAvatar'])->name('profile.avatar.destroy');
 });

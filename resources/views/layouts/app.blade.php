@@ -90,6 +90,11 @@
 
             <div class="pt-4 px-2 pb-1 text-[10px] uppercase font-bold text-slate-400 tracking-wider">Integrasi & Pengaturan</div>
 
+            <a href="{{ route('profile.edit') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('profile.*') ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                <span>👤</span>
+                <span>User Settings</span>
+            </a>
+
             <a href="{{ route('providers.index') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('providers.*') ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
                 <span>🔌</span>
                 <span>Data Sources & Providers</span>
@@ -109,17 +114,25 @@
         <!-- User Footer & Logout -->
         <div class="p-3 border-t border-slate-800 bg-slate-900/60">
             @auth
-            <div class="flex items-center justify-between mb-2">
-                <div class="truncate">
-                    <div class="text-xs font-bold text-white truncate">{{ auth()->user()->name }}</div>
-                    <div class="text-[10px] text-teal-400 uppercase font-mono">{{ auth()->user()->role ?? 'Analyst' }}</div>
+            <div class="flex items-center justify-between gap-2">
+                <a href="{{ route('profile.edit') }}" class="flex items-center gap-2.5 min-w-0 hover:opacity-85 transition group flex-1" title="Buka User Settings">
+                    <img src="{{ auth()->user()->avatar_url }}" alt="{{ auth()->user()->name }}" class="w-8 h-8 rounded-full object-cover border border-slate-700 group-hover:border-teal-400 transition shrink-0">
+                    <div class="truncate">
+                        <div class="text-xs font-bold text-white truncate group-hover:text-teal-300 transition">{{ auth()->user()->name }}</div>
+                        <div class="text-[10px] text-teal-400 uppercase font-mono">{{ auth()->user()->role ?? 'Analyst' }}</div>
+                    </div>
+                </a>
+                <div class="flex items-center gap-1 shrink-0">
+                    <a href="{{ route('profile.edit') }}" class="p-1.5 rounded-lg text-slate-400 hover:text-teal-300 hover:bg-teal-500/10 transition" title="User Settings">
+                        <span>⚙️</span>
+                    </a>
+                    <form action="{{ route('logout') }}" method="POST">
+                        @csrf
+                        <button type="submit" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Keluar">
+                            <span>🚪</span>
+                        </button>
+                    </form>
                 </div>
-                <form action="{{ route('logout') }}" method="POST">
-                    @csrf
-                    <button type="submit" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Keluar">
-                        <span>🚪</span>
-                    </button>
-                </form>
             </div>
             @endauth
         </div>
@@ -146,6 +159,13 @@
                     <span>🗺️</span>
                     <span>Peta Global</span>
                 </a>
+
+                @auth
+                <a href="{{ route('profile.edit') }}" class="flex items-center gap-2 p-1 pl-1.5 pr-3 rounded-full bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 hover:border-teal-400/50 transition text-xs text-slate-300 hover:text-white" title="User Settings">
+                    <img src="{{ auth()->user()->avatar_url }}" alt="{{ auth()->user()->name }}" class="w-6 h-6 rounded-full object-cover border border-slate-600">
+                    <span class="font-medium text-[11px] truncate max-w-[100px] hidden sm:inline">{{ auth()->user()->name }}</span>
+                </a>
+                @endauth
             </div>
         </header>
 
