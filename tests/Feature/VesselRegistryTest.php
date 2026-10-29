@@ -99,4 +99,66 @@ class VesselRegistryTest extends TestCase
         $response->assertSee('hasil');
         $response->assertSee('vessels?page=2');
     }
+
+    public function test_vessel_registry_displays_row_numbers_sequentially_across_pagination(): void
+    {
+        $user = User::factory()->create(['role' => 'analyst']);
+
+        for ($i = 1; $i <= 55; $i++) {
+            Vessel::create([
+                'name' => sprintf('VESSEL %03d', $i),
+                'mmsi' => sprintf('525%06d', $i),
+            ]);
+        }
+
+        // Page 1: verify 'No.' header exists, starts at 1, and reaches 50
+        $responsePage1 = $this->actingAs($user)->get('/vessels?page=1');
+        $responsePage1->assertStatus(200);
+        $responsePage1->assertSee('No.');
+        $responsePage1->assertSeeInOrder([
+            'No.',
+            'Nama Kapal',
+            '1',
+            'VESSEL 001',
+            '50',
+            'VESSEL 050',
+        ]);
+
+        // Page 2: numbers continue from 51 to 55
+        $responsePage2 = $this->actingAs($user)->get('/vessels?page=2');
+        $responsePage2->assertStatus(200);
+        $responsePage2->assertSeeInOrder([
+            'No.',
+            'Nama Kapal',
+            '51',
+            'VESSEL 051',
+            '55',
+            'VESSEL 055',
+        ]);
+    }
+
+    public function test_vessel_registry_row_numbers_with_search_filter_and_empty_state(): void
+    {
+        $user = User::factory()->create(['role' => 'analyst']);
+
+        Vessel::create(['name' => 'KAPAL PATROLI 01', 'mmsi' => '111000001']);
+        Vessel::create(['name' => 'KAPAL PATROLI 02', 'mmsi' => '111000002']);
+        Vessel::create(['name' => 'KAPAL LOGISTIK', 'mmsi' => '222000001']);
+
+        // Search returns 2 records, row numbers are 1 and 2
+        $responseSearch = $this->actingAs($user)->get('/vessels?search=PATROLI');
+        $responseSearch->assertStatus(200);
+        $responseSearch->assertSeeInOrder([
+            '1',
+            'KAPAL PATROLI 01',
+            '2',
+            'KAPAL PATROLI 02',
+        ]);
+        $responseSearch->assertDontSee('KAPAL LOGISTIK');
+
+        // Empty result state handles table safely without error
+        $responseEmpty = $this->actingAs($user)->get('/vessels?search=TIDAK_ADA');
+        $responseEmpty->assertStatus(200);
+        $responseEmpty->assertSee('Belum ada kapal yang terdaftar dalam database registry saat ini.');
+    }
 }

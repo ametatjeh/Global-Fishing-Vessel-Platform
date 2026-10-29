@@ -26,6 +26,7 @@
             <table class="w-full text-left">
                 <thead class="bg-slate-900/90 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
                     <tr>
+                        <th class="py-3 px-4 text-center w-14">No.</th>
                         <th class="py-3 px-4">Nama Kapal</th>
                         <th class="py-3 px-4">Bendera</th>
                         <th class="py-3 px-4">Tipe Armada</th>
@@ -39,6 +40,9 @@
                 <tbody class="divide-y divide-slate-800/60">
                     @forelse($vessels as $vessel)
                     <tr class="hover:bg-slate-900/40 transition">
+                        <td class="py-3 px-4 text-center font-mono text-slate-400 text-xs">
+                            {{ $loop->iteration + ($vessels->firstItem() ? $vessels->firstItem() - 1 : 0) }}
+                        </td>
                         <td class="py-3 px-4">
                             <div class="font-bold text-white flex items-center gap-2">
                                 <span>🚢</span>
@@ -80,7 +84,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="8" class="py-12 text-center text-slate-500">
+                        <td colspan="9" class="py-12 text-center text-slate-500">
                             <span class="text-4xl block mb-2">🌊</span>
                             Belum ada kapal yang terdaftar dalam database registry saat ini.
                         </td>
