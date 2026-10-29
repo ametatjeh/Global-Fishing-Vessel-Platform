@@ -80,6 +80,14 @@ export class GlobalMapController {
         };
         this.activeFilterCount = 0;
 
+        // Vessel Track State (Tahap 11)
+        this.currentTrackGeoJson = null;
+        this.activeTrackVesselId = null;
+        this.trackVisible = true;
+        this.onTrackUpdated = null;
+        this.onTrackVisibilityChanged = null;
+        this.onTrackStatus = null;
+
         this.init();
     }
 
@@ -258,6 +266,7 @@ export class GlobalMapController {
         this.addSarSceneLayer();
         this.addGfwLayer();
         this.addSarDetectionLayer();
+        this.addVesselTrackLayers();
         this.addAisLayers();
 
         this.ensureLayerOrder();
@@ -641,6 +650,69 @@ export class GlobalMapController {
         });
     }
 
+    addVesselTrackLayers() {
+        if (this.map.getSource('vessel-track-source')) return;
+
+        this.map.addSource('vessel-track-source', {
+            type: 'geojson',
+            data: this.currentTrackGeoJson || { type: 'FeatureCollection', features: [] }
+        });
+
+        // 1. Vessel Track Line (LineString)
+        this.map.addLayer({
+            id: 'vessel-track-line-layer',
+            type: 'line',
+            source: 'vessel-track-source',
+            filter: ['==', ['geometry-type'], 'LineString'],
+            layout: {
+                'visibility': this.trackVisible ? 'visible' : 'none',
+                'line-join': 'round',
+                'line-cap': 'round'
+            },
+            paint: {
+                'line-color': '#06b6d4', // cyan-500
+                'line-width': 2.5,
+                'line-opacity': 0.9,
+                'line-dasharray': [2, 1]
+            }
+        });
+
+        // 2. Intermediate Historical Observation Points
+        this.map.addLayer({
+            id: 'vessel-track-points-layer',
+            type: 'circle',
+            source: 'vessel-track-source',
+            filter: ['all', ['==', ['geometry-type'], 'Point'], ['!=', ['get', 'is_latest'], true]],
+            layout: {
+                'visibility': this.trackVisible ? 'visible' : 'none'
+            },
+            paint: {
+                'circle-radius': 3.5,
+                'circle-color': '#06b6d4',
+                'circle-stroke-color': '#ffffff',
+                'circle-stroke-width': 1.0,
+                'circle-stroke-opacity': 0.85
+            }
+        });
+
+        // 3. Latest Observation Point (distinct ring)
+        this.map.addLayer({
+            id: 'vessel-track-latest-point-layer',
+            type: 'circle',
+            source: 'vessel-track-source',
+            filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'is_latest'], true]],
+            layout: {
+                'visibility': this.trackVisible ? 'visible' : 'none'
+            },
+            paint: {
+                'circle-radius': 6.0,
+                'circle-color': '#10b981', // emerald-500
+                'circle-stroke-color': '#ffffff',
+                'circle-stroke-width': 2.0
+            }
+        });
+    }
+
     addSarSceneLayer() {
         if (this.map.getSource('sar-scenes-source')) return;
 
@@ -739,6 +811,11 @@ export class GlobalMapController {
             'encounters-circle-layer',
             'dark-vessels-circle-layer',
 
+            // 4b. Vessel Track Line & Observation Points
+            'vessel-track-line-layer',
+            'vessel-track-points-layer',
+            'vessel-track-latest-point-layer',
+
             // 5. Vessels — strictly topmost individual oriented and neutral markers
             'vessels-selected-ring',
             'vessels-circle-layer',
@@ -800,6 +877,14 @@ export class GlobalMapController {
         // Individual Vessel Click (Neutral Circle)
         this.map.on('click', 'vessels-circle-layer', (e) => {
             this.handleVesselClick(e);
+        });
+
+        // Vessel Track Observation Points Click
+        this.map.on('click', 'vessel-track-points-layer', (e) => {
+            this.handleTrackPointClick(e);
+        });
+        this.map.on('click', 'vessel-track-latest-point-layer', (e) => {
+            this.handleTrackPointClick(e);
         });
 
         // SAR Candidate / Dark Vessel Click Popup
@@ -921,7 +1006,9 @@ export class GlobalMapController {
             'vessels-oriented-layer',
             'vessels-circle-layer',
             'dark-vessels-circle-layer',
-            'sar-scenes-fill-layer'
+            'sar-scenes-fill-layer',
+            'vessel-track-points-layer',
+            'vessel-track-latest-point-layer'
         ];
         clickableLayers.forEach((layerId) => {
             this.map.on('mouseenter', layerId, () => {
@@ -930,6 +1017,17 @@ export class GlobalMapController {
             this.map.on('mouseleave', layerId, () => {
                 if (this.map.getCanvas()) this.map.getCanvas().style.cursor = '';
             });
+        });
+
+        // Delegate "Show Track" click inside vessel popup
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-popup-show-track');
+            if (btn) {
+                e.preventDefault();
+                const vId = btn.getAttribute('data-vessel-id');
+                const mmsi = btn.getAttribute('data-mmsi');
+                this.showVesselTrack(vId || mmsi, { fitBounds: true });
+            }
         });
     }
 
@@ -1062,10 +1160,17 @@ export class GlobalMapController {
                     <span>Waktu: ${dateStr}</span>
                     <span>${props.provider || 'AIS Live Gateway'}</span>
                 </div>
-                ${props.vessel_id ? `
-                <div class="pt-1 text-right">
-                    <a href="/vessels/${props.vessel_id}" class="text-[11px] text-sky-400 hover:text-sky-300 font-semibold underline">Profil & Track Kapal &rarr;</a>
-                </div>` : ''}
+                <div class="pt-2 border-t border-slate-800 flex items-center justify-between gap-1.5">
+                    <button type="button" class="btn-popup-show-track px-2 py-1 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 font-mono text-[10px] font-bold flex items-center gap-1 transition"
+                            data-vessel-id="${props.vessel_id || ''}" data-mmsi="${props.mmsi || ''}" title="Tampilkan riwayat lintasan kapal AIS ini">
+                        <span>🗺️</span>
+                        <span>Show Track</span>
+                    </button>
+                    ${props.vessel_id ? `
+                    <a href="/vessels/${props.vessel_id}" class="text-[11px] text-sky-400 hover:text-sky-300 font-semibold underline truncate">
+                        Profil &rarr;
+                    </a>` : ''}
+                </div>
             </div>
         `;
         this.showPopup(lngLat, html);
@@ -1547,6 +1652,220 @@ export class GlobalMapController {
                     this.showCandidatePopup({ lng, lat }, feat.properties);
                 }
             }
+        }
+    }
+
+    /**
+     * Handle click on historical track observation points
+     */
+    handleTrackPointClick(e) {
+        if (!e.features || !e.features.length) return;
+        const feat = e.features[0];
+        const props = feat.properties || {};
+        const coords = feat.geometry?.coordinates || [e.lngLat.lng, e.lngLat.lat];
+        const dateStr = props.observed_at ? new Date(props.observed_at).toUTCString() : 'Not available';
+        const isLatest = props.is_latest === true || props.is_latest === 'true';
+
+        const sogStr = (props.speed_knots !== null && props.speed_knots !== undefined && props.speed_knots !== '' && isFinite(Number(props.speed_knots)))
+            ? `${Number(props.speed_knots).toFixed(1)} kn`
+            : '<span class="text-slate-500 italic">Not available</span>';
+        const cogStr = (props.course_degrees !== null && props.course_degrees !== undefined && props.course_degrees !== '' && isFinite(Number(props.course_degrees)))
+            ? `${Number(props.course_degrees).toFixed(1)}°`
+            : '<span class="text-slate-500 italic">Not available</span>';
+        const headingStr = (props.heading_degrees !== null && props.heading_degrees !== undefined && props.heading_degrees !== '' && isFinite(Number(props.heading_degrees)))
+            ? `${Number(props.heading_degrees).toFixed(1)}°`
+            : '<span class="text-slate-500 italic">Not available</span>';
+
+        const badge = isLatest
+            ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">● POSISI TERAKHIR</span>'
+            : '<span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">TITIK HISTORIS</span>';
+
+        const html = `
+            <div class="space-y-1.5 text-xs font-sans max-w-xs">
+                <div class="flex items-center justify-between border-b border-cyan-800 pb-1">
+                    <span class="font-bold text-cyan-300 flex items-center gap-1 truncate">
+                        <span>📍</span>
+                        <span class="truncate">${props.name || 'AIS Vessel'}</span>
+                    </span>
+                    ${badge}
+                </div>
+                <div class="grid grid-cols-2 gap-1.5 text-[11px] font-mono">
+                    <div>MMSI: <strong class="text-white">${props.mmsi || '-'}</strong></div>
+                    <div>SOG: <strong class="text-cyan-300">${sogStr}</strong></div>
+                    <div>COG: <strong class="text-cyan-300">${cogStr}</strong></div>
+                    <div>Heading: <strong class="text-emerald-300">${headingStr}</strong></div>
+                </div>
+                <div class="text-[10px] font-mono text-slate-400">
+                    <div>Waktu: <strong class="text-slate-200">${dateStr}</strong></div>
+                    <div>Koordinat: ${coords[1].toFixed(4)}°, ${coords[0].toFixed(4)}°</div>
+                </div>
+            </div>
+        `;
+        this.showPopup({ lng: coords[0], lat: coords[1] }, html);
+    }
+
+    /**
+     * Show AIS historical track line and points for a vessel (Tahap 11)
+     */
+    async showVesselTrack(vesselIdentifier, options = {}) {
+        if (!vesselIdentifier) return;
+        const fitBounds = options.fitBounds !== false;
+        const idStr = String(vesselIdentifier);
+
+        // Prevent race conditions when user switches vessels quickly
+        this.activeTrackVesselId = idStr;
+        this.notifyTrackStatus('loading', `Memuat lintasan historis AIS...`);
+
+        try {
+            const res = await fetch(`/api/vessels/${encodeURIComponent(idStr)}/track`);
+            if (!res.ok) {
+                if (res.status === 404) {
+                    this.notifyTrackStatus('error', `Kapal identifier '${idStr}' tidak ditemukan.`);
+                } else {
+                    this.notifyTrackStatus('error', `Gagal memuat track AIS (HTTP ${res.status}).`);
+                }
+                return;
+            }
+
+            // Stale check
+            if (this.activeTrackVesselId !== idStr) return;
+
+            const geoJson = await res.json();
+            this.currentTrackGeoJson = geoJson;
+
+            const src = this.map ? this.map.getSource('vessel-track-source') : null;
+            if (src && typeof src.setData === 'function') {
+                src.setData(geoJson);
+            }
+
+            this.setTrackVisibility(true);
+
+            const count = geoJson.properties?.position_count ?? 0;
+            const vesselName = geoJson.properties?.name || geoJson.properties?.mmsi || idStr;
+
+            if (count === 0) {
+                this.notifyTrackStatus('warning', `No historical AIS track available untuk ${vesselName}.`);
+            } else if (count === 1) {
+                this.notifyTrackStatus('info', `Hanya 1 posisi AIS tersedia untuk ${vesselName} (titik observasi tunggal).`);
+            } else {
+                this.notifyTrackStatus('success', `Lintasan AIS aktif: ${vesselName} (${count} titik observasi).`);
+            }
+
+            if (fitBounds && count > 0) {
+                this.fitVesselTrack();
+            }
+
+            if (typeof this.onTrackUpdated === 'function') {
+                this.onTrackUpdated(geoJson);
+            }
+        } catch (err) {
+            console.error('[GlobalMap] Error loading vessel track:', err);
+            this.notifyTrackStatus('error', 'Terjadi kesalahan jaringan saat memuat track.');
+        }
+    }
+
+    /**
+     * Set visibility of vessel track line and point layers
+     */
+    setTrackVisibility(visible) {
+        this.trackVisible = visible;
+        const val = visible ? 'visible' : 'none';
+        ['vessel-track-line-layer', 'vessel-track-points-layer', 'vessel-track-latest-point-layer'].forEach(id => {
+            if (this.map && this.map.getLayer(id)) {
+                this.map.setLayoutProperty(id, 'visibility', val);
+            }
+        });
+        if (typeof this.onTrackVisibilityChanged === 'function') {
+            this.onTrackVisibilityChanged(visible);
+        }
+    }
+
+    hideVesselTrack() {
+        this.setTrackVisibility(false);
+    }
+
+    showTrackLayer() {
+        this.setTrackVisibility(true);
+    }
+
+    /**
+     * Fit map view to the current active vessel track bounds safely
+     */
+    fitVesselTrack() {
+        if (!this.map || !this.currentTrackGeoJson) return;
+
+        const coords = [];
+        const features = this.currentTrackGeoJson.features || [];
+
+        features.forEach(f => {
+            if (f.geometry?.type === 'LineString' && Array.isArray(f.geometry.coordinates)) {
+                f.geometry.coordinates.forEach(c => {
+                    if (Array.isArray(c) && isFinite(c[0]) && isFinite(c[1])) {
+                        coords.push(c);
+                    }
+                });
+            } else if (f.geometry?.type === 'Point' && Array.isArray(f.geometry.coordinates)) {
+                const c = f.geometry.coordinates;
+                if (isFinite(c[0]) && isFinite(c[1])) {
+                    coords.push(c);
+                }
+            }
+        });
+
+        if (!coords.length) return;
+
+        if (coords.length === 1) {
+            this.map.flyTo({
+                center: coords[0],
+                zoom: 12,
+                essential: true
+            });
+            return;
+        }
+
+        let minLng = coords[0][0], maxLng = coords[0][0];
+        let minLat = coords[0][1], maxLat = coords[0][1];
+
+        coords.forEach(([lng, lat]) => {
+            if (lng < minLng) minLng = lng;
+            if (lng > maxLng) maxLng = lng;
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+        });
+
+        if (minLng === maxLng && minLat === maxLat) {
+            this.map.flyTo({ center: [minLng, minLat], zoom: 12, essential: true });
+        } else {
+            this.map.fitBounds([[minLng, minLat], [maxLng, maxLat]], {
+                padding: { top: 90, bottom: 90, left: 90, right: 90 },
+                maxZoom: 15,
+                duration: 1200
+            });
+        }
+    }
+
+    /**
+     * Clear and reset active vessel track visual from map (UI selection only, non-destructive)
+     */
+    clearVesselTrack() {
+        this.activeTrackVesselId = null;
+        this.currentTrackGeoJson = null;
+
+        const src = this.map ? this.map.getSource('vessel-track-source') : null;
+        if (src && typeof src.setData === 'function') {
+            src.setData({ type: 'FeatureCollection', features: [] });
+        }
+
+        this.setTrackVisibility(true);
+
+        if (typeof this.onTrackUpdated === 'function') {
+            this.onTrackUpdated(null);
+        }
+    }
+
+    notifyTrackStatus(type, message) {
+        if (typeof this.onTrackStatus === 'function') {
+            this.onTrackStatus(type, message);
         }
     }
 

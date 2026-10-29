@@ -50,33 +50,8 @@
                 <span id="activeFilterBadgeToolbar" class="active-filter-badge hidden px-1.5 py-0.2 rounded-full text-[9px] bg-teal-400 text-slate-950 font-bold">0</span>
             </button>
 
-            <!-- Quick Fit Buttons -->
-            <button type="button" id="btnFitVessels" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-sky-300 font-medium transition border border-slate-700 flex items-center gap-1" title="Pusatkan peta ke armada kapal terdeteksi">
-                <span>🚢</span>
-                <span>Fit Vessels</span>
-            </button>
-
-            <button type="button" id="btnFitEez" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-teal-300 font-medium transition border border-slate-700 flex items-center gap-1" title="Pusatkan peta ke batas World EEZ v12">
-                <span>🛡️</span>
-                <span>Fit EEZ</span>
-            </button>
-
-            <button type="button" id="btnFitFao" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-blue-300 font-medium transition border border-slate-700 flex items-center gap-1" title="Pusatkan peta ke wilayah statistik FAO">
-                <span>🌐</span>
-                <span>Fit FAO</span>
-            </button>
-
-            <button type="button" id="btnFitSarCandidates" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-300 font-medium transition border border-slate-700 flex items-center gap-1">
-                <span>🎯</span>
-                <span>Fit SAR Candidates</span>
-            </button>
-
-            <button type="button" id="btnFitSarScene" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-purple-300 font-medium transition border border-slate-700 flex items-center gap-1">
-                <span>🛰️</span>
-                <span>Fit SAR Scene</span>
-            </button>
-
-            <button type="button" id="btnResetView" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition border border-slate-700">
+            <!-- Reset View Button -->
+            <button type="button" id="btnResetView" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition border border-slate-700" title="Pusatkan peta ke tampilan awal">
                 Reset View
             </button>
         </div>
@@ -88,6 +63,25 @@
                 📜 Provenance & Legal
             </button>
         </div>
+    </div>
+
+    <!-- Active Vessel Track Controller Banner (Tahap 11) -->
+    <div id="activeTrackBanner" class="hidden absolute top-16 left-4 z-20 pointer-events-auto flex flex-wrap items-center gap-2 p-1.5 rounded-xl glass-panel border border-cyan-500/50 shadow-2xl text-xs backdrop-blur-md">
+        <div class="flex items-center gap-1.5 text-cyan-300 font-semibold font-mono pl-1">
+            <span class="animate-pulse">🛰️</span>
+            <span id="activeTrackVesselLabel">Track: -</span>
+            <span id="activeTrackPointCountBadge" class="px-1.5 py-0.2 rounded text-[10px] bg-cyan-950 text-cyan-300 border border-cyan-700 font-bold">0 pts</span>
+        </div>
+        <div class="h-4 w-px bg-slate-700 mx-1"></div>
+        <button type="button" id="btnFitActiveTrack" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-300 font-bold text-[11px] border border-slate-700 flex items-center gap-1 transition" title="Pusatkan peta ke garis lintasan (Fit Track)">
+            <span>🧭</span> Fit Track
+        </button>
+        <button type="button" id="btnToggleActiveTrack" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-[11px] border border-slate-700 flex items-center gap-1 transition" title="Sembunyikan / Tampilkan garis lintasan (Hide/Show)">
+            <span id="toggleTrackIcon">👁️</span> <span id="toggleTrackLabel">Hide Track</span>
+        </button>
+        <button type="button" id="btnClearActiveTrack" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-rose-950 text-rose-300 font-bold text-[11px] border border-slate-700 hover:border-rose-700 flex items-center gap-1 transition" title="Hapus garis lintasan dari peta (Clear Track)">
+            <span>✖️</span> Clear Track
+        </button>
     </div>
 
     <!-- Map Canvas Container -->
@@ -867,30 +861,60 @@
             });
         }
 
-        // Quick Fit Controls
-        const fitMappings = [
-            { id: 'btnFitVessels', type: 'vessels' },
-            { id: 'btnFitEez', type: 'eez' },
-            { id: 'btnFitFao', type: 'fao' },
-            { id: 'btnFitSarCandidates', type: 'sar-candidates' },
-            { id: 'btnFitSarScene', type: 'sar-scenes' },
-        ];
-
-        fitMappings.forEach(({ id, type }) => {
-            const btn = document.getElementById(id);
-            if (btn) {
-                btn.addEventListener('click', () => {
-                    mapController.fitToData(type);
-                });
-            }
-        });
-
         // Reset View
         const btnReset = document.getElementById('btnResetView');
         if (btnReset) {
             btnReset.addEventListener('click', () => {
                 mapController.map.flyTo({ center: [100.0, 5.0], zoom: 3.5 });
             });
+        }
+
+        // Active Vessel Track Controller (Tahap 11)
+        const trackBanner = document.getElementById('activeTrackBanner');
+        const trackLabel = document.getElementById('activeTrackVesselLabel');
+        const trackBadge = document.getElementById('activeTrackPointCountBadge');
+        const btnFitTrack = document.getElementById('btnFitActiveTrack');
+        const btnToggleTrack = document.getElementById('btnToggleActiveTrack');
+        const btnClearTrack = document.getElementById('btnClearActiveTrack');
+        const toggleIcon = document.getElementById('toggleTrackIcon');
+        const toggleLabel = document.getElementById('toggleTrackLabel');
+
+        mapController.onTrackUpdated = (geoJson) => {
+            if (!trackBanner) return;
+            if (geoJson && geoJson.properties && geoJson.properties.position_count > 0) {
+                trackBanner.classList.remove('hidden');
+                if (trackLabel) trackLabel.textContent = `Track: ${geoJson.properties.name || geoJson.properties.mmsi}`;
+                if (trackBadge) trackBadge.textContent = `${geoJson.properties.position_count} pts`;
+            } else if (geoJson && geoJson.properties && geoJson.properties.track_status === 'empty') {
+                trackBanner.classList.remove('hidden');
+                if (trackLabel) trackLabel.textContent = `Track: ${geoJson.properties.name || geoJson.properties.mmsi} (Kosong)`;
+                if (trackBadge) trackBadge.textContent = `0 pts`;
+            } else {
+                trackBanner.classList.add('hidden');
+            }
+        };
+
+        mapController.onTrackVisibilityChanged = (visible) => {
+            if (toggleLabel && toggleIcon) {
+                toggleLabel.textContent = visible ? 'Hide Track' : 'Show Track';
+                toggleIcon.textContent = visible ? '👁️' : '🙈';
+            }
+        };
+
+        if (btnFitTrack) {
+            btnFitTrack.addEventListener('click', () => mapController.fitVesselTrack());
+        }
+        if (btnToggleTrack) {
+            btnToggleTrack.addEventListener('click', () => {
+                if (mapController.trackVisible) {
+                    mapController.hideVesselTrack();
+                } else {
+                    mapController.showTrackLayer();
+                }
+            });
+        }
+        if (btnClearTrack) {
+            btnClearTrack.addEventListener('click', () => mapController.clearVesselTrack());
         }
 
         // Metadata Modal

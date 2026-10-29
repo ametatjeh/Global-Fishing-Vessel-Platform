@@ -135,6 +135,28 @@
                         </div>
                     </div>
 
+                    <!-- AIS Vessel Track Action Controls (Tahap 11) -->
+                    <div class="p-2.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                        <div class="text-[10px] font-bold uppercase tracking-wider text-cyan-400 font-mono flex items-center justify-between">
+                            <span>🛰️ AIS Historical Track</span>
+                            <span id="trackingTrackStatusBadge" class="text-slate-400">Siap</span>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <button type="button" id="btnTrackingShowTrack" class="px-2.5 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-bold text-xs border border-cyan-500/40 flex items-center gap-1 transition" title="Tampilkan garis lintasan kapal terpilih (Show Track)">
+                                <span>🗺️</span> Show Track
+                            </button>
+                            <button type="button" id="btnTrackingFitTrack" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-300 font-bold text-xs border border-slate-700 flex items-center gap-1 transition" title="Pusatkan peta ke garis lintasan (Fit Track)">
+                                <span>🧭</span> Fit Track
+                            </button>
+                            <button type="button" id="btnTrackingToggleTrack" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 flex items-center gap-1 transition" title="Sembunyikan / Tampilkan garis lintasan (Hide/Show)">
+                                <span id="btnTrackingToggleIcon">👁️</span> <span id="btnTrackingToggleLabel">Hide</span>
+                            </button>
+                            <button type="button" id="btnTrackingClearTrack" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-rose-950 text-rose-300 font-bold text-xs border border-slate-700 hover:border-rose-700 flex items-center gap-1 transition" title="Hapus garis lintasan dari peta (Clear Track)">
+                                <span>✖️</span> Clear
+                            </button>
+                        </div>
+                    </div>
+
                     @if($activeVessels->first())
                     <div class="pt-1 text-right">
                         <a id="tel-vessel-link" href="{{ route('vessels.show', $activeVessels->first()->id) }}" class="text-xs text-teal-400 hover:text-teal-300 font-bold underline">
@@ -168,6 +190,7 @@
                     <button type="button"
                             class="vessel-focus-btn w-full text-left p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800/90 border border-slate-800 hover:border-sky-500/40 transition flex items-center justify-between group {{ !$hasValidPos ? 'opacity-50 cursor-not-allowed' : '' }}"
                             data-has-coords="{{ $hasValidPos ? 'true' : 'false' }}"
+                            data-vessel-id="{{ $v->id }}"
                             data-lat="{{ $lat ?? '' }}"
                             data-lng="{{ $lng ?? '' }}"
                             data-name="{{ $v->name }}"
@@ -315,6 +338,69 @@
             });
         }
 
+        // Track Control Handlers (Tahap 11)
+        const badgeTrack = document.getElementById('trackingTrackStatusBadge');
+        const btnShowTrack = document.getElementById('btnTrackingShowTrack');
+        const btnFitTrack = document.getElementById('btnTrackingFitTrack');
+        const btnToggleTrack = document.getElementById('btnTrackingToggleTrack');
+        const btnClearTrack = document.getElementById('btnTrackingClearTrack');
+        const toggleIcon = document.getElementById('btnTrackingToggleIcon');
+        const toggleLabel = document.getElementById('btnTrackingToggleLabel');
+
+        trackingMapController.onTrackUpdated = (geoJson) => {
+            if (!badgeTrack) return;
+            if (geoJson && geoJson.properties && geoJson.properties.position_count > 0) {
+                badgeTrack.textContent = `${geoJson.properties.position_count} pts`;
+                badgeTrack.className = 'text-emerald-400 font-bold';
+            } else if (geoJson && geoJson.properties && geoJson.properties.track_status === 'empty') {
+                badgeTrack.textContent = 'Kosong';
+                badgeTrack.className = 'text-amber-400 font-bold';
+            } else {
+                badgeTrack.textContent = 'Siap';
+                badgeTrack.className = 'text-slate-400';
+            }
+        };
+
+        trackingMapController.onTrackVisibilityChanged = (visible) => {
+            if (toggleLabel && toggleIcon) {
+                toggleLabel.textContent = visible ? 'Hide' : 'Show';
+                toggleIcon.textContent = visible ? '👁️' : '🙈';
+            }
+        };
+
+        if (btnShowTrack) {
+            btnShowTrack.addEventListener('click', () => {
+                const target = window.currentFocusVesselId || window.currentFocusMmsi || '{{ $activeVessels->first()?->id }}';
+                if (!target) {
+                    alert('Pilih kapal terlebih dahulu dari daftar di bawah.');
+                    return;
+                }
+                trackingMapController.showVesselTrack(target, { fitBounds: true });
+            });
+        }
+
+        if (btnFitTrack) {
+            btnFitTrack.addEventListener('click', () => {
+                trackingMapController.fitVesselTrack();
+            });
+        }
+
+        if (btnToggleTrack) {
+            btnToggleTrack.addEventListener('click', () => {
+                if (trackingMapController.trackVisible) {
+                    trackingMapController.hideVesselTrack();
+                } else {
+                    trackingMapController.showTrackLayer();
+                }
+            });
+        }
+
+        if (btnClearTrack) {
+            btnClearTrack.addEventListener('click', () => {
+                trackingMapController.clearVesselTrack();
+            });
+        }
+
         // Attach click listeners to Quick Radar Focus vessel buttons
         document.querySelectorAll('.vessel-focus-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -327,13 +413,17 @@
                 const lng = parseFloat(btn.getAttribute('data-lng'));
                 const name = btn.getAttribute('data-name') || '-';
                 const mmsi = btn.getAttribute('data-mmsi') || '-';
+                const vesselId = btn.getAttribute('data-vessel-id') || '';
                 const flag = btn.getAttribute('data-flag') || 'UN';
                 const sog = parseFloat(btn.getAttribute('data-sog')) || 0;
                 const cog = parseFloat(btn.getAttribute('data-cog')) || 0;
                 const time = btn.getAttribute('data-time') || '-';
                 const linkUrl = btn.getAttribute('data-url') || '';
 
-                focusVessel(lat, lng, name, mmsi, flag, sog, cog, time, linkUrl);
+                window.currentFocusMmsi = mmsi;
+                window.currentFocusVesselId = vesselId;
+
+                focusVessel(lat, lng, name, mmsi, flag, sog, cog, time, linkUrl, vesselId);
             });
         });
     }
@@ -344,7 +434,10 @@
         initializeTrackingMap();
     }
 
-    function focusVessel(lat, lng, name, mmsi, flag, sog, cog, time, linkUrl) {
+    function focusVessel(lat, lng, name, mmsi, flag, sog, cog, time, linkUrl, vesselId) {
+        window.currentFocusMmsi = mmsi;
+        if (vesselId) window.currentFocusVesselId = vesselId;
+
         if (typeof lat !== 'number' || typeof lng !== 'number' || !isFinite(lat) || !isFinite(lng) || lat < -90.0 || lat > 90.0 || lng < -180.0 || lng > 180.0 || (lat === 0.0 && lng === 0.0)) {
             console.warn('[Tracking] Invalid coordinates rejected in focusVessel:', { lat, lng, mmsi });
             return;

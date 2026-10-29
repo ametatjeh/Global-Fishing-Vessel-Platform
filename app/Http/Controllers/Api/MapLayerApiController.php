@@ -338,6 +338,29 @@ class MapLayerApiController extends Controller
     }
 
     /**
+     * Get historical AIS track GeoJSON for a vessel (Tahap 11).
+     */
+    public function vesselTrack(Request $request, string $id): JsonResponse
+    {
+        $vessel = Vessel::where('id', $id)->orWhere('mmsi', $id)->first();
+
+        if (!$vessel) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Kapal dengan identifier '{$id}' tidak ditemukan.",
+            ], 404);
+        }
+
+        $limit = min(max((int) $request->query('limit', 200), 10), 1000);
+        $geoJson = $this->spatial->getVesselTrackFeatureCollection($vessel, $limit);
+
+        return response()->json($geoJson, 200, [
+            'Content-Type' => 'application/json',
+            'Cache-Control' => 'private, max-age=30',
+        ]);
+    }
+
+    /**
      * Parse comma separated bbox string (minLng,minLat,maxLng,maxLat)
      */
     protected function parseBBox(?string $raw): ?array

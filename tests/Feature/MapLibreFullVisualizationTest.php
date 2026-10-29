@@ -87,9 +87,9 @@ class MapLibreFullVisualizationTest extends TestCase
         $response->assertOk();
         $response->assertSee('id="global-map-canvas"', false);
         $response->assertSee('ESRI Dark Gray');
-        $response->assertSee('btnFitVessels');
-        $response->assertSee('btnFitSarCandidates');
-        $response->assertSee('btnFitSarScene');
+        $response->assertDontSee('btnFitVessels');
+        $response->assertDontSee('btnFitSarCandidates');
+        $response->assertDontSee('btnFitSarScene');
         $response->assertSee('btnResetView');
         $response->assertSee('toggle-layer-eez-boundaries');
         $response->assertSee('EEZ Boundaries');
@@ -101,6 +101,10 @@ class MapLibreFullVisualizationTest extends TestCase
         $response->assertSee('COG fallback: Arah gerak lintasan bumi');
         $response->assertSee('Direction unavailable: Orientasi tidak diketahui');
         $response->assertSee('Selected vessel: Cincin sorot kapal terpilih');
+        $response->assertSee('id="activeTrackBanner"', false);
+        $response->assertSee('id="btnFitActiveTrack"', false);
+        $response->assertSee('id="btnToggleActiveTrack"', false);
+        $response->assertSee('id="btnClearActiveTrack"', false);
         $response->assertDontSee('Cluster Padat');
         $response->assertDontSee('Cluster Kecil');
     }
@@ -113,6 +117,10 @@ class MapLibreFullVisualizationTest extends TestCase
         $response->assertSee('id="tracking-map-canvas"', false);
         $response->assertSee('Vessel Telemetry Inspector');
         $response->assertSee('btnFitAllVessels');
+        $response->assertSee('btnTrackingShowTrack');
+        $response->assertSee('btnTrackingFitTrack');
+        $response->assertSee('btnTrackingToggleTrack');
+        $response->assertSee('btnTrackingClearTrack');
         $response->assertSee('Daftar Posisi Broadcast Terkini');
     }
 

@@ -26,6 +26,9 @@ Route::prefix('layers')->group(function () {
 
 Route::get('/encounters/{id}', [MapLayerApiController::class, 'encounterDetail'])->name('api.encounters.detail');
 
+// Historical AIS Vessel Track API (Tahap 11)
+Route::get('/vessels/{id}/track', [MapLayerApiController::class, 'vesselTrack'])->name('api.vessels.track');
+
 // SAR Evidence & Track API (Tahap 8 & 9)
 Route::get('/sar/candidates/{id}/evidence', [\App\Http\Controllers\SarEvidenceController::class, 'apiEvidence'])->name('api.sar.candidates.evidence');
 Route::get('/sar/candidates/{id}/track', [\App\Http\Controllers\SarEvidenceController::class, 'apiTrack'])->name('api.sar.candidates.track');

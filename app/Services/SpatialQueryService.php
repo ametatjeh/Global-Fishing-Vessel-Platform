@@ -753,4 +753,137 @@ class SpatialQueryService
 
         return [$minLng, $minLat, $maxLng, $maxLat];
     }
+
+    /**
+     * Generate GeoJSON FeatureCollection for a vessel's historical AIS track (Tahap 11).
+     *
+     * @param Vessel $vessel
+     * @param int $limit Maximum historical positions to return (default: 200, max: 1000)
+     * @return array GeoJSON FeatureCollection containing LineString and Point features
+     */
+    public function getVesselTrackFeatureCollection(Vessel $vessel, int $limit = 200): array
+    {
+        $limit = min(max($limit, 10), 1000);
+
+        $rawPositions = VesselPosition::where('vessel_id', $vessel->id)
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->whereBetween('latitude', [-90.0, 90.0])
+            ->whereBetween('longitude', [-180.0, 180.0])
+            ->whereRaw('NOT (latitude = 0.0 AND longitude = 0.0)')
+            ->orderBy('observed_at', 'asc')
+            ->limit($limit)
+            ->get();
+
+        // Sanitize and deduplicate timestamps
+        $validPositions = [];
+        $seenTimestamps = [];
+
+        foreach ($rawPositions as $pos) {
+            $lat = (float) $pos->latitude;
+            $lng = (float) $pos->longitude;
+
+            if (!is_finite($lat) || !is_finite($lng) || $lat < -90.0 || $lat > 90.0 || $lng < -180.0 || $lng > 180.0) {
+                continue;
+            }
+
+            // Consistent handling of duplicate timestamps: retain latest position record
+            $timeKey = $pos->observed_at ? $pos->observed_at->getTimestamp() : $pos->id;
+            if (isset($seenTimestamps[$timeKey])) {
+                // Replace previous entry with the most up-to-date position record
+                $prevIndex = $seenTimestamps[$timeKey];
+                $validPositions[$prevIndex] = $pos;
+                continue;
+            }
+
+            $seenTimestamps[$timeKey] = count($validPositions);
+            $validPositions[] = $pos;
+        }
+
+        // Re-index array cleanly
+        $validPositions = array_values($validPositions);
+        $count = count($validPositions);
+
+        $features = [];
+
+        if ($count === 0) {
+            return [
+                'type' => 'FeatureCollection',
+                'features' => [],
+                'properties' => [
+                    'vessel_id' => $vessel->id,
+                    'mmsi' => $vessel->mmsi,
+                    'name' => $vessel->name,
+                    'position_count' => 0,
+                    'track_status' => 'empty',
+                    'message' => 'No historical AIS track available',
+                ],
+            ];
+        }
+
+        // Add LineString feature if >= 2 points available
+        if ($count >= 2) {
+            $coordinates = array_map(function ($p) {
+                return [(float) $p->longitude, (float) $p->latitude];
+            }, $validPositions);
+
+            $features[] = [
+                'type' => 'Feature',
+                'geometry' => [
+                    'type' => 'LineString',
+                    'coordinates' => $coordinates,
+                ],
+                'properties' => [
+                    'feature_type' => 'ais_vessel_track_line',
+                    'vessel_id' => $vessel->id,
+                    'mmsi' => $vessel->mmsi,
+                    'name' => $vessel->name,
+                    'point_count' => $count,
+                    'start_time' => $validPositions[0]->observed_at?->toIso8601String(),
+                    'end_time' => $validPositions[$count - 1]->observed_at?->toIso8601String(),
+                ],
+            ];
+        }
+
+        // Add individual Point features for each observation along the track
+        foreach ($validPositions as $idx => $p) {
+            $isLatest = ($idx === $count - 1);
+
+            $features[] = [
+                'type' => 'Feature',
+                'geometry' => [
+                    'type' => 'Point',
+                    'coordinates' => [(float) $p->longitude, (float) $p->latitude],
+                ],
+                'properties' => [
+                    'feature_type' => 'ais_track_point',
+                    'position_id' => $p->id,
+                    'vessel_id' => $vessel->id,
+                    'mmsi' => $vessel->mmsi,
+                    'name' => $vessel->name,
+                    'latitude' => (float) $p->latitude,
+                    'longitude' => (float) $p->longitude,
+                    'observed_at' => $p->observed_at?->toIso8601String(),
+                    'speed_knots' => $p->speed_knots !== null && is_finite((float) $p->speed_knots) ? round((float) $p->speed_knots, 1) : null,
+                    'course_degrees' => $p->course_degrees !== null && is_finite((float) $p->course_degrees) ? round((float) $p->course_degrees, 1) : null,
+                    'heading_degrees' => $p->heading_degrees !== null && is_finite((float) $p->heading_degrees) ? round((float) $p->heading_degrees, 1) : null,
+                    'is_latest' => $isLatest,
+                    'is_fresh' => $p->isFresh(),
+                ],
+            ];
+        }
+
+        return [
+            'type' => 'FeatureCollection',
+            'features' => $features,
+            'properties' => [
+                'vessel_id' => $vessel->id,
+                'mmsi' => $vessel->mmsi,
+                'name' => $vessel->name,
+                'position_count' => $count,
+                'track_status' => $count >= 2 ? 'available' : 'single_point',
+                'message' => $count >= 2 ? 'Historical AIS track available' : 'Single AIS position available (insufficient for track line)',
+            ],
+        ];
+    }
 }
