@@ -10,10 +10,34 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen flex items-center justify-center p-4">
 
-    <div class="w-full max-w-md">
+    <style>
+        #particles-js {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: auto;
+        }
+        #particles-js canvas {
+            display: block;
+            vertical-align: bottom;
+            width: 100% !important;
+            height: 100% !important;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen flex items-center justify-center p-4 relative overflow-x-hidden selection:bg-teal-500 selection:text-slate-950">
+
+    <!-- Ambient Dark Maritime Gradient -->
+    <div class="fixed inset-0 bg-gradient-to-tr from-slate-950 via-slate-900/60 to-slate-950 pointer-events-none" style="z-index: 0;"></div>
+
+    <!-- Interactive Particle Background Canvas (similar to siakad.unida-aceh.ac.id/login) -->
+    <div id="particles-js" aria-hidden="true"></div>
+
+    <div class="w-full max-w-md relative" style="z-index: 10;">
         <!-- Brand Header -->
         <div class="text-center mb-8">
             <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-teal-500/10 border border-teal-500/30 text-3xl mb-3 shadow-lg shadow-teal-500/10">
@@ -109,5 +133,33 @@
         </div>
     </div>
 
+    <!-- Particles.js Engine & Config Loader (siakad.unida-aceh.ac.id/login pattern) -->
+    <script src="{{ asset('particles.min.js') }}"></script>
+    <script>
+        (function() {
+            var configUrl = "{{ asset('particlesjs-config.json') }}";
+
+            function startParticles() {
+                if (typeof window.particlesJS !== 'undefined') {
+                    window.particlesJS.load('particles-js', configUrl, function() {
+                        console.log('particles.js loaded via particlesjs-config.json');
+                    });
+                }
+            }
+
+            if (typeof window.particlesJS !== 'undefined') {
+                startParticles();
+            } else {
+                // CDN fallback if local asset is unreachable
+                var script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js';
+                script.onload = startParticles;
+                script.onerror = function() {
+                    console.warn('Gagal memuat script particles.js');
+                };
+                document.head.appendChild(script);
+            }
+        })();
+    </script>
 </body>
 </html>
