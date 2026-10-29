@@ -32,21 +32,48 @@ class SyncProviderDataJob implements ShouldQueue
     ): void {
         Log::info("Starting queued provider sync for: " . ($this->providerSlug ?: 'all'));
 
+        // Each provider sync is wrapped in an isolated try/catch block so failure in one provider
+        // (such as GFW Research Access 403) never aborts or impacts AIS, EEZ, SAR, or FAO modules.
+
         if (!$this->providerSlug || $this->providerSlug === 'fao') {
-            $fao->sync();
+            try {
+                $fao->sync();
+            } catch (\Throwable $e) {
+                Log::error("FAO sync failed: " . $e->getMessage());
+            }
         }
+
         if (!$this->providerSlug || $this->providerSlug === 'eez') {
-            $eez->sync();
+            try {
+                $eez->sync();
+            } catch (\Throwable $e) {
+                Log::error("EEZ sync failed: " . $e->getMessage());
+            }
         }
+
         if (!$this->providerSlug || $this->providerSlug === 'global-fishing-watch') {
-            $gfw->sync(['limit' => $this->limit]);
+            try {
+                $gfw->sync(['limit' => $this->limit]);
+            } catch (\Throwable $e) {
+                Log::error("GFW sync failed: " . $gfw->sanitizeErrorMessage($e->getMessage()));
+            }
         }
+
         if (!$this->providerSlug || $this->providerSlug === 'copernicus-sentinel-1') {
-            $copernicus->sync(['limit' => $this->limit]);
+            try {
+                $copernicus->sync(['limit' => $this->limit]);
+            } catch (\Throwable $e) {
+                Log::error("Copernicus sync failed: " . $e->getMessage());
+            }
         }
+
         if ($this->providerSlug === 'ais-stream' || $this->providerSlug === 'ais') {
-            // Queue jobs consume bounded batch to respect queue timeout limits
-            $ais->consumeStream(min(20, $this->limit), 10);
+            try {
+                // Queue jobs consume bounded batch to respect queue timeout limits
+                $ais->consumeStream(min(20, $this->limit), 10);
+            } catch (\Throwable $e) {
+                Log::error("AIS sync failed: " . $e->getMessage());
+            }
         }
 
         Log::info("Queued provider sync finished.");

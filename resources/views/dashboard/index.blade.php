@@ -157,15 +157,23 @@
                             <td class="py-2.5 font-semibold text-slate-200">{{ $provider->name }}</td>
                             <td class="py-2.5 font-mono text-[11px] text-slate-400">{{ $provider->type }}</td>
                             <td class="py-2.5">
-                                @if($provider->health_status === 'connected')
+                                @if($provider->health_status === 'connected' || $provider->health_status === 'receiving_data' || $provider->health_status === 'streaming')
                                     <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Connected
+                                    </span>
+                                @elseif($provider->health_status === 'authenticated')
+                                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span> Authenticated
+                                    </span>
+                                @elseif($provider->health_status === 'research_access_required')
+                                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40" title="Research Access Required">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Research Req (403)
                                     </span>
                                 @elseif($provider->health_status === 'not_configured')
                                     <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
                                         <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> Not Configured
                                     </span>
-                                @elseif($provider->health_status === 'delayed')
+                                @elseif($provider->health_status === 'delayed' || $provider->health_status === 'awaiting_telemetry' || $provider->health_status === 'stale' || $provider->health_status === 'reachable')
                                     <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
                                         <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Delayed
                                     </span>

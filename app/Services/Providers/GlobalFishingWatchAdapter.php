@@ -45,10 +45,9 @@ class GlobalFishingWatchAdapter implements ProviderAdapterInterface
         $startTime = microtime(true);
 
         try {
-            // Check GFW datasets endpoint as lightweight health probe (requires limit & offset)
+            // Check GFW datasets endpoint as lightweight authentication probe (no automated retries on 4xx/5xx)
             $response = Http::withToken($this->token)
                 ->timeout($this->timeout)
-                ->retry(1, 300)
                 ->get("{$this->baseUrl}/datasets", [
                     'limit' => 1,
                     'offset' => 0,
@@ -56,40 +55,11 @@ class GlobalFishingWatchAdapter implements ProviderAdapterInterface
 
             $latency = round((microtime(true) - $startTime) * 1000, 2);
 
-            if ($response->successful()) {
-                // Probe events endpoint to verify actual Events API dataset scope
-                $eventsProbe = Http::withToken($this->token)
-                    ->timeout(10)
-                    ->get("{$this->baseUrl}/events", [
-                        'datasets' => 'public-global-encounters-events:latest',
-                        'start-date' => now()->subDays(2)->toDateString(),
-                        'end-date' => now()->toDateString(),
-                        'limit' => 1,
-                    ]);
-
-                $hasEventsScope = $eventsProbe->successful();
-                $isForbidden = ($eventsProbe->status() === 403);
-
-                $provider = DataProvider::where('slug', 'global-fishing-watch')->first();
-                $hasRecentEvents = VesselEncounter::where('source_provider_id', $provider?->id)
-                    ->where('created_at', '>=', now()->subHours(24))
-                    ->exists();
-
-                if ($hasRecentEvents) {
-                    $status = 'receiving_data';
-                    $statusMsg = 'Koneksi ke GFW API v3 terotentikasi dan aktif menerima event perikanan (data 24 jam terakhir tersedia).';
-                } elseif ($hasEventsScope) {
-                    $status = 'authenticated';
-                    $statusMsg = 'Koneksi ke GFW API v3 berhasil terotentikasi dan izin Events API aktif (HTTP 200 OK).';
-                } elseif ($isForbidden) {
-                    $status = 'authenticated';
-                    $statusMsg = 'Token terotentikasi pada katalog GFW (/datasets 200 OK), tetapi endpoint /events mengembalikan HTTP 403 Forbidden (hak akses dibatasi: memerlukan Research Access pada portal pengembang GFW).';
-                } else {
-                    $status = 'authenticated';
-                    $statusMsg = "Koneksi ke katalog GFW terotentikasi (HTTP 200 OK). Status probe /events: HTTP {$eventsProbe->status()}.";
-                }
-
-                $this->updateProviderStatus($status, $isForbidden ? 'HTTP 403: Endpoint /events memerlukan Research Access permission' : null, $latency);
+            // 1. Authentication failure (Invalid or expired token)
+            if ($response->status() === 401) {
+                $status = 'unauthenticated';
+                $statusMsg = 'Autentikasi gagal (HTTP 401 Unauthorized): Token API GFW tidak valid atau telah kadaluarsa.';
+                $this->updateProviderStatus($status, $statusMsg, $latency);
 
                 return [
                     'status' => $status,
@@ -99,7 +69,128 @@ class GlobalFishingWatchAdapter implements ProviderAdapterInterface
                 ];
             }
 
-            $errorMsg = "GFW API merespons dengan status {$response->status()}: " . substr($response->body(), 0, 150);
+            // 2. Rate limit on datasets
+            if ($response->status() === 429) {
+                $status = 'rate_limited';
+                $statusMsg = 'Batas laju permintaan gateway GFW terlampaui (HTTP 429 Too Many Requests). Silakan tunggu sebelum melakukan panggilan berikutnya.';
+                $this->updateProviderStatus($status, $statusMsg, $latency);
+
+                return [
+                    'status' => $status,
+                    'message' => $statusMsg,
+                    'latency_ms' => $latency,
+                    'timestamp' => now()->toISOString(),
+                ];
+            }
+
+            // 3. Server error on datasets
+            if ($response->serverError()) {
+                $status = 'server_error';
+                $statusMsg = "Gateway GFW mengalami kesalahan internal pada server (HTTP {$response->status()}).";
+                $this->updateProviderStatus($status, $statusMsg, $latency);
+
+                return [
+                    'status' => $status,
+                    'message' => $statusMsg,
+                    'latency_ms' => $latency,
+                    'timestamp' => now()->toISOString(),
+                ];
+            }
+
+            // 4. Token authenticated on datasets, now verify permission on Events API (single probe, no retry)
+            if ($response->successful()) {
+                $datasetId = 'public-global-encounters-events:latest';
+                $eventsProbe = Http::withToken($this->token)
+                    ->timeout(10)
+                    ->get("{$this->baseUrl}/events", [
+                        'datasets' => $datasetId,
+                        'start-date' => now()->subDays(2)->toDateString(),
+                        'end-date' => now()->toDateString(),
+                        'limit' => 1,
+                    ]);
+
+                // 4a. HTTP 403 Forbidden: Research Access required
+                if ($eventsProbe->status() === 403) {
+                    $status = 'research_access_required';
+                    $statusMsg = 'Access denied — Research Access required. Token API valid dan terotentikasi di katalog GFW, namun akun belum memiliki izin Research Access untuk dataset Events API (' . $datasetId . '). Silakan ajukan izin akses di https://globalfishingwatch.org/our-apis/tokens.';
+                    $this->updateProviderStatus($status, 'HTTP 403: Research Access permission required untuk dataset ' . $datasetId, $latency);
+
+                    return [
+                        'status' => $status,
+                        'message' => $statusMsg,
+                        'latency_ms' => $latency,
+                        'timestamp' => now()->toISOString(),
+                        'guidance_url' => 'https://globalfishingwatch.org/our-apis/tokens',
+                    ];
+                }
+
+                // 4b. Events endpoint rate limited
+                if ($eventsProbe->status() === 429) {
+                    $status = 'rate_limited';
+                    $statusMsg = 'Batas laju permintaan endpoint /events terlampaui (HTTP 429 Too Many Requests).';
+                    $this->updateProviderStatus($status, $statusMsg, $latency);
+
+                    return [
+                        'status' => $status,
+                        'message' => $statusMsg,
+                        'latency_ms' => $latency,
+                        'timestamp' => now()->toISOString(),
+                    ];
+                }
+
+                // 4c. Events endpoint server error
+                if ($eventsProbe->serverError()) {
+                    $status = 'server_error';
+                    $statusMsg = "Endpoint /events GFW mengalami kesalahan internal server (HTTP {$eventsProbe->status()}).";
+                    $this->updateProviderStatus($status, $statusMsg, $latency);
+
+                    return [
+                        'status' => $status,
+                        'message' => $statusMsg,
+                        'latency_ms' => $latency,
+                        'timestamp' => now()->toISOString(),
+                    ];
+                }
+
+                // 4d. Events endpoint accessible
+                if ($eventsProbe->successful()) {
+                    $provider = DataProvider::where('slug', 'global-fishing-watch')->first();
+                    $hasRecentEvents = VesselEncounter::where('source_provider_id', $provider?->id)
+                        ->where('created_at', '>=', now()->subHours(24))
+                        ->exists();
+
+                    if ($hasRecentEvents) {
+                        $status = 'receiving_data';
+                        $statusMsg = 'Koneksi ke GFW Events API v3 terotentikasi dan aktif menerima event perikanan (data 24 jam terakhir tersedia).';
+                    } else {
+                        $status = 'authenticated';
+                        $statusMsg = 'Koneksi ke GFW API v3 berhasil terotentikasi dan izin Events API aktif (HTTP 200 OK).';
+                    }
+
+                    $this->updateProviderStatus($status, null, $latency);
+
+                    return [
+                        'status' => $status,
+                        'message' => $statusMsg,
+                        'latency_ms' => $latency,
+                        'timestamp' => now()->toISOString(),
+                    ];
+                }
+
+                // Other unexpected non-200 code on events probe
+                $status = 'error';
+                $statusMsg = "Endpoint /events merespons dengan status HTTP {$eventsProbe->status()}.";
+                $this->updateProviderStatus($status, $statusMsg, $latency);
+
+                return [
+                    'status' => $status,
+                    'message' => $statusMsg,
+                    'latency_ms' => $latency,
+                    'timestamp' => now()->toISOString(),
+                ];
+            }
+
+            $errorMsg = $this->sanitizeErrorMessage("GFW API merespons dengan status {$response->status()}: " . substr($response->body(), 0, 150));
             $this->updateProviderStatus('error', $errorMsg, $latency);
 
             return [
@@ -110,11 +201,20 @@ class GlobalFishingWatchAdapter implements ProviderAdapterInterface
             ];
         } catch (\Throwable $e) {
             $latency = round((microtime(true) - $startTime) * 1000, 2);
-            $errorMsg = 'Gagal menghubungi server GFW: ' . $e->getMessage();
-            $this->updateProviderStatus('error', $errorMsg, $latency);
+            $msg = $e->getMessage();
+            $isTimeout = str_contains(strtolower($msg), 'timed out')
+                || str_contains(strtolower($msg), 'timeout')
+                || str_contains($msg, 'cURL error 28');
+
+            $status = $isTimeout ? 'network_error' : 'error';
+            $errorMsg = $isTimeout
+                ? 'Koneksi ke GFW API timeout atau jaringan terputus (network_error).'
+                : 'Gagal menghubungi server GFW: ' . $this->sanitizeErrorMessage($msg);
+
+            $this->updateProviderStatus($status, $errorMsg, $latency);
 
             return [
-                'status' => 'error',
+                'status' => $status,
                 'message' => $errorMsg,
                 'latency_ms' => $latency,
                 'timestamp' => now()->toISOString(),
@@ -196,23 +296,87 @@ class GlobalFishingWatchAdapter implements ProviderAdapterInterface
 
             // Explicitly handle 403 Forbidden without retrying or inventing data
             if ($httpRes->status() === 403) {
-                $errorMsg = "GFW Events API returned HTTP 403 Forbidden: Token tidak memiliki izin dataset '{$params['datasets']}'. Diperlukan permohonan Research Access melalui GFW Developer Portal.";
+                $errorMsg = "Access denied — Research Access required: Token API terotentikasi di katalog GFW, namun dataset '{$params['datasets']}' memerlukan izin Research Access dari Global Fishing Watch. Silakan ajukan izin di https://globalfishingwatch.org/our-apis/tokens";
+                $sanitizedError = $this->sanitizeErrorMessage($errorMsg);
+
                 $run->update([
                     'status' => 'failed',
-                    'error_message' => $errorMsg,
+                    'error_message' => $sanitizedError,
+                    'items_fetched' => 0,
+                    'items_inserted' => 0,
+                    'items_skipped' => 0,
                     'completed_at' => now(),
                 ]);
                 $provider->update([
-                    'last_error_message' => 'HTTP 403 Forbidden: Memerlukan Research Access',
+                    'health_status' => 'research_access_required',
+                    'last_health_check_at' => now(),
+                    'last_error_message' => 'HTTP 403 Forbidden: Memerlukan Research Access. Silakan ajukan permohonan di https://globalfishingwatch.org/our-apis/tokens',
                 ]);
 
                 return [
                     'status' => 'failed',
-                    'error_type' => 'forbidden',
+                    'error_type' => 'forbidden_research_required',
                     'fetched' => 0,
                     'inserted' => 0,
                     'skipped' => 0,
-                    'errors' => [$errorMsg],
+                    'errors' => [$sanitizedError],
+                    'guidance_url' => 'https://globalfishingwatch.org/our-apis/tokens',
+                ];
+            }
+
+            if ($httpRes->status() === 401) {
+                $errorMsg = 'Autentikasi gagal (HTTP 401 Unauthorized): Token API GFW tidak valid atau telah kadaluarsa.';
+                $sanitizedError = $this->sanitizeErrorMessage($errorMsg);
+
+                $run->update([
+                    'status' => 'failed',
+                    'error_message' => $sanitizedError,
+                    'items_fetched' => 0,
+                    'items_inserted' => 0,
+                    'items_skipped' => 0,
+                    'completed_at' => now(),
+                ]);
+                $provider->update([
+                    'health_status' => 'unauthenticated',
+                    'last_health_check_at' => now(),
+                    'last_error_message' => $sanitizedError,
+                ]);
+
+                return [
+                    'status' => 'failed',
+                    'error_type' => 'unauthenticated',
+                    'fetched' => 0,
+                    'inserted' => 0,
+                    'skipped' => 0,
+                    'errors' => [$sanitizedError],
+                ];
+            }
+
+            if ($httpRes->status() === 429) {
+                $errorMsg = 'Batas laju permintaan endpoint /events terlampaui (HTTP 429 Too Many Requests).';
+                $sanitizedError = $this->sanitizeErrorMessage($errorMsg);
+
+                $run->update([
+                    'status' => 'failed',
+                    'error_message' => $sanitizedError,
+                    'items_fetched' => 0,
+                    'items_inserted' => 0,
+                    'items_skipped' => 0,
+                    'completed_at' => now(),
+                ]);
+                $provider->update([
+                    'health_status' => 'rate_limited',
+                    'last_health_check_at' => now(),
+                    'last_error_message' => $sanitizedError,
+                ]);
+
+                return [
+                    'status' => 'failed',
+                    'error_type' => 'rate_limited',
+                    'fetched' => 0,
+                    'inserted' => 0,
+                    'skipped' => 0,
+                    'errors' => [$sanitizedError],
                 ];
             }
 
@@ -335,13 +499,18 @@ class GlobalFishingWatchAdapter implements ProviderAdapterInterface
                 'health_status' => 'connected',
             ]);
         } catch (\Throwable $e) {
-            $errors[] = $e->getMessage();
-            Log::error('GFW Sync Error: ' . $e->getMessage());
+            $sanitizedError = $this->sanitizeErrorMessage($e->getMessage());
+            $errors[] = $sanitizedError;
+            Log::error('GFW Sync Error: ' . $sanitizedError);
 
             $run->update([
                 'status' => 'failed',
-                'error_message' => $e->getMessage(),
+                'error_message' => $sanitizedError,
                 'completed_at' => now(),
+            ]);
+
+            $provider->update([
+                'last_error_message' => $sanitizedError,
             ]);
         }
 
@@ -402,12 +571,33 @@ class GlobalFishingWatchAdapter implements ProviderAdapterInterface
                 'is_enabled' => $this->isConfigured(),
                 'health_status' => $status,
                 'last_health_check_at' => now(),
-                'last_error_message' => $error,
+                'last_error_message' => $error ? $this->sanitizeErrorMessage($error) : null,
                 'license_type' => 'GFW Research & Non-Commercial',
                 'commercial_use_allowed' => false,
+                'retention_allowed' => true,
+                'redistribution_allowed' => false,
                 'rate_limit_info' => $latency ? ['latency_ms' => $latency] : null,
             ]
         );
+    }
+
+    /**
+     * Sanitize error message to ensure API tokens or sensitive headers are never leaked.
+     */
+    public function sanitizeErrorMessage(?string $message): string
+    {
+        if (empty($message)) {
+            return '';
+        }
+
+        if (!empty($this->token)) {
+            $message = str_replace($this->token, '[REDACTED_GFW_TOKEN]', $message);
+        }
+
+        $message = preg_replace('/Bearer\s+[A-Za-z0-9\-_.]{10,}/i', 'Bearer [REDACTED]', $message);
+        $message = preg_replace('/([?&](?:token|key|api_key|secret)=)[^&\s]+/i', '$1[REDACTED]', $message);
+
+        return $message;
     }
 
     public function getMetadata(): array

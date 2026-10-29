@@ -37,13 +37,18 @@ class CheckProvidersHealthCommand extends Command
             $check = $adapter->healthCheck();
             $statusColor = match ($check['status']) {
                 'connected', 'receiving_data', 'streaming', 'authenticated' => 'green',
-                'not_configured', 'reachable', 'awaiting_telemetry', 'stale', 'delayed' => 'yellow',
+                'research_access_required', 'not_configured', 'reachable', 'awaiting_telemetry', 'stale', 'delayed' => 'yellow',
                 default => 'red',
+            };
+
+            $statusLabel = match ($check['status']) {
+                'research_access_required' => 'ACCESS DENIED (RESEARCH REQ)',
+                default => strtoupper($check['status']),
             };
 
             $rows[] = [
                 $name,
-                "<fg={$statusColor}>" . strtoupper($check['status']) . "</>",
+                "<fg={$statusColor}>" . $statusLabel . "</>",
                 $check['latency_ms'] !== null ? "{$check['latency_ms']} ms" : 'N/A',
                 $check['message'],
             ];

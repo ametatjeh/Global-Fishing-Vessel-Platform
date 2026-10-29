@@ -161,7 +161,7 @@ class ProviderHealthTest extends TestCase
 
     public function test_gfw_events_sync_handles_403_permission_errors(): void
     {
-        config(['maritime.providers.gfw.token' => 'test-token']);
+        config(['maritime.providers.gfw.token' => 'secret-gfw-bearer-token-12345']);
 
         \Illuminate\Support\Facades\Http::fake([
             'https://gateway.api.globalfishingwatch.org/v3/events*' => \Illuminate\Support\Facades\Http::response([
@@ -175,7 +175,194 @@ class ProviderHealthTest extends TestCase
         $syncResult = $adapter->sync(['limit' => 5]);
 
         $this->assertEquals('failed', $syncResult['status']);
+        $this->assertEquals('forbidden_research_required', $syncResult['error_type']);
         $this->assertEquals(0, $syncResult['inserted']);
+        $this->assertEquals(0, \App\Models\VesselEncounter::count());
+        $this->assertStringContainsString('Research Access required', $syncResult['errors'][0]);
+        // Guarantee token is never leaked
+        $this->assertStringNotContainsString('secret-gfw-bearer-token-12345', $syncResult['errors'][0]);
+    }
+
+    public function test_gfw_health_check_returns_research_access_required_on_403_events(): void
+    {
+        $testToken = 'gfw-test-jwt-token-alpha-omega-999';
+        config(['maritime.providers.gfw.token' => $testToken]);
+
+        \Illuminate\Support\Facades\Http::fake([
+            'https://gateway.api.globalfishingwatch.org/v3/datasets*' => \Illuminate\Support\Facades\Http::response([
+                'entries' => [['id' => 'public-global-encounters-events:latest']],
+                'total' => 1,
+            ], 200),
+            'https://gateway.api.globalfishingwatch.org/v3/events*' => \Illuminate\Support\Facades\Http::response([
+                'message' => 'Not authorized by permissions',
+                'error' => 'Forbidden',
+                'statusCode' => 403,
+            ], 403),
+        ]);
+
+        $adapter = app(GlobalFishingWatchAdapter::class);
+        $result = $adapter->healthCheck();
+
+        $this->assertEquals('research_access_required', $result['status']);
+        $this->assertStringContainsString('Access denied — Research Access required', $result['message']);
+        $this->assertEquals('https://globalfishingwatch.org/our-apis/tokens', $result['guidance_url']);
+        $this->assertStringNotContainsString($testToken, $result['message']);
+
+        $provider = DataProvider::where('slug', 'global-fishing-watch')->first();
+        $this->assertNotNull($provider);
+        $this->assertEquals('research_access_required', $provider->health_status);
+        $this->assertStringContainsString('Research Access permission required', $provider->last_error_message);
+        $this->assertStringNotContainsString($testToken, $provider->last_error_message);
+        $this->assertFalse($provider->commercial_use_allowed);
+    }
+
+    public function test_gfw_health_check_returns_unauthenticated_on_401(): void
+    {
+        $testToken = 'gfw-expired-invalid-token';
+        config(['maritime.providers.gfw.token' => $testToken]);
+
+        \Illuminate\Support\Facades\Http::fake([
+            'https://gateway.api.globalfishingwatch.org/v3/datasets*' => \Illuminate\Support\Facades\Http::response([
+                'message' => 'Invalid or expired token',
+                'statusCode' => 401,
+            ], 401),
+        ]);
+
+        $adapter = app(GlobalFishingWatchAdapter::class);
+        $result = $adapter->healthCheck();
+
+        $this->assertEquals('unauthenticated', $result['status']);
+        $this->assertStringContainsString('Autentikasi gagal (HTTP 401 Unauthorized)', $result['message']);
+        $this->assertStringNotContainsString($testToken, $result['message']);
+
+        $provider = DataProvider::where('slug', 'global-fishing-watch')->first();
+        $this->assertEquals('unauthenticated', $provider->health_status);
+    }
+
+    public function test_gfw_health_check_returns_rate_limited_on_429(): void
+    {
+        config(['maritime.providers.gfw.token' => 'valid-token']);
+
+        \Illuminate\Support\Facades\Http::fake([
+            'https://gateway.api.globalfishingwatch.org/v3/datasets*' => \Illuminate\Support\Facades\Http::response([
+                'message' => 'Rate limit exceeded',
+                'statusCode' => 429,
+            ], 429),
+        ]);
+
+        $adapter = app(GlobalFishingWatchAdapter::class);
+        $result = $adapter->healthCheck();
+
+        $this->assertEquals('rate_limited', $result['status']);
+        $this->assertStringContainsString('Batas laju permintaan', $result['message']);
+    }
+
+    public function test_gfw_health_check_returns_server_error_on_500(): void
+    {
+        config(['maritime.providers.gfw.token' => 'valid-token']);
+
+        \Illuminate\Support\Facades\Http::fake([
+            'https://gateway.api.globalfishingwatch.org/v3/datasets*' => \Illuminate\Support\Facades\Http::response([
+                'message' => 'Internal server error',
+                'statusCode' => 500,
+            ], 500),
+        ]);
+
+        $adapter = app(GlobalFishingWatchAdapter::class);
+        $result = $adapter->healthCheck();
+
+        $this->assertEquals('server_error', $result['status']);
+        $this->assertStringContainsString('kesalahan internal pada server', $result['message']);
+    }
+
+    public function test_gfw_health_check_returns_network_error_on_timeout(): void
+    {
+        config(['maritime.providers.gfw.token' => 'valid-token']);
+
+        \Illuminate\Support\Facades\Http::fake([
+            'https://gateway.api.globalfishingwatch.org/v3/datasets*' => function () {
+                throw new \Illuminate\Http\Client\ConnectionException('cURL error 28: Operation timed out after 30000 milliseconds');
+            },
+        ]);
+
+        $adapter = app(GlobalFishingWatchAdapter::class);
+        $result = $adapter->healthCheck();
+
+        $this->assertEquals('network_error', $result['status']);
+        $this->assertStringContainsString('timeout atau jaringan terputus', $result['message']);
+    }
+
+    public function test_gfw_health_check_returns_receiving_data_when_events_present(): void
+    {
+        config(['maritime.providers.gfw.token' => 'valid-token']);
+
+        $provider = DataProvider::create([
+            'slug' => 'global-fishing-watch',
+            'name' => 'Global Fishing Watch (Events API v3)',
+            'type' => 'gfw_events',
+            'health_status' => 'connected',
+        ]);
+
+        $vessel1 = Vessel::create(['mmsi' => '111222333', 'name' => 'BOAT 1']);
+        $vessel2 = Vessel::create(['mmsi' => '444555666', 'name' => 'BOAT 2']);
+
+        \App\Models\VesselEncounter::create([
+            'encounter_code' => 'ENC-GFW-TEST01',
+            'vessel_1_id' => $vessel1->id,
+            'vessel_2_id' => $vessel2->id,
+            'category' => 'fishing_carrier',
+            'status' => 'candidate',
+            'start_time' => now()->subHours(2),
+            'end_time' => now()->subHours(1),
+            'duration_minutes' => 60,
+            'min_distance_meters' => 250.0,
+            'median_distance_meters' => 350.0,
+            'latitude' => -5.5,
+            'longitude' => 105.5,
+            'parameters_used' => ['test' => true],
+            'source_provider_id' => $provider->id,
+            'created_at' => now()->subHours(2),
+        ]);
+
+        \Illuminate\Support\Facades\Http::fake([
+            'https://gateway.api.globalfishingwatch.org/v3/datasets*' => \Illuminate\Support\Facades\Http::response([
+                'entries' => [['id' => 'public-global-encounters-events:latest']],
+                'total' => 1,
+            ], 200),
+            'https://gateway.api.globalfishingwatch.org/v3/events*' => \Illuminate\Support\Facades\Http::response([
+                'entries' => [],
+                'total' => 0,
+            ], 200),
+        ]);
+
+        $adapter = app(GlobalFishingWatchAdapter::class);
+        $result = $adapter->healthCheck();
+
+        $this->assertEquals('receiving_data', $result['status']);
+        $this->assertStringContainsString('aktif menerima event perikanan', $result['message']);
+    }
+
+    public function test_gfw_sanitize_error_message_scrubs_tokens_and_secrets(): void
+    {
+        $rawToken = 'eyJhGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.gfw-super-secret-user-token.signature999';
+        config(['maritime.providers.gfw.token' => $rawToken]);
+
+        $adapter = app(GlobalFishingWatchAdapter::class);
+
+        $dirtyMessage1 = "Failed to connect with token {$rawToken} to gateway";
+        $cleanMessage1 = $adapter->sanitizeErrorMessage($dirtyMessage1);
+        $this->assertStringNotContainsString($rawToken, $cleanMessage1);
+        $this->assertStringContainsString('[REDACTED_GFW_TOKEN]', $cleanMessage1);
+
+        $dirtyMessage2 = "HTTP 401: Authorization Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.other.token rejected";
+        $cleanMessage2 = $adapter->sanitizeErrorMessage($dirtyMessage2);
+        $this->assertStringNotContainsString('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.other.token', $cleanMessage2);
+        $this->assertStringContainsString('Bearer [REDACTED]', $cleanMessage2);
+
+        $dirtyMessage3 = "URL: https://api.com?token=supersecret123&api_key=apikey999&limit=10";
+        $cleanMessage3 = $adapter->sanitizeErrorMessage($dirtyMessage3);
+        $this->assertStringNotContainsString('supersecret123', $cleanMessage3);
+        $this->assertStringNotContainsString('apikey999', $cleanMessage3);
     }
 
     public function test_gfw_events_sync_distinguishes_empty_results_from_error(): void
@@ -356,5 +543,31 @@ class ProviderHealthTest extends TestCase
 
         $provider->refresh();
         $this->assertEquals('persistence_error', $provider->health_status);
+    }
+
+    public function test_sync_provider_job_isolates_gfw_failure_from_other_providers(): void
+    {
+        config(['maritime.providers.gfw.token' => 'test-token']);
+
+        // Fake GFW to return 403 Forbidden
+        \Illuminate\Support\Facades\Http::fake([
+            'https://gateway.api.globalfishingwatch.org/v3/events*' => \Illuminate\Support\Facades\Http::response([
+                'message' => 'Not authorized by permissions',
+                'statusCode' => 403,
+            ], 403),
+        ]);
+
+        // Running SyncProviderDataJob should catch GFW errors and complete gracefully without throwing
+        $job = new \App\Jobs\SyncProviderDataJob(providerSlug: null);
+        $job->handle(
+            app(GlobalFishingWatchAdapter::class),
+            app(CopernicusSarAdapter::class),
+            app(AisStreamAdapter::class),
+            app(\App\Services\Providers\FaoFishingAreaAdapter::class),
+            app(\App\Services\Providers\MarineRegionsEezAdapter::class)
+        );
+
+        $provider = DataProvider::where('slug', 'global-fishing-watch')->first();
+        $this->assertEquals('research_access_required', $provider->health_status);
     }
 }

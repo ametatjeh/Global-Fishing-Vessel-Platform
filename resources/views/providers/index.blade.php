@@ -44,6 +44,26 @@
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40">
                                 <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span> Authenticated
                             </span>
+                        @elseif($provider->health_status === 'research_access_required')
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40" title="Token valid di gateway GFW, namun endpoint /events memerlukan izin Research Access">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Access denied — Research Access required
+                            </span>
+                        @elseif($provider->health_status === 'unauthenticated')
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                                <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> Unauthenticated (401)
+                            </span>
+                        @elseif($provider->health_status === 'rate_limited')
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Rate Limited (429)
+                            </span>
+                        @elseif($provider->health_status === 'network_error')
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                                <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> Network Error / Timeout
+                            </span>
+                        @elseif($provider->health_status === 'server_error')
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                                <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> Server Error (5xx)
+                            </span>
                         @elseif($provider->health_status === 'awaiting_telemetry' || $provider->health_status === 'reachable')
                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
                                 <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Awaiting Telemetry
@@ -110,8 +130,31 @@
                 </div>
 
                 @if($provider->last_error_message)
-                <div class="p-2.5 rounded-lg bg-rose-950/40 border border-rose-500/30 text-rose-300 text-[11px]">
+                <div class="p-2.5 rounded-lg {{ $provider->health_status === 'research_access_required' ? 'bg-amber-950/40 border border-amber-500/30 text-amber-300' : 'bg-rose-950/40 border border-rose-500/30 text-rose-300' }} text-[11px]">
                     <strong>Catatan Diagnostik:</strong> {{ $provider->last_error_message }}
+                </div>
+                @endif
+
+                @if($provider->slug === 'global-fishing-watch' && $provider->health_status === 'research_access_required')
+                <div class="p-3.5 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs space-y-2">
+                    <div class="flex items-center gap-2 font-bold text-amber-300">
+                        <svg class="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        <span>Panduan Akses GFW: Permohonan Research Access Diperlukan</span>
+                    </div>
+                    <p class="text-[11px] text-amber-300/90 leading-relaxed">
+                        Token API GFW Anda valid dan terotentikasi pada gateway publik (katalog <code>/datasets</code> berhasil diakses), namun endpoint <code>/events</code> (deteksi encounter & loitering kapal perikanan) memerlukan hak akses tingkat <strong>Research Access</strong> dari Global Fishing Watch.
+                    </p>
+                    <div class="flex flex-wrap items-center gap-3 pt-1">
+                        <a href="https://globalfishingwatch.org/our-apis/tokens" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-semibold text-[11px] transition shadow">
+                            <span>Ajukan Izin Research Access di GFW Portal</span>
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                        </a>
+                        <span class="text-[10px] text-amber-400/80">
+                            * Modul AIS Live Stream, Garis Batas ZEE Marine Regions, FAO Major Areas, dan Citra SAR Copernicus tetap beroperasi normal secara independen.
+                        </span>
+                    </div>
                 </div>
                 @endif
             </div>
