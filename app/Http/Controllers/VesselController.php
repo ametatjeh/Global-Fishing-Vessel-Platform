@@ -31,7 +31,12 @@ class VesselController extends Controller
             $query->where('flag_state', $flag);
         }
 
-        $vessels = $query->orderBy('name')->paginate(20)->withQueryString();
+        $perPage = (int) $request->query('per_page', 50);
+        if (!in_array($perPage, [10, 25, 50, 100], true)) {
+            $perPage = 50;
+        }
+
+        $vessels = $query->orderBy('name')->paginate($perPage)->withQueryString();
 
         return view('vessels.index', compact('vessels'));
     }

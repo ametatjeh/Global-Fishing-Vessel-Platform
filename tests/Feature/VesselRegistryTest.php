@@ -78,4 +78,25 @@ class VesselRegistryTest extends TestCase
         $response->assertSee('ALPHA SEARCHER');
         $response->assertDontSee('BETA CARRIER');
     }
+
+    public function test_vessel_registry_renders_custom_pagination(): void
+    {
+        $user = User::factory()->create(['role' => 'analyst']);
+
+        for ($i = 1; $i <= 55; $i++) {
+            Vessel::create([
+                'name' => sprintf('VESSEL %03d', $i),
+                'mmsi' => sprintf('525%06d', $i),
+            ]);
+        }
+
+        $response = $this->actingAs($user)->get('/vessels');
+
+        $response->assertStatus(200);
+        $response->assertSee('Tampilkan');
+        $response->assertSee('baris per halaman');
+        $response->assertSee('Menampilkan');
+        $response->assertSee('hasil');
+        $response->assertSee('vessels?page=2');
+    }
 }

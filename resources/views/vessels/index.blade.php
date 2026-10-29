@@ -90,11 +90,7 @@
             </table>
         </div>
 
-        @if($vessels->hasPages())
-        <div class="p-4 border-t border-slate-800 bg-slate-900/40">
-            {{ $vessels->links() }}
-        </div>
-        @endif
+        {{ $vessels->links('partials.pagination') }}
     </div>
 
 </div>
