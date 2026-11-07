@@ -57,7 +57,7 @@
                 Global Fishing Vessel Monitoring Platform
             </h1>
             <p class="text-xs text-slate-400 mt-1">
-                Platform Pemantauan Maritim Global: Vessel Tracking, Compliance &amp; Unusual Vessel Activity
+                Platform Pemantauan Maritim Global: Vessel Monitoring, Maritime Compliance &amp; Unusual Vessel Activity
             </p>
         </div>
 

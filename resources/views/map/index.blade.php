@@ -517,7 +517,7 @@
             <!-- 4. Prinsip Ilmiah (Scientific Invariants) -->
             <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1 text-[9px] text-slate-400 leading-relaxed font-mono">
                 <div class="font-bold text-slate-300 uppercase">Prinsip Validitas Forensik:</div>
-                <div>&bull; Deteksi SAR tidak sama dengan konfirmasi identitas kapal (SAR Detection &ne; Vessel Confirmation).</div>
+                <div>&bull; Deteksi target pada citra SAR tidak sama dengan konfirmasi identitas kapal (SAR Target Detection &ne; Vessel Confirmation).</div>
                 <div>&bull; Ketiadaan sinyal AIS tidak otomatis membuktikan aktivitas ilegal (AIS Absence &ne; Dark Vessel Confirmation).</div>
             </div>
         </div>
