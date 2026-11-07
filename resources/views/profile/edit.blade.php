@@ -89,7 +89,7 @@
                     </button>
 
                     <button type="submit" id="btnSaveAvatar" disabled class="w-full py-2 px-3 rounded-xl bg-teal-500 hover:bg-teal-400 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-slate-950 font-bold text-xs uppercase tracking-wider transition shadow-md shadow-teal-500/20 cursor-pointer">
-                        Simpan Foto Baru
+                        Unggah Foto
                     </button>
                 </div>
 
@@ -123,9 +123,10 @@
                     <span class="text-[10px] text-slate-400 font-mono">ID Pengguna: #{{ $user->id }}</span>
                 </div>
 
-                <form action="{{ route('profile.update') }}" method="POST" class="space-y-4 text-xs">
+                <form id="profileUpdateForm" action="{{ route('profile.update') }}" method="POST" enctype="multipart/form-data" class="space-y-4 text-xs">
                     @csrf
                     @method('PATCH')
+                    <input type="file" name="avatar" id="profileFormAvatarInput" class="hidden">
 
                     <div>
                         <label for="name" class="block font-semibold text-slate-300 mb-1">
@@ -380,6 +381,14 @@ function handleAvatarSelected(event) {
     reader.onload = function(e) {
         preview.src = e.target.result;
         btnSave.disabled = false;
+
+        // Also sync files with profileUpdateForm hidden input if user clicks 'Simpan Perubahan'
+        const profileInput = document.getElementById('profileFormAvatarInput');
+        if (profileInput && typeof DataTransfer !== 'undefined') {
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            profileInput.files = dt.files;
+        }
     };
     reader.readAsDataURL(file);
 }

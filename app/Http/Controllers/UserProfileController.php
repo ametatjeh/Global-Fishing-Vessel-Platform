@@ -26,7 +26,7 @@ class UserProfileController extends Controller
     }
 
     /**
-     * Update the user profile basic information.
+     * Update the user profile basic information and optional avatar.
      */
     public function update(Request $request): RedirectResponse
     {
@@ -34,19 +34,64 @@ class UserProfileController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'min:2'],
+            'avatar' => ['nullable', 'file', 'image', 'mimes:jpeg,jpg,png,webp', 'max:2048'],
+        ], [
+            'name.required' => 'Nama lengkap / panggilan operasional wajib diisi.',
+            'name.min' => 'Nama minimal harus terdiri dari :min karakter.',
+            'avatar.image' => 'Berkas harus berupa gambar valid (JPEG, PNG, atau WebP).',
+            'avatar.mimes' => 'Format foto yang diizinkan hanya JPEG, PNG, dan WebP.',
+            'avatar.max' => 'Ukuran foto tidak boleh melebihi 2 MB.',
         ]);
 
         $oldName = $user->name;
         $user->name = $validated['name'];
+
+        $avatarUpdated = false;
+        if ($request->hasFile('avatar')) {
+            $file = $request->file('avatar');
+            $realPath = $file->getRealPath();
+            $imageInfo = @getimagesize($realPath);
+            $allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+
+            if ($imageInfo === false || !in_array($imageInfo['mime'], $allowedMimes, true)) {
+                return back()->withErrors(['avatar' => 'Berkas gambar tidak valid atau terkorupsi. Pastikan format file adalah JPEG, PNG, atau WebP.']);
+            }
+
+            $ext = match ($imageInfo['mime']) {
+                'image/jpeg' => 'jpg',
+                'image/png' => 'png',
+                'image/webp' => 'webp',
+                default => 'jpg',
+            };
+
+            $filename = 'user_' . $user->id . '_' . Str::random(24) . '.' . $ext;
+            $newPath = $file->storeAs('avatars', $filename, 'public');
+
+            if ($newPath) {
+                $oldPath = $user->avatar_path;
+                $user->avatar_path = $newPath;
+                $avatarUpdated = true;
+
+                if ($oldPath && $oldPath !== $newPath && Storage::disk('public')->exists($oldPath)) {
+                    Storage::disk('public')->delete($oldPath);
+                }
+            }
+        }
+
         $user->save();
 
         AuditLog::log('update_profile', 'user', (string) $user->id, [
             'old_name' => $oldName,
             'new_name' => $user->name,
             'email' => $user->email,
+            'avatar_updated' => $avatarUpdated,
         ]);
 
-        return back()->with('status', 'Nama profil berhasil diperbarui.');
+        $statusMessage = $avatarUpdated
+            ? 'Profil dan foto profil berhasil diperbarui.'
+            : 'Nama profil berhasil diperbarui.';
+
+        return back()->with('status', $statusMessage);
     }
 
     /**

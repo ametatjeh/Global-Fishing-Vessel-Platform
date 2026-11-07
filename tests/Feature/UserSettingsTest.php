@@ -95,6 +95,88 @@ class UserSettingsTest extends TestCase
         $this->assertStringContainsString('/storage/' . $user->avatar_path, $user->avatar_url);
     }
 
+    public function test_user_can_upload_valid_png_and_webp_avatar_image(): void
+    {
+        $user = User::factory()->create();
+
+        // PNG test
+        $png = UploadedFile::fake()->image('profile.png', 200, 200);
+        $resPng = $this->actingAs($user)->post('/settings/profile/avatar', ['avatar' => $png]);
+        $resPng->assertRedirect();
+        $user->refresh();
+        $this->assertStringEndsWith('.png', $user->avatar_path);
+        Storage::disk('public')->assertExists($user->avatar_path);
+
+        // WebP test
+        $webp = UploadedFile::fake()->image('profile.webp', 200, 200);
+        $resWebp = $this->actingAs($user)->post('/settings/profile/avatar', ['avatar' => $webp]);
+        $resWebp->assertRedirect();
+        $user->refresh();
+        $this->assertStringEndsWith('.webp', $user->avatar_path);
+        Storage::disk('public')->assertExists($user->avatar_path);
+    }
+
+    public function test_user_can_update_profile_and_avatar_via_main_form(): void
+    {
+        $user = User::factory()->create(['name' => 'Original Captain']);
+
+        $file = UploadedFile::fake()->image('main_form_avatar.jpg', 250, 250);
+
+        $response = $this->actingAs($user)->patch('/settings/profile', [
+            'name' => 'Renamed Captain',
+            'avatar' => $file,
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('status', 'Profil dan foto profil berhasil diperbarui.');
+
+        $user->refresh();
+        $this->assertEquals('Renamed Captain', $user->name);
+        $this->assertNotNull($user->avatar_path);
+        Storage::disk('public')->assertExists($user->avatar_path);
+    }
+
+    public function test_user_cannot_modify_other_user_avatar(): void
+    {
+        $userA = User::factory()->create();
+        $userB = User::factory()->create();
+
+        $file = UploadedFile::fake()->image('user_a.jpg', 200, 200);
+        $this->actingAs($userA)->post('/settings/profile/avatar', ['avatar' => $file]);
+
+        $userA->refresh();
+        $userB->refresh();
+
+        $this->assertNotNull($userA->avatar_path);
+        $this->assertNull($userB->avatar_path);
+    }
+
+    public function test_avatar_retains_after_reloading_profile_view(): void
+    {
+        $user = User::factory()->create();
+        $file = UploadedFile::fake()->image('profile_persist.jpg', 200, 200);
+        $this->actingAs($user)->post('/settings/profile/avatar', ['avatar' => $file]);
+        $user->refresh();
+
+        $response = $this->actingAs($user)->get('/settings/profile');
+        $response->assertStatus(200);
+        $response->assertSee($user->avatar_path);
+        $response->assertSee('Foto Kustom Aktif');
+    }
+
+    public function test_avatar_upload_rejects_pdf_file(): void
+    {
+        $user = User::factory()->create();
+        $pdf = UploadedFile::fake()->create('document.pdf', 500, 'application/pdf');
+
+        $response = $this->actingAs($user)->post('/settings/profile/avatar', [
+            'avatar' => $pdf,
+        ]);
+
+        $response->assertSessionHasErrors('avatar');
+        $this->assertNull($user->fresh()->avatar_path);
+    }
+
     public function test_avatar_upload_rejects_oversized_file(): void
     {
         $user = User::factory()->create();
