@@ -93,6 +93,32 @@ class Vessel extends Model
     }
 
     /**
+     * Get synchronized display string for Flag State (e.g. "KR • Korea (Republic of)")
+     */
+    public function getDisplayFlagCountryAttribute(): string
+    {
+        $info = $this->flag_info;
+        if (!empty($info['is_known']) && !empty($info['iso2']) && $info['iso2'] !== 'UN') {
+            return "{$info['iso2']} • {$info['country_name']}";
+        }
+
+        return 'Unknown';
+    }
+
+    /**
+     * Get synchronized complete Flag label with emoji (e.g. "🇰🇷 KR • Korea (Republic of)")
+     */
+    public function getDisplayFlagAttribute(): string
+    {
+        $info = $this->flag_info;
+        if (!empty($info['is_known']) && !empty($info['iso2']) && $info['iso2'] !== 'UN') {
+            return "{$info['flag_emoji']} {$info['iso2']} • {$info['country_name']}";
+        }
+
+        return '🌐 Unknown';
+    }
+
+    /**
      * Get strict Flag State country details without guessing from MMSI or name
      */
     public function getFlagDetailsAttribute(): array

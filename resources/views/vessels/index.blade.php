@@ -134,7 +134,7 @@
                 <tbody class="divide-y divide-slate-800/60">
                     @forelse($vessels as $vessel)
                     @php
-                        $flagDetails = $vessel->flag_details;
+                        $flagInfo = $vessel->flag_info;
                     @endphp
                     <tr class="hover:bg-slate-900/40 transition">
 
@@ -161,13 +161,15 @@
                             {{ $vessel->imo ?: '-' }}
                         </td>
 
-                        <!-- 4. FLAG ([Flag Icon] [Country Name]) -->
+                        <!-- 4. FLAG (🇰🇷 KR • Korea (Republic of)) -->
                         <td class="py-2.5 px-4 whitespace-nowrap">
-                            @if($flagDetails['is_known'])
+                            @if(!empty($flagInfo['is_known']) && !empty($flagInfo['iso2']) && $flagInfo['iso2'] !== 'UN' && $flagInfo['status'] !== 'unknown')
                             <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-800/90 border border-slate-700/80 text-slate-200 text-xs shadow-sm"
-                                title="Flag State: {{ $flagDetails['name'] }} ({{ $vessel->flag_state }})">
-                                <span class="text-xs leading-none">{{ $flagDetails['flag_emoji'] }}</span>
-                                <span class="font-medium truncate max-w-[130px]">{{ $flagDetails['name'] }}</span>
+                                title="Flag State: {{ $flagInfo['country_name'] }} ({{ $flagInfo['iso2'] }})">
+                                <span class="text-xs leading-none">{{ $flagInfo['flag_emoji'] }}</span>
+                                <span class="font-medium font-mono text-[11px] text-teal-300">{{ $flagInfo['iso2'] }}</span>
+                                <span class="text-slate-500 text-[10px]">&bull;</span>
+                                <span class="font-medium truncate max-w-[150px]">{{ $flagInfo['country_name'] }}</span>
                             </div>
                             @else
                             <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800/40 border border-slate-700/50 text-slate-400 text-xs"

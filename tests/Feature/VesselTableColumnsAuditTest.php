@@ -28,6 +28,62 @@ class VesselTableColumnsAuditTest extends TestCase
     /**
      * A. FLAG Column Audit
      */
+    public function test_vessel_kwangmyeong_and_korean_flag_renders_consistently_between_table_and_detail(): void
+    {
+        $vessel = Vessel::create([
+            'id' => '01a1b620-c690-70cc-a0b3-fb030a4cc652',
+            'name' => '111KWANGMYEONG',
+            'mmsi' => '440111222',
+            'flag_state' => 'KR',
+            'vessel_type' => 'fishing',
+        ]);
+
+        // 1. Table view (/vessels)
+        $resTable = $this->actingAs($this->user)->get('/vessels');
+        $resTable->assertStatus(200);
+        $resTable->assertSee('111KWANGMYEONG');
+        $resTable->assertSee('🇰🇷');
+        $resTable->assertSee('KR');
+        $resTable->assertSee('Korea (Republic of)');
+
+        // 2. Detail view (/vessels/{id})
+        $resDetail = $this->actingAs($this->user)->get('/vessels/' . $vessel->id);
+        $resDetail->assertStatus(200);
+        $resDetail->assertSee('111KWANGMYEONG');
+        $resDetail->assertSee('🇰🇷');
+        $resDetail->assertSee('KR');
+        $resDetail->assertSee('Korea (Republic of)');
+
+        // 3. Consistency: flag info must match perfectly
+        $this->assertSame($vessel->flag_info['iso2'], 'KR');
+        $this->assertSame($vessel->flag_info['country_name'], 'Korea (Republic of)');
+        $this->assertSame($vessel->flag_info['flag_emoji'], '🇰🇷');
+    }
+
+    public function test_vessel_with_mmsi_only_resolves_consistently_between_table_and_detail(): void
+    {
+        $vessel = Vessel::create([
+            'name' => 'MMSI ONLY KOREAN VESSEL',
+            'mmsi' => '440999888',
+            'flag_state' => null,
+            'vessel_type' => 'fishing',
+        ]);
+
+        $resTable = $this->actingAs($this->user)->get('/vessels');
+        $resTable->assertStatus(200);
+        $resTable->assertSee('MMSI ONLY KOREAN VESSEL');
+        $resTable->assertSee('🇰🇷');
+        $resTable->assertSee('KR');
+        $resTable->assertSee('Korea (Republic of)');
+
+        $resDetail = $this->actingAs($this->user)->get('/vessels/' . $vessel->id);
+        $resDetail->assertStatus(200);
+        $resDetail->assertSee('MMSI ONLY KOREAN VESSEL');
+        $resDetail->assertSee('🇰🇷');
+        $resDetail->assertSee('KR');
+        $resDetail->assertSee('Korea (Republic of)');
+    }
+
     public function test_flag_column_renders_correct_emoji_for_valid_country(): void
     {
         $vessel = Vessel::create([
@@ -40,23 +96,23 @@ class VesselTableColumnsAuditTest extends TestCase
         $res = $this->actingAs($this->user)->get('/vessels');
         $res->assertStatus(200);
         $res->assertSee('🇯🇵');
+        $res->assertSee('JP');
         $res->assertSee('Japan');
     }
 
     public function test_flag_column_displays_neutral_unknown_when_empty_without_guessing_mmsi_or_name(): void
     {
-        // Vessel has MMSI from Germany (211) and German name, but no explicit flag_state.
-        // Rule: Table MUST NOT guess flag from MMSI or name!
+        // Vessel has no explicit flag and no valid MMSI MID
         $vessel = Vessel::create([
-            'name' => 'WESERLOTSE',
-            'mmsi' => '211233660',
+            'name' => 'TRULY UNKNOWN VESSEL',
+            'mmsi' => null,
             'flag_state' => null,
             'vessel_type' => 'fishing',
         ]);
 
         $res = $this->actingAs($this->user)->get('/vessels');
         $res->assertStatus(200);
-        $res->assertSee('WESERLOTSE');
+        $res->assertSee('TRULY UNKNOWN VESSEL');
         $res->assertSee('🌐');
         $res->assertSee('Unknown');
     }

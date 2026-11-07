@@ -54,7 +54,11 @@
                     <h2 class="text-2xl font-black text-white tracking-wide flex items-center gap-2 flex-wrap">
                         <span>{{ $vessel->name }}</span>
                         <span class="px-2.5 py-0.5 rounded text-xs font-mono font-bold uppercase {{ $flagInfo['status'] === 'verified_explicit' ? 'bg-emerald-950/90 text-emerald-300 border border-emerald-500/40' : ($flagInfo['status'] === 'conflict_detected' ? 'bg-rose-950/90 text-rose-300 border border-rose-500/40' : 'bg-slate-800 text-slate-300 border border-slate-700') }}">
-                            {{ $flagInfo['iso2'] }} &bull; {{ $flagInfo['country_name'] }}
+                            @if(!empty($flagInfo['is_known']) && $flagInfo['status'] !== 'unknown')
+                                {{ $flagInfo['iso2'] }} &bull; {{ $flagInfo['country_name'] }}
+                            @else
+                                Unknown
+                            @endif
                         </span>
                         @if($vessel->gfw_sync_status === 'synced')
                         <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-teal-500/20 text-teal-300 border border-teal-500/40">
@@ -164,7 +168,11 @@
                     <span class="text-slate-400">Bendera Negara:</span>
                     <span class="font-mono text-white font-bold flex items-center gap-1.5">
                         <span>{{ $flagInfo['flag_emoji'] }}</span>
-                        <span>{{ $flagInfo['country_name'] }} ({{ $flagInfo['iso2'] }})</span>
+                        @if(!empty($flagInfo['is_known']) && $flagInfo['status'] !== 'unknown')
+                            <span>{{ $flagInfo['country_name'] }} ({{ $flagInfo['iso2'] }})</span>
+                        @else
+                            <span>Unknown</span>
+                        @endif
                     </span>
                 </div>
                 <div class="flex justify-between py-1 border-b border-slate-800/60">
