@@ -67,7 +67,90 @@ Route::post('/telemetry/ais', function (Request $request, AisStreamAdapter $adap
     ]);
 })->name('api.telemetry.ais');
 
-// Production Batch Ingestion Endpoint (used by Node.js ais/worker.mjs & aaPanel worker)
+// Prohibited MMSI Synchronization Endpoint for AIS Worker
+Route::get('/telemetry/ais/prohibited-mmsis', function (Request $request) {
+    $expectedToken = config('maritime.providers.ais_stream.ingest_token')
+        ?: config('maritime.providers.ais_stream.api_key');
+    $providedToken = $request->header('X-AIS-Token')
+        ?: $request->bearerToken();
+
+    if (!$expectedToken || !hash_equals((string) $expectedToken, (string) $providedToken)) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Unauthorized: Invalid or missing X-AIS-Token header.',
+        ], 401);
+    }
+
+    $limit = min(50000, max(1, (int) $request->query('limit', 1000)));
+    $cursor = $request->query('cursor');
+    $since = $request->query('since');
+    $includeRevoked = $request->boolean('include_revoked', true);
+
+    $maxUpdated = \App\Models\ProhibitedVessel::max('updated_at');
+    $snapshotVersion = $maxUpdated ? \Carbon\Carbon::parse($maxUpdated)->timestamp : 0;
+    $totalActiveCount = \App\Models\ProhibitedVessel::whereNull('exception_granted_at')->count();
+
+    $query = \App\Models\ProhibitedVessel::query()->orderBy('id', 'asc');
+
+    if (!$includeRevoked && empty($since)) {
+        $query->whereNull('exception_granted_at');
+    }
+
+    if (!empty($since)) {
+        try {
+            $sinceTime = \Carbon\Carbon::parse($since);
+            $query->where('updated_at', '>=', $sinceTime);
+        } catch (\Throwable $e) {
+            // Ignore invalid date format and continue
+        }
+    }
+
+    if (!empty($cursor) && is_numeric($cursor)) {
+        $query->where('id', '>', (int) $cursor);
+    }
+
+    $items = $query->limit($limit)->get();
+    $returnedCount = $items->count();
+
+    $nextCursor = null;
+    $isLastPage = true;
+
+    if ($returnedCount === $limit) {
+        $lastItem = $items->last();
+        $moreExists = \App\Models\ProhibitedVessel::where('id', '>', $lastItem->id);
+        if (!$includeRevoked && empty($since)) {
+            $moreExists->whereNull('exception_granted_at');
+        }
+        if (!empty($since) && isset($sinceTime)) {
+            $moreExists->where('updated_at', '>=', $sinceTime);
+        }
+        if ($moreExists->exists()) {
+            $nextCursor = $lastItem->id;
+            $isLastPage = false;
+        }
+    }
+
+    return response()->json([
+        'status' => 'success',
+        'snapshot_version' => $snapshotVersion,
+        'total_count' => $totalActiveCount,
+        'returned_count' => $returnedCount,
+        'next_cursor' => $nextCursor,
+        'is_last_page' => $isLastPage,
+        'data' => $items->map(function ($row) {
+            return [
+                'id' => $row->id,
+                'mmsi' => $row->mmsi,
+                'action' => $row->exception_granted_at !== null ? 'unblock' : 'block',
+                'type' => $row->original_type,
+                'reason' => $row->reason,
+                'original_name' => $row->original_name,
+                'exception_granted_at' => $row->exception_granted_at?->toIso8601String(),
+                'updated_at' => $row->updated_at?->toIso8601String(),
+            ];
+        }),
+    ]);
+})->name('api.telemetry.ais.prohibited-mmsis');
 Route::post('/telemetry/ais/batch', function (Request $request, AisStreamAdapter $adapter) {
     $expectedToken = config('maritime.providers.ais_stream.ingest_token')
         ?: config('maritime.providers.ais_stream.api_key');

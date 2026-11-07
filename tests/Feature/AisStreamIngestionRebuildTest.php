@@ -34,7 +34,7 @@ class AisStreamIngestionRebuildTest extends TestCase
         $this->assertEquals('unknown', AisStreamAdapter::normalizeVesselType(56));
         $this->assertEquals('unknown', AisStreamAdapter::normalizeVesselType(57));
         $this->assertEquals('medical', AisStreamAdapter::normalizeVesselType(58));
-        $this->assertEquals('unknown', AisStreamAdapter::normalizeVesselType(59));
+        $this->assertEquals('non_combatant', AisStreamAdapter::normalizeVesselType(59));
         $this->assertEquals('passenger', AisStreamAdapter::normalizeVesselType(60));
         $this->assertEquals('passenger', AisStreamAdapter::normalizeVesselType(69));
         $this->assertEquals('cargo', AisStreamAdapter::normalizeVesselType(70));

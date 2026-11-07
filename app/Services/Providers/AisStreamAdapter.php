@@ -500,8 +500,8 @@ class AisStreamAdapter implements ProviderAdapterInterface
         $meta = $json['MetaData'] ?? [];
         $messageObj = $json['Message'] ?? [];
 
-        // 1. Position Reports (PositionReport, StandardClassBPositionReport, ExtendedClassBPositionReport)
-        if (in_array($msgType, ['PositionReport', 'StandardClassBPositionReport', 'ExtendedClassBPositionReport'])) {
+        // 1. Standard Position Reports (PositionReport, StandardClassBPositionReport)
+        if (in_array($msgType, ['PositionReport', 'StandardClassBPositionReport'])) {
             $posData = $messageObj[$msgType] ?? [];
             $mmsi = (string) ($meta['MMSI'] ?? $posData['UserID'] ?? '');
             $lat = $meta['latitude'] ?? $posData['Latitude'] ?? null;
@@ -522,6 +522,84 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 'true_heading' => $heading,
                 'vessel_name' => $shipName ?: ('VESSEL-' . $mmsi),
                 'ship_type' => $shipType,
+                'timestamp' => $timeUtc,
+                'raw_payload' => $json,
+            ]);
+
+            return [
+                'status' => $position ? 'inserted' : 'skipped',
+                'type' => $msgType,
+                'model' => $position,
+            ];
+        }
+
+        // 1b. Extended Class B Position Report (Type 19 - dual static metadata + position report)
+        if ($msgType === 'ExtendedClassBPositionReport') {
+            $report = $messageObj['ExtendedClassBPositionReport'] ?? [];
+            $mmsi = (string) ($meta['MMSI'] ?? $report['UserID'] ?? '');
+            $lat = $meta['latitude'] ?? $report['Latitude'] ?? null;
+            $lng = $meta['longitude'] ?? $report['Longitude'] ?? null;
+            $sog = $report['Sog'] ?? null;
+            $cog = $report['Cog'] ?? null;
+            $heading = $report['TrueHeading'] ?? null;
+            $shipName = trim(trim((string) ($meta['ShipName'] ?? $report['Name'] ?? '')), '@');
+            $timeUtc = $meta['time_utc'] ?? now()->toIso8601String();
+            $shipType = $report['Type'] ?? $report['ShipType'] ?? $meta['ShipType'] ?? null;
+
+            $dim = $report['Dimension'] ?? [];
+            $lengthM = (isset($dim['A'], $dim['B'])) ? (float) ($dim['A'] + $dim['B']) : null;
+
+            // STEP 1: Always ingest static metadata first (preserved even if position is rejected or invalid)
+            $staticResult = $this->ingestStaticMessage([
+                'mmsi' => $mmsi,
+                'vessel_name' => $shipName,
+                'ship_type' => $shipType,
+                'length_meters' => $lengthM,
+                'timestamp' => $timeUtc,
+                'raw_payload' => $json,
+            ]);
+
+            // STEP 2: Ingest position message separately (subject to coordinate bounds & prohibited policy checks)
+            $position = $this->ingestPositionMessage([
+                'mmsi' => $mmsi,
+                'latitude' => $lat,
+                'longitude' => $lng,
+                'speed_over_ground' => $sog,
+                'course_over_ground' => $cog,
+                'true_heading' => $heading,
+                'vessel_name' => $shipName ?: ('VESSEL-' . $mmsi),
+                'ship_type' => $shipType,
+                'timestamp' => $timeUtc,
+                'raw_payload' => $json,
+            ]);
+
+            return [
+                'status' => ($position || $staticResult) ? 'inserted' : 'skipped',
+                'type' => 'ExtendedClassBPositionReport',
+                'model' => $position ?: $staticResult,
+            ];
+        }
+
+        // 1c. Long Range AIS Broadcast Message (Type 27 - low-resolution position only, strictly NO ShipType)
+        if (in_array($msgType, ['LongRangeBroadcastMessage', 'LongRangeAISBroadcast', 'Type27'])) {
+            $lr = $messageObj[$msgType] ?? [];
+            $mmsi = (string) ($meta['MMSI'] ?? $lr['UserID'] ?? '');
+            $lat = $meta['latitude'] ?? $lr['Latitude'] ?? null;
+            $lng = $meta['longitude'] ?? $lr['Longitude'] ?? null;
+            $sog = $lr['Sog'] ?? null;
+            $cog = $lr['Cog'] ?? null;
+            $timeUtc = $meta['time_utc'] ?? now()->toIso8601String();
+
+            // Type 27 strictly does not carry ShipType or Name; NEVER assume or fallback to fishing
+            $position = $this->ingestPositionMessage([
+                'mmsi' => $mmsi,
+                'latitude' => $lat,
+                'longitude' => $lng,
+                'speed_over_ground' => $sog,
+                'course_over_ground' => $cog,
+                'true_heading' => null,
+                'vessel_name' => null,
+                'ship_type' => null,
                 'timestamp' => $timeUtc,
                 'raw_payload' => $json,
             ]);
@@ -711,6 +789,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
             if ($t === 'law_enforcement') return 'law_enforcement';
             if ($t === 'high_speed_craft' || $t === 'hsc') return 'high_speed_craft';
             if ($t === 'non_combatant') return 'non_combatant';
+            if ($t === 'medical') return 'medical';
             if ($t === 'pleasure_craft') return 'pleasure';
 
             if (in_array($t, [
@@ -837,9 +916,9 @@ class AisStreamAdapter implements ProviderAdapterInterface
             return 'medical';
         }
 
-        // 59: Non-combatant ship / unknown
+        // 59: Non-combatant ship / States not parties to armed conflict
         if ($code === 59) {
-            return 'unknown';
+            return 'non_combatant';
         }
 
         // 60–69: Passenger ships
@@ -878,8 +957,11 @@ class AisStreamAdapter implements ProviderAdapterInterface
             return null;
         }
 
+        $existingVessel = Vessel::where('mmsi', $cleanMmsi)->first();
+
         // SECTION C: Strictly reject static updates for known cargo/tanker prohibited MMSIs
-        if (\App\Models\ProhibitedVessel::isProhibited($cleanMmsi)) {
+        // UNLESS the vessel already exists in our registry and requires conflict detection / status resolution.
+        if (\App\Models\ProhibitedVessel::isProhibited($cleanMmsi) && !$existingVessel) {
             return null;
         }
 
@@ -893,9 +975,11 @@ class AisStreamAdapter implements ProviderAdapterInterface
         $classificationSource = null;
         $aisTypeCode = null;
 
+        // Register in ProhibitedVessel so worker will block PositionReports.
+        // For new vessels, drop static packet (return null) so non-fishing vessels are not stored.
+        // For existing registered vessels, proceed so backend records conflict and updates provenance.
         if ($rawShipType !== null && $rawShipType !== '') {
             $normalized = self::normalizeVesselType($rawShipType);
-            // SECTION C: Tolak penyimpanan kapal dengan klasifikasi cargo, tanker, atau pleasure pada pipeline AIS
             if (in_array($normalized, ['cargo', 'tanker', 'pleasure'])) {
                 \App\Models\ProhibitedVessel::firstOrCreate(
                     ['mmsi' => $cleanMmsi],
@@ -905,18 +989,23 @@ class AisStreamAdapter implements ProviderAdapterInterface
                         'original_type' => $normalized,
                     ]
                 );
-                return null;
+
+                if (!$existingVessel) {
+                    return null;
+                }
             }
             $vesselType = $normalized;
+            $classificationSource = 'AIS_STATIC_MESSAGE_SHIPTYPE';
+            $aisTypeCode = is_numeric($rawShipType) ? (int) $rawShipType : null;
         }
 
         $length = isset($message['length_meters']) && is_numeric($message['length_meters']) && (float) $message['length_meters'] > 0
             ? (float) $message['length_meters']
             : null;
 
-        $observedAt = isset($message['timestamp'])
-            ? \Carbon\Carbon::parse($message['timestamp'])
-            : now();
+        $observedAt = isset($message['observed_at'])
+            ? \Carbon\Carbon::parse($message['observed_at'])
+            : (isset($message['timestamp']) ? \Carbon\Carbon::parse($message['timestamp']) : now());
 
         $provider = DataProvider::firstOrCreate(
             ['slug' => $this->providerSlug],
@@ -933,7 +1022,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
             if ($classificationSource) {
                 $initialMeta['classification_source'] = $classificationSource;
                 $initialMeta['ais_ship_type_code'] = $aisTypeCode;
-                $initialMeta['classified_at'] = now()->toIso8601String();
+                $initialMeta['classified_at'] = $observedAt->toIso8601String();
             }
 
             $vessel = Vessel::firstOrCreate(
@@ -947,6 +1036,9 @@ class AisStreamAdapter implements ProviderAdapterInterface
                     'length_meters' => $length,
                     'source_provider_id' => $provider->id,
                     'verification_status' => 'provider_reported',
+                    'classification_source' => $classificationSource,
+                    'ais_ship_type_code' => $aisTypeCode,
+                    'classified_at' => $classificationSource ? $observedAt : null,
                     'first_seen_at' => $observedAt,
                     'last_seen_at' => $observedAt,
                     'metadata' => !empty($initialMeta) ? $initialMeta : null,
@@ -965,25 +1057,44 @@ class AisStreamAdapter implements ProviderAdapterInterface
             }
             if ($vesselType && $vesselType !== 'unknown') {
                 $isOlder = false;
-                if (!empty($vessel->metadata['classified_at'])) {
-                    $existingClassifiedAt = \Carbon\Carbon::parse($vessel->metadata['classified_at']);
-                    if ($observedAt->lt($existingClassifiedAt)) {
-                        $isOlder = true;
-                    }
+                $existingClassifiedAt = $vessel->classified_at
+                    ?? (!empty($vessel->metadata['classified_at']) ? \Carbon\Carbon::parse($vessel->metadata['classified_at']) : null);
+
+                if ($existingClassifiedAt && $observedAt->lt($existingClassifiedAt)) {
+                    $isOlder = true;
                 }
 
                 if (!$isOlder) {
-                    if (empty($vessel->vessel_type) || $vessel->vessel_type === 'unknown') {
+                    $isAnalystVerified = $vessel->classification_source === 'ANALYST_VERIFICATION'
+                        || in_array($vessel->verification_status, ['verified', 'reclassified'], true);
+
+                    if ($isAnalystVerified) {
+                        // Rule 7 & 8: New AIS metadata that contradicts an analyst decision triggers
+                        // conflict review (under_review) and sets the new AIS code without erasing previous decision.
+                        if (strtolower((string) $vesselType) !== strtolower((string) $vessel->vessel_type)) {
+                            $updates['ais_ship_type_code'] = $aisTypeCode;
+                            $updates['verification_status'] = 'under_review';
+
+                            $meta = $vessel->metadata ?? [];
+                            $meta['pending_conflict_review'] = [
+                                'detected_at' => $observedAt->toIso8601String(),
+                                'conflicting_ais_type' => $vesselType,
+                                'conflicting_ais_code' => $aisTypeCode,
+                                'source' => $classificationSource ?: 'AIS_STATIC_MESSAGE_SHIPTYPE',
+                                'retained_analyst_type' => $vessel->vessel_type,
+                            ];
+                            $updates['metadata'] = $meta;
+                        } else {
+                            $updates['ais_ship_type_code'] = $aisTypeCode;
+                        }
+                    } elseif (empty($vessel->vessel_type) || $vessel->vessel_type === 'unknown' || $classificationSource) {
                         $updates['vessel_type'] = $vesselType;
+                        $updates['classification_source'] = $classificationSource ?: 'AIS_STATIC_MESSAGE_SHIPTYPE';
+                        $updates['ais_ship_type_code'] = $aisTypeCode;
+                        $updates['classified_at'] = $observedAt;
+
                         $meta = $vessel->metadata ?? [];
                         $meta['classification_source'] = $classificationSource ?: 'AIS_STATIC_MESSAGE_SHIPTYPE';
-                        $meta['ais_ship_type_code'] = $aisTypeCode;
-                        $meta['classified_at'] = $observedAt->toIso8601String();
-                        $updates['metadata'] = $meta;
-                    } elseif ($classificationSource && in_array($vesselType, ['cargo', 'tanker'])) {
-                        $updates['vessel_type'] = $vesselType;
-                        $meta = $vessel->metadata ?? [];
-                        $meta['classification_source'] = $classificationSource;
                         $meta['ais_ship_type_code'] = $aisTypeCode;
                         $meta['classified_at'] = $observedAt->toIso8601String();
                         $updates['metadata'] = $meta;
@@ -1092,9 +1203,9 @@ class AisStreamAdapter implements ProviderAdapterInterface
         }
 
         // Normalize observation timestamp
-        $observedAt = isset($message['timestamp'])
-            ? \Carbon\Carbon::parse($message['timestamp'])
-            : now();
+        $observedAt = isset($message['observed_at'])
+            ? \Carbon\Carbon::parse($message['observed_at'])
+            : (isset($message['timestamp']) ? \Carbon\Carbon::parse($message['timestamp']) : now());
 
         // Reject or clamp unrealistic future timestamps (> 15 minutes ahead)
         if ($observedAt->gt(now()->addMinutes(15))) {
