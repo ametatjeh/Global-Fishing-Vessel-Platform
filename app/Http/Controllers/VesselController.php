@@ -35,36 +35,56 @@ class VesselController extends Controller
         // 1. Flag Country Filter (supports specific ISO code or 'unknown')
         $flagCountry = $request->input('flag_country') ?? $request->input('flag_state');
         if ($flagCountry !== null && $flagCountry !== '') {
-            if (strtolower($flagCountry) === 'unknown') {
+            $criteria = FlagStateService::getFilterCriteria($flagCountry);
+            if ($criteria['is_unknown']) {
                 $query->where(function ($q) {
-                    $q->whereNull('flag_state')->orWhere('flag_state', '');
+                    $q->whereNull('flag_state')
+                      ->orWhere('flag_state', '')
+                      ->orWhereRaw('LOWER(flag_state) IN (?, ?, ?)', ['unknown', 'un', '-']);
                 });
             } else {
-                $query->where('flag_state', $flagCountry);
+                $query->where(function ($sub) use ($criteria) {
+                    $sub->whereIn('flag_state', $criteria['codes']);
+                    if (!empty($criteria['mids'])) {
+                        $sub->orWhere(function ($midQ) use ($criteria) {
+                            $midQ->where(function ($emptyFlag) {
+                                $emptyFlag->whereNull('flag_state')
+                                    ->orWhere('flag_state', '')
+                                    ->orWhereRaw('LOWER(flag_state) IN (?, ?, ?)', ['unknown', 'un', '-']);
+                            })->where(function ($prefixQ) use ($criteria) {
+                                foreach ($criteria['mids'] as $mid) {
+                                    $prefixQ->orWhere('mmsi', 'like', "{$mid}%");
+                                }
+                            });
+                        });
+                    }
+                });
             }
         }
 
         // 2. Owner Country Filter (independent, supports specific ISO code or 'unknown')
         $ownerCountry = $request->input('owner_country');
         if ($ownerCountry !== null && $ownerCountry !== '') {
-            if (strtolower($ownerCountry) === 'unknown') {
+            $ownerCrit = FlagStateService::getFilterCriteria($ownerCountry);
+            if ($ownerCrit['is_unknown']) {
                 $query->where(function ($q) {
                     $q->whereNull('owner_country')->orWhere('owner_country', '');
                 });
             } else {
-                $query->where('owner_country', $ownerCountry);
+                $query->whereIn('owner_country', $ownerCrit['codes']);
             }
         }
 
         // 3. Operator Country Filter (independent, supports specific ISO code or 'unknown')
         $operatorCountry = $request->input('operator_country');
         if ($operatorCountry !== null && $operatorCountry !== '') {
-            if (strtolower($operatorCountry) === 'unknown') {
+            $opCrit = FlagStateService::getFilterCriteria($operatorCountry);
+            if ($opCrit['is_unknown']) {
                 $query->where(function ($q) {
                     $q->whereNull('operator_country')->orWhere('operator_country', '');
                 });
             } else {
-                $query->where('operator_country', $operatorCountry);
+                $query->whereIn('operator_country', $opCrit['codes']);
             }
         }
 
@@ -75,15 +95,53 @@ class VesselController extends Controller
 
         $vessels = $query->orderBy('name')->paginate($perPage)->withQueryString();
 
-        // Efficient, distinct country list for Flag State dropdown (derived directly from database records)
-        $availableFlagCountries = Vessel::whereNotNull('flag_state')
+        // Distinct country list for Flag State dropdown derived from actual vessel records in DB:
+        // 1. Explicit flag_state in vessels table
+        $explicitCodes = Vessel::whereNotNull('flag_state')
             ->where('flag_state', '!=', '')
             ->distinct()
-            ->pluck('flag_state')
-            ->map(fn ($code) => FlagStateService::resolveCountryDetails($code))
-            ->unique('code')
+            ->pluck('flag_state');
+
+        // 2. MMSI MID prefixes for vessels without explicit flag_state
+        $mmsiPrefixes = Vessel::where(function ($q) {
+                $q->whereNull('flag_state')->orWhere('flag_state', '');
+            })
+            ->whereNotNull('mmsi')
+            ->where('mmsi', '!=', '')
+            ->pluck('mmsi')
+            ->map(fn ($m) => substr(trim($m), 0, 3))
+            ->unique()
+            ->filter(fn ($p) => strlen($p) === 3 && ctype_digit($p));
+
+        $countries = collect();
+        foreach ($explicitCodes as $code) {
+            $detail = FlagStateService::resolveCountryDetails($code);
+            if (!empty($detail['is_known']) && !empty($detail['iso2']) && $detail['iso2'] !== 'UN') {
+                $countries->push($detail);
+            }
+        }
+
+        foreach ($mmsiPrefixes as $mid) {
+            $midInfo = FlagStateService::lookupMid($mid . '000000');
+            if ($midInfo) {
+                $detail = FlagStateService::resolveCountryDetails($midInfo['iso2']);
+                if (!empty($detail['is_known']) && !empty($detail['iso2']) && $detail['iso2'] !== 'UN') {
+                    $countries->push($detail);
+                }
+            }
+        }
+
+        $availableFlagCountries = $countries
+            ->unique('iso2')
             ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
             ->values();
+
+        // Check if there are vessels with unknown/unverified flag state in DB
+        $hasUnknownFlag = Vessel::where(function ($q) {
+            $q->whereNull('flag_state')
+              ->orWhere('flag_state', '')
+              ->orWhereRaw('LOWER(flag_state) IN (?, ?, ?)', ['unknown', 'un', '-']);
+        })->exists();
 
         // Calculate active filter count
         $activeFiltersCount = collect([
@@ -97,6 +155,7 @@ class VesselController extends Controller
         return view('vessels.index', compact(
             'vessels',
             'availableFlagCountries',
+            'hasUnknownFlag',
             'activeFiltersCount',
             'flagCountry'
         ));

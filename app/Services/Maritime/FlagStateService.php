@@ -330,6 +330,12 @@ class FlagStateService
         'ZA' => 'South Africa',
         'CA' => 'Canada',
         'MX' => 'Mexico',
+        'IS' => 'Iceland',
+        'LT' => 'Lithuania',
+        'LV' => 'Latvia',
+        'PL' => 'Poland',
+        'SC' => 'Seychelles',
+        'MU' => 'Mauritius',
     ];
 
     /**
@@ -441,7 +447,16 @@ class FlagStateService
         // Case 1: Explicit flag state recorded in vessel registry/telemetry
         if ($explicitFlag) {
             $iso2 = self::normalizeToIso2($explicitFlag);
-            $countryName = self::$iso2Table[$iso2] ?? $explicitFlag;
+            $countryName = self::$iso2Table[$iso2] ?? null;
+            if (!$countryName) {
+                foreach (self::$midTable as $entry) {
+                    if ($entry['iso2'] === $iso2) {
+                        $countryName = $entry['name'];
+                        break;
+                    }
+                }
+            }
+            $countryName = $countryName ?? $explicitFlag;
 
             // Check for conflict between explicit flag and MMSI MID allocation
             $hasConflict = false;
@@ -502,7 +517,16 @@ class FlagStateService
 
         if ($explicitFlag && $explicitFlag !== 'UN' && $explicitFlag !== 'UNKNOWN') {
             $iso2 = self::normalizeToIso2($explicitFlag);
-            $countryName = self::$iso2Table[$iso2] ?? $explicitFlag;
+            $countryName = self::$iso2Table[$iso2] ?? null;
+            if (!$countryName) {
+                foreach (self::$midTable as $entry) {
+                    if ($entry['iso2'] === $iso2) {
+                        $countryName = $entry['name'];
+                        break;
+                    }
+                }
+            }
+            $countryName = $countryName ?? $explicitFlag;
             $hasConflict = ($midCountry && $midCountry['iso2'] !== $iso2);
 
             return [
@@ -540,6 +564,59 @@ class FlagStateService
         }
 
         return self::unknownResponse();
+    }
+
+    /**
+     * Get database query filter criteria for a country code (ISO-2 or ISO-3).
+     * Returns:
+     * - 'is_unknown': bool
+     * - 'iso2': string|null
+     * - 'codes': array of matched flag_state codes in DB (e.g. ['KR', 'KOR'])
+     * - 'mids': array of ITU MID prefix strings (e.g. ['440', '441'])
+     */
+    public static function getFilterCriteria(?string $countryInput): array
+    {
+        if (empty($countryInput)) {
+            return [
+                'is_unknown' => false,
+                'iso2' => null,
+                'codes' => [],
+                'mids' => [],
+            ];
+        }
+
+        $clean = strtoupper(trim($countryInput));
+        if ($clean === 'UNKNOWN' || $clean === 'UN' || $clean === 'XXX' || $clean === '-') {
+            return [
+                'is_unknown' => true,
+                'iso2' => 'UN',
+                'codes' => ['UNKNOWN', 'UN', 'XXX', '-'],
+                'mids' => [],
+            ];
+        }
+
+        $iso2 = self::normalizeToIso2($clean);
+        $codes = [$iso2];
+        if (strlen($clean) === 3) {
+            $codes[] = $clean;
+        }
+
+        $mids = [];
+        foreach (self::$midTable as $mid => $entry) {
+            if ($entry['iso2'] === $iso2) {
+                if (!empty($entry['iso3'])) {
+                    $codes[] = $entry['iso3'];
+                }
+                $mids[] = (string) $mid;
+            }
+        }
+
+        return [
+            'is_unknown' => false,
+            'iso2' => $iso2,
+            'codes' => array_values(array_unique(array_filter($codes))),
+            'mids' => array_values(array_unique($mids)),
+        ];
     }
 
     /**
@@ -623,6 +700,12 @@ class FlagStateService
             'ZAF' => 'ZA',
             'CAN' => 'CA',
             'MEX' => 'MX',
+            'ISL' => 'IS',
+            'LTU' => 'LT',
+            'LVA' => 'LV',
+            'POL' => 'PL',
+            'SYC' => 'SC',
+            'MUS' => 'MU',
         ];
 
         if (isset($iso3Map[$code])) {

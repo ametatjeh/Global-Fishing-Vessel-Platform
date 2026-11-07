@@ -311,4 +311,245 @@ class VesselTableColumnsAuditTest extends TestCase
         $this->assertArrayNotHasKey('vessel_type', $reconciled['updates']);
         $this->assertStringContainsString('prohibited by policy', $reconciled['preserved']['vessel_type']['reason']);
     }
+
+    /**
+     * E. IMO Column Specific Audit
+     */
+    public function test_imo_column_displays_valid_imo_and_synchronizes_with_detail(): void
+    {
+        $vessel = Vessel::create([
+            'name' => 'F/V TAIYO MARU NO. 55',
+            'mmsi' => '431001002',
+            'imo' => '9201009',
+            'flag_state' => 'JPN',
+            'vessel_type' => 'fishing',
+            'operator' => 'Maruha Nichiro Corp',
+            'owner' => 'Maruha Nichiro Corp',
+        ]);
+
+        $this->assertSame('9201009', $vessel->display_imo);
+
+        $tableRes = $this->actingAs($this->user)->get('/vessels');
+        $tableRes->assertStatus(200);
+        $tableRes->assertSee('9201009');
+
+        $detailRes = $this->actingAs($this->user)->get("/vessels/{$vessel->id}");
+        $detailRes->assertStatus(200);
+        $detailRes->assertSee('9201009');
+    }
+
+    public function test_imo_preserves_digits_and_cleans_prefix_without_confusion_with_mmsi(): void
+    {
+        // Leading zero IMO
+        $v1 = Vessel::create([
+            'name' => 'VESSEL LEADING ZERO',
+            'mmsi' => '224001001',
+            'imo' => '0123456',
+            'vessel_type' => 'fishing',
+        ]);
+        $this->assertSame('0123456', $v1->display_imo);
+
+        // IMO with prefix "IMO 9201010"
+        $v2 = Vessel::create([
+            'name' => 'VESSEL PREFIX IMO',
+            'mmsi' => '224001002',
+            'imo' => 'IMO 9201010',
+            'vessel_type' => 'fishing',
+        ]);
+        $this->assertSame('9201010', $v2->display_imo);
+
+        // Vessel with empty IMO
+        $v3 = Vessel::create([
+            'name' => 'VESSEL NO IMO',
+            'mmsi' => '224001003',
+            'imo' => null,
+            'vessel_type' => 'fishing',
+        ]);
+        $this->assertSame('—', $v3->display_imo);
+    }
+
+    public function test_imo_confused_with_mmsi_is_rejected(): void
+    {
+        // IMO field filled with identical 9-digit MMSI
+        $v1 = Vessel::create([
+            'name' => 'VESSEL CONFUSED MMSI',
+            'mmsi' => '440111222',
+            'imo' => '440111222',
+            'vessel_type' => 'fishing',
+        ]);
+        // Rejects MMSI placed in IMO field
+        $this->assertSame('—', $v1->display_imo);
+
+        // IMO field with random 9-digit number
+        $v2 = Vessel::create([
+            'name' => 'VESSEL NINE DIGIT IMO',
+            'mmsi' => '440999888',
+            'imo' => '999888777',
+            'vessel_type' => 'fishing',
+        ]);
+        $this->assertSame('—', $v2->display_imo);
+    }
+
+    /**
+     * F. Vessel Type Numeric Code Mapping
+     */
+    public function test_vessel_type_numeric_code_translates_to_taxonomy_without_number_leak(): void
+    {
+        $v1 = Vessel::create([
+            'name' => 'VESSEL CODE 30',
+            'mmsi' => '525000030',
+            'vessel_type' => '30',
+        ]);
+        $this->assertSame('Fishing', $v1->display_vessel_type);
+
+        $v2 = Vessel::create([
+            'name' => 'VESSEL CODE 70',
+            'mmsi' => '525000070',
+            'vessel_type' => '70',
+        ]);
+        $this->assertSame('Cargo', $v2->display_vessel_type);
+
+        $tableRes = $this->actingAs($this->user)->get('/vessels');
+        $tableRes->assertStatus(200);
+        $tableRes->assertSee('Fishing');
+        $tableRes->assertSee('Cargo');
+    }
+
+    /**
+     * G. Flag Country Filter Audits
+     */
+    public function test_flag_country_dropdown_renders_iso2_and_country_name(): void
+    {
+        Vessel::create([
+            'name' => 'KOREAN REEFER',
+            'mmsi' => '440111333',
+            'flag_state' => 'KOR',
+            'vessel_type' => 'carrier',
+        ]);
+
+        Vessel::create([
+            'name' => 'INDONESIAN TRAWLER',
+            'mmsi' => '525222333',
+            'flag_state' => 'IDN',
+            'vessel_type' => 'fishing',
+        ]);
+
+        $res = $this->actingAs($this->user)->get('/vessels');
+        $res->assertStatus(200);
+        // ISO2 and Country name format in dropdown
+        $res->assertSee('KR • Korea (Republic of)');
+        $res->assertSee('ID • Indonesia');
+    }
+
+    public function test_filter_by_flag_country_kr_returns_only_korean_vessels(): void
+    {
+        // 1. Vessel with explicit flag_state = 'KOR'
+        $kr1 = Vessel::create([
+            'name' => 'F/V DONG WON 707',
+            'mmsi' => '440001001',
+            'flag_state' => 'KOR',
+            'vessel_type' => 'fishing',
+            'operator' => 'Dongwon Industries Ltd',
+            'owner' => 'Dongwon Industries Ltd',
+        ]);
+
+        // 2. Vessel with null flag_state, but MMSI starts with 440 (MID for Korea)
+        $kr2 = Vessel::create([
+            'name' => '111KWANGMYEONG',
+            'mmsi' => '440111222',
+            'flag_state' => null,
+            'vessel_type' => 'fishing',
+        ]);
+
+        // 3. Vessel from Indonesia
+        $id1 = Vessel::create([
+            'name' => 'KM MUTIARA LAUT',
+            'mmsi' => '525000001',
+            'flag_state' => 'IDN',
+            'vessel_type' => 'fishing',
+        ]);
+
+        // 4. Vessel from Panama
+        $pa1 = Vessel::create([
+            'name' => 'F/V ATLANTIC SPIRIT',
+            'mmsi' => '351001001',
+            'flag_state' => 'PAN',
+            'vessel_type' => 'carrier',
+        ]);
+
+        // Query with flag_country=KR
+        $resKr = $this->actingAs($this->user)->get('/vessels?flag_country=KR');
+        $resKr->assertStatus(200);
+        $resKr->assertSee('F/V DONG WON 707');
+        $resKr->assertSee('111KWANGMYEONG');
+        $resKr->assertDontSee('KM MUTIARA LAUT');
+        $resKr->assertDontSee('F/V ATLANTIC SPIRIT');
+
+        // Query with legacy flag_state=KOR should also return the exact same Korean vessels
+        $resKor = $this->actingAs($this->user)->get('/vessels?flag_country=KOR');
+        $resKor->assertStatus(200);
+        $resKor->assertSee('F/V DONG WON 707');
+        $resKor->assertSee('111KWANGMYEONG');
+        $resKor->assertDontSee('KM MUTIARA LAUT');
+        $resKor->assertDontSee('F/V ATLANTIC SPIRIT');
+    }
+
+    public function test_filter_by_flag_country_preserves_pagination_and_query_string(): void
+    {
+        // Create 15 Indonesian vessels
+        for ($i = 1; $i <= 15; $i++) {
+            Vessel::create([
+                'name' => sprintf('KM BAHARI %02d', $i),
+                'mmsi' => sprintf('525000%03d', $i),
+                'flag_state' => 'IDN',
+                'vessel_type' => 'fishing',
+            ]);
+        }
+
+        // Create 2 Spanish vessels
+        Vessel::create([
+            'name' => 'F/V PLAYA DE BAKIO',
+            'mmsi' => '224001001',
+            'flag_state' => 'ESP',
+            'vessel_type' => 'fishing',
+        ]);
+
+        // Request page 2 with per_page=10 and flag_country=ID
+        $res = $this->actingAs($this->user)->get('/vessels?flag_country=ID&per_page=10&page=2');
+        $res->assertStatus(200);
+        $res->assertDontSee('F/V PLAYA DE BAKIO');
+        // Pagination link must include flag_country=ID
+        $res->assertSee('flag_country=ID');
+    }
+
+    public function test_filter_by_flag_country_combines_with_search_and_vessel_type(): void
+    {
+        Vessel::create([
+            'name' => 'F/V DONG WON 707',
+            'mmsi' => '440001001',
+            'flag_state' => 'KOR',
+            'vessel_type' => 'fishing',
+        ]);
+
+        Vessel::create([
+            'name' => 'F/V DONG WON REEFER',
+            'mmsi' => '440001002',
+            'flag_state' => 'KOR',
+            'vessel_type' => 'carrier',
+        ]);
+
+        Vessel::create([
+            'name' => 'F/V SAJO COLUMBIA',
+            'mmsi' => '440001003',
+            'flag_state' => 'KOR',
+            'vessel_type' => 'fishing',
+        ]);
+
+        // Combined: flag_country=KR + vessel_type=fishing + search=DONG
+        $res = $this->actingAs($this->user)->get('/vessels?flag_country=KR&vessel_type=fishing&search=DONG');
+        $res->assertStatus(200);
+        $res->assertSee('F/V DONG WON 707');
+        $res->assertDontSee('F/V DONG WON REEFER'); // Wrong type (carrier)
+        $res->assertDontSee('F/V SAJO COLUMBIA'); // Wrong search (SAJO)
+    }
 }

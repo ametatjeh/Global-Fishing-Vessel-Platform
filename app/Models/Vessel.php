@@ -143,6 +143,54 @@ class Vessel extends Model
     }
 
     /**
+     * Get synchronized display string for IMO number
+     * Strictly verifies IMO format without guessing from MMSI or name:
+     * - Preserves all digits (including leading zeroes)
+     * - Cleans "IMO" or "IMO-" prefix if present
+     * - Rejects values confused with MMSI (matches MMSI or length 9)
+     * - Falls back to vessel_identifiers if table column is empty
+     * - Returns '—' when missing or invalid
+     */
+    public function getDisplayImoAttribute(): string
+    {
+        $raw = trim((string) ($this->imo ?? ''));
+
+        // If empty on column, inspect identifiers relation if loaded
+        if ($raw === '' || $raw === '-' || strtolower($raw) === 'unknown' || $raw === '0') {
+            if ($this->relationLoaded('identifiers')) {
+                $idImo = $this->identifiers->firstWhere('identifier_type', 'imo')?->identifier_value;
+                if (!empty($idImo)) {
+                    $raw = trim((string) $idImo);
+                }
+            }
+        }
+
+        if ($raw === '' || $raw === '-' || strtolower($raw) === 'unknown' || $raw === '0') {
+            return '—';
+        }
+
+        // Clean prefix "IMO" or "IMO-" or "IMO "
+        $clean = preg_replace('/^IMO[-:\s]*/i', '', $raw);
+
+        // Reject if confused with vessel's MMSI
+        if (!empty($this->mmsi) && $clean === trim((string) $this->mmsi)) {
+            return '—';
+        }
+
+        // Must consist of digits
+        if (!ctype_digit($clean)) {
+            return '—';
+        }
+
+        // Reject if length is 9 digits (likely an MMSI placed in IMO field)
+        if (strlen($clean) === 9) {
+            return '—';
+        }
+
+        return $clean;
+    }
+
+    /**
      * Get synchronized display string for Operator Kapal
      */
     public function getDisplayOperatorAttribute(): string
@@ -167,6 +215,11 @@ class Vessel extends Model
         $raw = strtolower(trim((string) $this->vessel_type));
         if (empty($raw) || $raw === 'unknown') {
             return 'Unknown';
+        }
+
+        if (is_numeric($raw)) {
+            $mappedKey = \App\Services\Maritime\VesselClassificationService::mapAisCodeToTaxonomy((int) $raw);
+            return \App\Services\Maritime\VesselClassificationService::TAXONOMY[$mappedKey] ?? 'Unknown';
         }
 
         return \App\Services\Maritime\VesselClassificationService::TAXONOMY[$raw]

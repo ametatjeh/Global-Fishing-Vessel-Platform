@@ -187,7 +187,7 @@
                 </div>
                 <div class="flex justify-between py-1 border-b border-slate-800/60">
                     <span class="text-slate-400">IMO:</span>
-                    <span class="font-mono text-white font-bold">{{ $vessel->imo ?? 'Belum tercatat' }}</span>
+                    <span class="font-mono text-white font-bold">{{ $vessel->display_imo !== '—' ? $vessel->display_imo : 'Belum tercatat' }}</span>
                 </div>
                 <div class="flex justify-between py-1 border-b border-slate-800/60">
                     <span class="text-slate-400">Callsign:</span>
@@ -582,7 +582,7 @@
                         </tr>
                         <tr>
                             <td class="py-2 px-3 text-slate-400 font-sans font-medium">Nomor IMO</td>
-                            <td class="py-2 px-3 text-white">{{ $vessel->imo ?: '-' }}</td>
+                            <td class="py-2 px-3 text-white">{{ $vessel->display_imo !== '—' ? $vessel->display_imo : '-' }}</td>
                             <td class="py-2 px-3 text-teal-300">{{ $gfwCandidate['imo'] ?? '-' }}</td>
                             <td class="py-2 px-3">
                                 @if($vessel->imo && ($gfwCandidate['imo'] ?? '') === $vessel->imo)

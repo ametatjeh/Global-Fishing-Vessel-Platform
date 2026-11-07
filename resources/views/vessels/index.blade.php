@@ -66,13 +66,15 @@
                     class="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-400 font-sans cursor-pointer transition">
                     <option value="">All Countries (Semua Bendera)</option>
                     @foreach($availableFlagCountries as $country)
-                    <option value="{{ $country['code'] }}" {{ (request('flag_country') == $country['code'] || request('flag_state') == $country['code']) ? 'selected' : '' }}>
-                        {{ $country['flag_emoji'] }} {{ $country['name'] }} ({{ $country['code'] }})
+                    <option value="{{ $country['iso2'] }}" {{ (request('flag_country') == $country['iso2'] || request('flag_country') == $country['code'] || request('flag_state') == $country['iso2'] || request('flag_state') == $country['code']) ? 'selected' : '' }}>
+                        {{ $country['flag_emoji'] }} {{ $country['iso2'] }} • {{ $country['name'] }}
                     </option>
                     @endforeach
+                    @if(!empty($hasUnknownFlag))
                     <option value="unknown" {{ (request('flag_country') === 'unknown' || request('flag_state') === 'unknown') ? 'selected' : '' }}>
                         🌐 Unknown (Negara Tidak Diketahui)
                     </option>
+                    @endif
                 </select>
             </div>
 
@@ -158,7 +160,11 @@
 
                         <!-- 3. IMO -->
                         <td class="py-2.5 px-4 font-mono text-slate-300 text-xs whitespace-nowrap">
-                            {{ $vessel->imo ?: '-' }}
+                            @if($vessel->display_imo !== '—')
+                                <span class="font-semibold text-slate-200">{{ $vessel->display_imo }}</span>
+                            @else
+                                <span class="text-slate-500 italic text-[11px]">—</span>
+                            @endif
                         </td>
 
                         <!-- 4. FLAG (🇰🇷 KR • Korea (Republic of)) -->
@@ -206,6 +212,9 @@
                         <td class="py-2.5 px-4 whitespace-nowrap font-medium">
                             @php
                                 $typeKey = strtolower($vessel->vessel_type ?? 'unknown');
+                                if (is_numeric($typeKey)) {
+                                    $typeKey = \App\Services\Maritime\VesselClassificationService::mapAisCodeToTaxonomy((int) $typeKey);
+                                }
                                 $typeBadgeClass = match($typeKey) {
                                     'fishing' => 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
                                     'carrier', 'support', 'port_tender' => 'bg-amber-500/15 text-amber-300 border-amber-500/30',
