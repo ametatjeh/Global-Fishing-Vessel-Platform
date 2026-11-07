@@ -48,7 +48,7 @@
     </div>
 
     <!-- Metrics Summary Cards (Tahap 9 Multi-Source Maritime Intelligence) -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+    <div class="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2.5">
         <div class="glass-panel p-3 rounded-xl border border-slate-800 text-center">
             <div class="text-[9px] uppercase font-bold text-slate-400">Total SAR</div>
             <div class="text-lg font-black text-white font-mono mt-0.5">{{ number_format($stats['total_detections']) }}</div>
@@ -205,8 +205,8 @@
 
     <!-- Candidate Detections Table -->
     <div class="glass-panel rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-        <div class="overflow-x-auto text-xs">
-            <table class="w-full text-left">
+        <div class="overflow-x-auto text-xs responsive-table-container">
+            <table class="w-full text-left min-w-[900px]">
                 <thead class="bg-slate-900/90 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
                     <tr>
                         <th class="py-3 px-4">ID Kandidat</th>

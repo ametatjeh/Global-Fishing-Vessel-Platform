@@ -66,8 +66,8 @@
 
     <!-- Encounters Table -->
     <div class="glass-panel rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-        <div class="overflow-x-auto text-xs">
-            <table class="w-full text-left">
+        <div class="overflow-x-auto text-xs responsive-table-container">
+            <table class="w-full text-left min-w-[800px]">
                 <thead class="bg-slate-900/90 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
                     <tr>
                         <th class="py-3 px-4">Kode Kejadian</th>

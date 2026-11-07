@@ -88,3 +88,52 @@
 .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
     filter: invert(1);
 }
+
+/* ==========================================================================
+   Admin Sidebar Collapsible & Minimized State (Desktop >= 1024px)
+   ========================================================================== */
+@media (min-width: 1024px) {
+    html.sidebar-collapsed #app-sidebar {
+        width: 5rem !important; /* 80px */
+    }
+    html.sidebar-collapsed #main-content {
+        padding-left: 5rem !important; /* 80px */
+    }
+    html.sidebar-collapsed .sidebar-text,
+    html.sidebar-collapsed .sidebar-section-title,
+    html.sidebar-collapsed .sidebar-badge,
+    html.sidebar-collapsed .sidebar-brand-text,
+    html.sidebar-collapsed .sidebar-user-details,
+    html.sidebar-collapsed .sidebar-user-actions {
+        display: none !important;
+    }
+    html.sidebar-collapsed .sidebar-brand-header {
+        justify-content: center !important;
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+    html.sidebar-collapsed .sidebar-item {
+        justify-content: center !important;
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+    html.sidebar-collapsed .sidebar-item .sidebar-icon {
+        font-size: 1.25rem;
+        margin: 0 !important;
+    }
+    html.sidebar-collapsed .sidebar-footer {
+        justify-content: center !important;
+        padding: 0.75rem 0.5rem !important;
+    }
+    html.sidebar-collapsed #sidebar-toggle-icon {
+        transform: rotate(180deg);
+    }
+}
+
+/* Responsive Table Scroll Hints */
+.responsive-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+}
+

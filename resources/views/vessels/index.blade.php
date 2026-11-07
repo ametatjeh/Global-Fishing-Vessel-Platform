@@ -11,9 +11,9 @@
             <p class="text-xs text-slate-400 mt-1">Registrasi kapal global, MMSI, IMO, Callsign, bendera negara, dan status verifikasi.</p>
         </div>
 
-        <form action="{{ route('vessels.index') }}" method="GET" class="flex flex-wrap items-center gap-2 text-xs">
+        <form action="{{ route('vessels.index') }}" method="GET" class="flex flex-wrap items-center gap-2 text-xs w-full sm:w-auto">
             <select name="vessel_type" onchange="this.form.submit()"
-                class="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-400 font-sans cursor-pointer">
+                class="w-full sm:w-auto px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-400 font-sans cursor-pointer">
                 <option value="">Semua Tipe Armada</option>
                 <option value="fishing" {{ request('vessel_type') === 'fishing' ? 'selected' : '' }}>Fishing (Penangkap)</option>
                 <option value="carrier" {{ request('vessel_type') === 'carrier' ? 'selected' : '' }}>Carrier (Pengangkut)</option>
@@ -27,22 +27,24 @@
                 <option value="unknown" {{ request('vessel_type') === 'unknown' ? 'selected' : '' }}>Unknown (Belum Diketahui)</option>
             </select>
             <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari nama, MMSI, IMO..."
-                class="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-teal-400 font-mono w-56">
-            <button type="submit" class="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold transition">
-                Cari
-            </button>
-            @if(request('search') || request('vessel_type'))
-            <a href="{{ route('vessels.index') }}" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition border border-slate-700" title="Reset filter">
-                Reset
-            </a>
-            @endif
+                class="w-full sm:w-56 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-teal-400 font-mono">
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+                <button type="submit" class="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold transition">
+                    Cari
+                </button>
+                @if(request('search') || request('vessel_type'))
+                <a href="{{ route('vessels.index') }}" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition border border-slate-700" title="Reset filter">
+                    Reset
+                </a>
+                @endif
+            </div>
         </form>
     </div>
 
     <!-- Vessels Table -->
     <div class="glass-panel rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-        <div class="overflow-x-auto text-xs">
-            <table class="w-full text-left">
+        <div class="overflow-x-auto text-xs responsive-table-container">
+            <table class="w-full text-left min-w-[850px]">
                 <thead class="bg-slate-900/90 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
                     <tr>
                         <th class="py-3 px-4 text-center w-14">No.</th>

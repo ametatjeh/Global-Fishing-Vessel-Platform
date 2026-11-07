@@ -100,7 +100,7 @@
     </div>
 
     <!-- Floating Right-Side Vessel Detail Panel (Open Waters AIS Approach) -->
-    <div id="vesselDetailPanel" class="hidden absolute top-4 right-4 bottom-4 z-20 w-80 sm:w-96 max-h-[calc(100%-2rem)] flex flex-col bg-slate-900/95 border border-slate-700/80 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden transition-all duration-300 ease-in-out text-xs">
+    <div id="vesselDetailPanel" class="hidden absolute top-4 right-4 bottom-4 z-20 w-[calc(100%-2rem)] sm:w-96 max-w-sm max-h-[calc(100%-2rem)] flex flex-col bg-slate-900/95 border border-slate-700/80 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden transition-all duration-300 ease-in-out text-xs">
         <!-- Header -->
         <div class="p-3.5 border-b border-slate-700/80 bg-slate-950/70 flex items-start justify-between gap-2 shrink-0">
             <div class="min-w-0 flex-1">

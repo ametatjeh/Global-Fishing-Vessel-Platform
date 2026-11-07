@@ -454,8 +454,8 @@
             </h3>
 
             @if(count($provenance) > 0)
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-xs">
+            <div class="overflow-x-auto responsive-table-container">
+                <table class="w-full text-left text-xs min-w-[480px]">
                     <thead class="text-[10px] text-slate-400 uppercase border-b border-slate-800 bg-slate-900/40">
                         <tr>
                             <th class="py-1.5 px-2">Field</th>

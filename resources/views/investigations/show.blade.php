@@ -140,8 +140,8 @@
                     </div>
 
                     @if(!empty($identityAnalysis['identity_timeline']))
-                    <div class="overflow-x-auto rounded-lg border border-slate-800">
-                        <table class="w-full text-left text-slate-300">
+                    <div class="overflow-x-auto rounded-lg border border-slate-800 responsive-table-container">
+                        <table class="w-full text-left text-slate-300 min-w-[550px]">
                             <thead class="bg-slate-900/90 text-slate-400 uppercase text-[10px] border-b border-slate-800">
                                 <tr>
                                     <th class="py-2 px-3">Tipe</th>
@@ -226,8 +226,8 @@
                         <div class="text-xs font-semibold text-slate-300 mb-2">
                             Armada Sejawat Terkorelasi (Sister Fleet Correlation): {{ $corporateAnalysis['related_fleet_count'] }} Kapal Teridentifikasi
                         </div>
-                        <div class="overflow-x-auto rounded-lg border border-slate-800">
-                            <table class="w-full text-left text-slate-300">
+                        <div class="overflow-x-auto rounded-lg border border-slate-800 responsive-table-container">
+                            <table class="w-full text-left text-slate-300 min-w-[550px]">
                                 <thead class="bg-slate-900/90 text-slate-400 uppercase text-[10px] border-b border-slate-800">
                                     <tr>
                                         <th class="py-2 px-3">Nama Kapal</th>
@@ -303,8 +303,8 @@
                     @endif
 
                     @if(!empty($eezAnalysis['boundary_events']))
-                    <div class="overflow-x-auto rounded-lg border border-slate-800">
-                        <table class="w-full text-left text-slate-300">
+                    <div class="overflow-x-auto rounded-lg border border-slate-800 responsive-table-container">
+                        <table class="w-full text-left text-slate-300 min-w-[500px]">
                             <thead class="bg-slate-900/90 text-slate-400 uppercase text-[10px] border-b border-slate-800">
                                 <tr>
                                     <th class="py-2 px-3">Aturan / Rule</th>
@@ -394,8 +394,8 @@
                         <div class="text-xs font-semibold text-slate-300 mb-2">
                             Riwayat Otorisasi & Surat Izin Penangkapan Ikan (SIPI): {{ $iuuAnalysis['authorizations_count'] }} Dokumen
                         </div>
-                        <div class="overflow-x-auto rounded-lg border border-slate-800">
-                            <table class="w-full text-left text-slate-300">
+                        <div class="overflow-x-auto rounded-lg border border-slate-800 responsive-table-container">
+                            <table class="w-full text-left text-slate-300 min-w-[550px]">
                                 <thead class="bg-slate-900/90 text-slate-400 uppercase text-[10px] border-b border-slate-800">
                                     <tr>
                                         <th class="py-2 px-3">Kode Otorisasi</th>

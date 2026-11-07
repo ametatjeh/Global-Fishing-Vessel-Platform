@@ -140,8 +140,8 @@
                 </a>
             </div>
 
-            <div class="overflow-x-auto text-xs">
-                <table class="w-full text-left">
+            <div class="overflow-x-auto text-xs responsive-table-container">
+                <table class="w-full text-left min-w-[540px]">
                     <thead>
                         <tr class="text-[10px] text-slate-400 uppercase tracking-wider border-b border-slate-800">
                             <th class="pb-2">Penyedia Data</th>
@@ -222,7 +222,7 @@
 
             <div class="space-y-2.5 text-xs">
                 @forelse($recentEncounters as $enc)
-                <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-4">
+                <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                         <div class="font-bold text-white flex items-center gap-1.5">
                             <span>{{ $enc->encounter_code }}</span>
@@ -270,7 +270,7 @@
 
             <div class="space-y-2.5 text-xs">
                 @forelse($recentAlerts as $alert)
-                <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-4">
+                <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                         <div class="font-bold text-white flex items-center gap-1.5">
                             <span class="text-rose-400">⚠️</span>

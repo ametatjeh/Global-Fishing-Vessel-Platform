@@ -44,8 +44,8 @@
             <span class="text-[10px] text-slate-400 font-mono">{{ $rules->count() }} Aturan Aktif</span>
         </div>
 
-        <div class="overflow-x-auto text-xs">
-            <table class="w-full text-left">
+        <div class="overflow-x-auto text-xs responsive-table-container">
+            <table class="w-full text-left min-w-[700px]">
                 <thead class="text-slate-400 uppercase text-[10px] border-b border-slate-800">
                     <tr>
                         <th class="py-2.5">Kode Aturan</th>
@@ -91,8 +91,8 @@
             </h3>
         </div>
 
-        <div class="overflow-x-auto text-xs">
-            <table class="w-full text-left">
+        <div class="overflow-x-auto text-xs responsive-table-container">
+            <table class="w-full text-left min-w-[700px]">
                 <thead class="text-slate-400 uppercase text-[10px] border-b border-slate-800">
                     <tr>
                         <th class="py-2.5">Kode Alert</th>

@@ -186,8 +186,8 @@
             </h3>
             <span class="text-[10px] font-mono text-slate-400">Version 2.0-GFVIP</span>
         </div>
-        <div class="overflow-x-auto text-xs">
-            <table class="w-full text-left">
+        <div class="overflow-x-auto text-xs responsive-table-container">
+            <table class="w-full text-left min-w-[700px]">
                 <thead class="bg-slate-900/90 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800 font-mono">
                     <tr>
                         <th class="py-2.5 px-3">Sumber Data</th>
