@@ -1,0 +1,14 @@
+{
+  "name": "gfvip-ais-worker",
+  "version": "1.0.0",
+  "description": "GFVIP AISStream WebSocket Ingestion Worker for aaPanel & Node.js",
+  "type": "module",
+  "main": "worker.mjs",
+  "scripts": {
+    "start": "node worker.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
+

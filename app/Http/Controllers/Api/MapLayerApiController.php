@@ -182,7 +182,8 @@ class MapLayerApiController extends Controller
             'end_date' => $request->query('end_date'),
         ];
 
-        $data = $this->spatial->getLiveVesselsFeatureCollection($bbox, $search, 200, $filters);
+        $limit = min(max((int) $request->query('limit', 500), 50), 2000);
+        $data = $this->spatial->getLiveVesselsFeatureCollection($bbox, $search, $limit, $filters);
 
         return response()->json($data);
     }
@@ -351,8 +352,9 @@ class MapLayerApiController extends Controller
             ], 404);
         }
 
-        $limit = min(max((int) $request->query('limit', 200), 10), 1000);
-        $geoJson = $this->spatial->getVesselTrackFeatureCollection($vessel, $limit);
+        $limit = min(max((int) $request->query('limit', 500), 10), 2000);
+        $range = $request->query('range', $request->query('window'));
+        $geoJson = $this->spatial->getVesselTrackFeatureCollection($vessel, $limit, $range);
 
         return response()->json($geoJson, 200, [
             'Content-Type' => 'application/json',

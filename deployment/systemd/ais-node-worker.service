@@ -1,0 +1,28 @@
+# -----------------------------------------------------------------------------
+# GFVIP - Systemd Unit File for AIS Node.js WebSocket Worker (aaPanel Production)
+# Path on Linux/aaPanel: /etc/systemd/system/ais-node-worker.service
+# Enable: sudo systemctl daemon-reload && sudo systemctl enable --now ais-node-worker.service
+# Logs:   sudo journalctl -u ais-node-worker.service -f
+# -----------------------------------------------------------------------------
+
+[Unit]
+Description=GFVIP Live AIS Node.js WebSocket Telemetry Ingestion Worker
+After=network.target nginx.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www
+Group=www
+WorkingDirectory=/www/wwwroot/gfw.nagakecil.site
+ExecStart=/usr/bin/node /www/wwwroot/gfw.nagakecil.site/ais/worker.mjs
+Restart=always
+RestartSec=5s
+StandardOutput=append:/www/wwwroot/gfw.nagakecil.site/storage/logs/ais-worker.log
+StandardError=append:/www/wwwroot/gfw.nagakecil.site/storage/logs/ais-worker-error.log
+TimeoutStopSec=15s
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
+

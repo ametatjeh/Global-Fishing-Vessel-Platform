@@ -194,6 +194,18 @@ class AisStreamAdapter implements ProviderAdapterInterface
             ];
         }
 
+        // Prevent collision if Node.js background worker is actively streaming
+        $nodeWorkerAlive = \Illuminate\Support\Facades\Cache::get('ais_stream_node_worker_alive');
+        if ($nodeWorkerAlive) {
+            return [
+                'status' => 'busy',
+                'fetched' => 0,
+                'inserted' => 0,
+                'skipped' => 0,
+                'errors' => ['Koneksi stream AIS sedang ditangani oleh background Node.js worker (ais/worker.mjs). Penggunaan ganda dibatalkan.'],
+            ];
+        }
+
         // Prevent uncontrolled duplicate stream workers from flooding provider
         $lockTtl = ($maxMessages <= 0) ? 300 : max(60, $timeoutSeconds * 2);
         $lock = \Illuminate\Support\Facades\Cache::lock('ais_stream_active_worker', $lockTtl);
@@ -398,38 +410,9 @@ class AisStreamAdapter implements ProviderAdapterInterface
                     continue;
                 }
 
-                $msgType = $json['MessageType'] ?? null;
-                if ($msgType !== 'PositionReport' || !isset($json['MetaData'])) {
-                    $skipped++;
-                    continue;
-                }
-
                 $fetched++;
-                $meta = $json['MetaData'];
-                $pos = $json['Message']['PositionReport'] ?? [];
-
-                $mmsi = (string) ($meta['MMSI'] ?? $pos['UserID'] ?? '');
-                $lat = $meta['latitude'] ?? $pos['Latitude'] ?? null;
-                $lng = $meta['longitude'] ?? $pos['Longitude'] ?? null;
-                $sog = $pos['Sog'] ?? null;
-                $cog = $pos['Cog'] ?? null;
-                $heading = $pos['TrueHeading'] ?? null;
-                $shipName = trim($meta['ShipName'] ?? '');
-                $timeUtc = $meta['time_utc'] ?? now()->toIso8601String();
-
-                $positionModel = $this->ingestPositionMessage([
-                    'mmsi' => $mmsi,
-                    'latitude' => $lat,
-                    'longitude' => $lng,
-                    'speed_over_ground' => $sog,
-                    'course_over_ground' => $cog,
-                    'true_heading' => $heading,
-                    'vessel_name' => $shipName ?: ('VESSEL-' . $mmsi),
-                    'timestamp' => $timeUtc,
-                    'raw_payload' => $json,
-                ]);
-
-                if ($positionModel) {
+                $frameResult = $this->parseAndIngestRawFrame($json);
+                if ($frameResult['status'] === 'inserted') {
                     $inserted++;
                 } else {
                     $skipped++;
@@ -452,13 +435,33 @@ class AisStreamAdapter implements ProviderAdapterInterface
             'items_inserted' => $inserted,
             'items_skipped' => $skipped,
             'completed_at' => now(),
+            'metadata_json' => json_encode([
+                'messages_received' => $fetched,
+                'new_positions_or_updates' => $inserted,
+                'skipped_or_duplicates' => $skipped,
+                'errors_count' => count($errors),
+            ]),
         ]);
+
+        $telemetryMeta = [
+            'last_frame_at' => now()->toIso8601String(),
+            'session_messages_received' => $fetched,
+            'session_inserted' => $inserted,
+            'session_skipped' => $skipped,
+            'total_positions_in_db' => VesselPosition::count(),
+            'total_vessels_in_db' => Vessel::count(),
+        ];
 
         if ($inserted > 0) {
             $provider->update([
                 'health_status' => 'streaming',
                 'last_sync_at' => now(),
                 'last_error_message' => null,
+                'rate_limit_info' => array_merge($provider->rate_limit_info ?? [], $telemetryMeta),
+            ]);
+        } else {
+            $provider->update([
+                'rate_limit_info' => array_merge($provider->rate_limit_info ?? [], $telemetryMeta),
             ]);
         }
 
@@ -477,6 +480,489 @@ class AisStreamAdapter implements ProviderAdapterInterface
     }
 
     /**
+     * Parse and ingest a single raw AIS frame or normalized item.
+     *
+     * @param array $json
+     * @return array ['status' => 'inserted'|'skipped', 'type' => string, 'model' => mixed]
+     */
+    public function parseAndIngestRawFrame(array $json): array
+    {
+        $msgType = $json['MessageType'] ?? null;
+
+        // Handle SubscriptionConfirmation frame
+        if ($msgType === 'SubscriptionConfirmation') {
+            Log::info('AISStream SubscriptionConfirmation received: ' . json_encode($json['Message'] ?? []));
+            return ['status' => 'skipped', 'type' => 'SubscriptionConfirmation', 'model' => null];
+        }
+
+        $meta = $json['MetaData'] ?? [];
+        $messageObj = $json['Message'] ?? [];
+
+        // 1. Position Reports (PositionReport, StandardClassBPositionReport, ExtendedClassBPositionReport)
+        if (in_array($msgType, ['PositionReport', 'StandardClassBPositionReport', 'ExtendedClassBPositionReport'])) {
+            $posData = $messageObj[$msgType] ?? [];
+            $mmsi = (string) ($meta['MMSI'] ?? $posData['UserID'] ?? '');
+            $lat = $meta['latitude'] ?? $posData['Latitude'] ?? null;
+            $lng = $meta['longitude'] ?? $posData['Longitude'] ?? null;
+            $sog = $posData['Sog'] ?? null;
+            $cog = $posData['Cog'] ?? null;
+            $heading = $posData['TrueHeading'] ?? null;
+            $shipName = trim(trim((string) ($meta['ShipName'] ?? $posData['Name'] ?? '')), '@');
+            $timeUtc = $meta['time_utc'] ?? now()->toIso8601String();
+            $shipType = $posData['ShipType'] ?? null;
+
+            $position = $this->ingestPositionMessage([
+                'mmsi' => $mmsi,
+                'latitude' => $lat,
+                'longitude' => $lng,
+                'speed_over_ground' => $sog,
+                'course_over_ground' => $cog,
+                'true_heading' => $heading,
+                'vessel_name' => $shipName ?: ('VESSEL-' . $mmsi),
+                'ship_type' => $shipType,
+                'timestamp' => $timeUtc,
+                'raw_payload' => $json,
+            ]);
+
+            return [
+                'status' => $position ? 'inserted' : 'skipped',
+                'type' => $msgType,
+                'model' => $position,
+            ];
+        }
+
+        // 2. ShipStaticData (Type 5)
+        if ($msgType === 'ShipStaticData') {
+            $staticData = $messageObj['ShipStaticData'] ?? [];
+            $mmsi = (string) ($meta['MMSI'] ?? $staticData['UserID'] ?? '');
+            $shipName = trim(trim((string) ($meta['ShipName'] ?? $staticData['Name'] ?? '')), '@');
+            $callSign = trim(trim((string) ($staticData['CallSign'] ?? '')), '@');
+            $imo = $staticData['ImoNumber'] ?? null;
+            $shipType = $staticData['Type'] ?? null;
+            $timeUtc = $meta['time_utc'] ?? now()->toIso8601String();
+
+            $dim = $staticData['Dimension'] ?? [];
+            $lengthM = (isset($dim['A'], $dim['B'])) ? (float) ($dim['A'] + $dim['B']) : null;
+
+            $vessel = $this->ingestStaticMessage([
+                'mmsi' => $mmsi,
+                'vessel_name' => $shipName,
+                'callsign' => $callSign,
+                'imo' => $imo,
+                'ship_type' => $shipType,
+                'length_meters' => $lengthM,
+                'timestamp' => $timeUtc,
+                'raw_payload' => $json,
+            ]);
+
+            return [
+                'status' => $vessel ? 'inserted' : 'skipped',
+                'type' => 'ShipStaticData',
+                'model' => $vessel,
+            ];
+        }
+
+        // 3. StaticDataReport (Type 24)
+        if ($msgType === 'StaticDataReport') {
+            $staticReport = $messageObj['StaticDataReport'] ?? [];
+            $mmsi = (string) ($meta['MMSI'] ?? $staticReport['UserID'] ?? '');
+            $timeUtc = $meta['time_utc'] ?? now()->toIso8601String();
+            $shipName = trim(trim((string) ($meta['ShipName'] ?? '')), '@');
+            $callSign = null;
+            $shipType = null;
+            $lengthM = null;
+
+            if (!empty($staticReport['ReportA']['Name'])) {
+                $shipName = trim(trim((string) $staticReport['ReportA']['Name']), '@');
+            }
+            if (!empty($staticReport['ReportB'])) {
+                $rb = $staticReport['ReportB'];
+                $callSign = trim(trim((string) ($rb['CallSign'] ?? '')), '@');
+                $shipType = $rb['ShipType'] ?? null;
+                if (isset($rb['Dimension']['A'], $rb['Dimension']['B'])) {
+                    $lengthM = (float) ($rb['Dimension']['A'] + $rb['Dimension']['B']);
+                }
+            }
+
+            $vessel = $this->ingestStaticMessage([
+                'mmsi' => $mmsi,
+                'vessel_name' => $shipName,
+                'callsign' => $callSign,
+                'ship_type' => $shipType,
+                'length_meters' => $lengthM,
+                'timestamp' => $timeUtc,
+                'raw_payload' => $json,
+            ]);
+
+            return [
+                'status' => $vessel ? 'inserted' : 'skipped',
+                'type' => 'StaticDataReport',
+                'model' => $vessel,
+            ];
+        }
+
+        // 4. Flat normalized payload fallback (e.g. from custom webhook or API batch)
+        if (isset($json['mmsi'])) {
+            if (isset($json['latitude'], $json['longitude'])) {
+                $pos = $this->ingestPositionMessage($json);
+                return [
+                    'status' => $pos ? 'inserted' : 'skipped',
+                    'type' => 'normalized_position',
+                    'model' => $pos,
+                ];
+            } else {
+                $vessel = $this->ingestStaticMessage($json);
+                return [
+                    'status' => $vessel ? 'inserted' : 'skipped',
+                    'type' => 'normalized_static',
+                    'model' => $vessel,
+                ];
+            }
+        }
+
+        return ['status' => 'skipped', 'type' => 'unknown', 'model' => null];
+    }
+
+    /**
+     * Ingest batch of AIS messages from external worker (e.g. Node.js ais/worker.mjs).
+     *
+     * @param array $messages
+     * @return array Ingestion report
+     */
+    public function ingestBatch(array $messages): array
+    {
+        $received = count($messages);
+        $inserted = 0;
+        $skipped = 0;
+        $errors = [];
+
+        $provider = DataProvider::firstOrCreate(
+            ['slug' => $this->providerSlug],
+            [
+                'name' => 'AIS Live Stream Provider',
+                'type' => 'ais_stream',
+                'is_enabled' => true,
+                'health_status' => 'streaming',
+            ]
+        );
+
+        foreach ($messages as $msg) {
+            try {
+                if (!is_array($msg)) {
+                    $skipped++;
+                    continue;
+                }
+
+                $res = $this->parseAndIngestRawFrame($msg);
+                if ($res['status'] === 'inserted') {
+                    $inserted++;
+                } else {
+                    $skipped++;
+                }
+            } catch (\Throwable $e) {
+                $errors[] = $e->getMessage();
+                Log::warning('AIS batch item ingestion error: ' . $e->getMessage());
+            }
+        }
+
+        // Mark Node.js background worker as alive for 120 seconds
+        \Illuminate\Support\Facades\Cache::put('ais_stream_node_worker_alive', now()->toIso8601String(), 120);
+
+        $telemetryMeta = [
+            'last_frame_at' => now()->toIso8601String(),
+            'batch_messages_received' => $received,
+            'batch_inserted' => $inserted,
+            'batch_skipped' => $skipped,
+            'total_positions_in_db' => VesselPosition::count(),
+            'total_vessels_in_db' => Vessel::count(),
+        ];
+
+        $provider->update([
+            'health_status' => 'streaming',
+            'last_sync_at' => now(),
+            'last_error_message' => empty($errors) ? null : end($errors),
+            'rate_limit_info' => array_merge($provider->rate_limit_info ?? [], $telemetryMeta),
+        ]);
+
+        return [
+            'status' => 'success',
+            'received' => $received,
+            'inserted' => $inserted,
+            'skipped' => $skipped,
+            'errors' => $errors,
+        ];
+    }
+
+    /**
+     * Map AIS numeric ship type code to normalized GFVIP vessel type.
+     * Strictly based on ITU-R M.1371 / IMO ship type tables.
+     * Non-fishing vessels or unknown types must NOT default to 'fishing'.
+     */
+    public static function normalizeVesselType(mixed $type): string
+    {
+        if (is_string($type)) {
+            $t = strtolower(trim($type));
+            $t = str_replace(['-', ' '], '_', $t);
+            if ($t === 'sar') return 'sar';
+            if ($t === 'port_tender') return 'port_tender';
+            if ($t === 'anti_pollution') return 'anti_pollution';
+            if (in_array($t, [
+                'fishing', 'military', 'sailing', 'pleasure', 'pilot',
+                'sar', 'tug', 'port_tender', 'anti_pollution', 'patrol',
+                'medical', 'passenger', 'cargo', 'tanker', 'carrier',
+                'bunker', 'support', 'unknown'
+            ])) {
+                return $t;
+            }
+            if (is_numeric($t)) {
+                $type = (int) $t;
+            } else {
+                return 'unknown';
+            }
+        }
+
+        if (!is_numeric($type)) {
+            return 'unknown';
+        }
+
+        $code = (int) $type;
+
+        // ITU-R M.1371 / IMO AIS Ship Type Codes:
+        // 30: Fishing
+        if ($code === 30) {
+            return 'fishing';
+        }
+
+        // 35: Military operations
+        if ($code === 35) {
+            return 'military';
+        }
+
+        // 36: Sailing vessel
+        if ($code === 36) {
+            return 'sailing';
+        }
+
+        // 37: Pleasure craft
+        if ($code === 37) {
+            return 'pleasure';
+        }
+
+        // 50: Pilot vessel
+        if ($code === 50) {
+            return 'pilot';
+        }
+
+        // 51: SAR (Search and Rescue)
+        if ($code === 51) {
+            return 'sar';
+        }
+
+        // 52: Tug
+        if ($code === 52) {
+            return 'tug';
+        }
+
+        // 53: Port tender
+        if ($code === 53) {
+            return 'port_tender';
+        }
+
+        // 54: Anti-pollution equipment
+        if ($code === 54) {
+            return 'anti_pollution';
+        }
+
+        // 55: Law enforcement / Patrol craft
+        if ($code === 55) {
+            return 'patrol';
+        }
+
+        // 56, 57: Local vessel / unknown
+        if ($code === 56 || $code === 57) {
+            return 'unknown';
+        }
+
+        // 58: Medical transport
+        if ($code === 58) {
+            return 'medical';
+        }
+
+        // 59: Non-combatant ship / unknown
+        if ($code === 59) {
+            return 'unknown';
+        }
+
+        // 60–69: Passenger ships
+        if ($code >= 60 && $code <= 69) {
+            return 'passenger';
+        }
+
+        // 70–79: Cargo ships
+        if ($code >= 70 && $code <= 79) {
+            return 'cargo';
+        }
+
+        // 80–89: Tankers
+        if ($code >= 80 && $code <= 89) {
+            return 'tanker';
+        }
+
+        // Default: Strictly 'unknown' rather than guessing
+        return 'unknown';
+    }
+
+    /**
+     * Parse raw ShipStaticData (Type 5) or StaticDataReport (Type 24) payload into normalized array
+     */
+    public function ingestStaticMessage(array $message): ?Vessel
+    {
+        $rawMmsi = (string) ($message['mmsi'] ?? '');
+        $cleanMmsi = preg_replace('/\D/', '', $rawMmsi);
+
+        if (strlen($cleanMmsi) < 7 || strlen($cleanMmsi) > 9) {
+            return null;
+        }
+
+        // SECTION C: Strictly reject static updates for known cargo/tanker prohibited MMSIs
+        if (\App\Models\ProhibitedVessel::isProhibited($cleanMmsi)) {
+            return null;
+        }
+
+        $shipName = !empty($message['vessel_name']) ? trim(trim((string) $message['vessel_name']), '@') : null;
+        $callSign = !empty($message['callsign']) ? strtoupper(trim(trim((string) $message['callsign']), '@')) : null;
+        $rawImo = !empty($message['imo']) ? preg_replace('/\D/', '', (string) $message['imo']) : null;
+        $cleanImo = ($rawImo && strlen($rawImo) === 7) ? $rawImo : null;
+        
+        $rawShipType = $message['ship_type'] ?? null;
+        $vesselType = null;
+        $classificationSource = null;
+        $aisTypeCode = null;
+
+        if ($rawShipType !== null && $rawShipType !== '') {
+            $normalized = self::normalizeVesselType($rawShipType);
+            // SECTION C: Tolak penyimpanan kapal dengan klasifikasi cargo atau tanker pada pipeline AIS
+            if (in_array($normalized, ['cargo', 'tanker'])) {
+                \App\Models\ProhibitedVessel::firstOrCreate(
+                    ['mmsi' => $cleanMmsi],
+                    [
+                        'reason' => 'cargo_tanker_policy',
+                        'original_name' => $shipName,
+                        'original_type' => $normalized,
+                    ]
+                );
+                return null;
+            }
+            $vesselType = $normalized;
+        }
+
+        $length = isset($message['length_meters']) && is_numeric($message['length_meters']) && (float) $message['length_meters'] > 0
+            ? (float) $message['length_meters']
+            : null;
+
+        $observedAt = isset($message['timestamp'])
+            ? \Carbon\Carbon::parse($message['timestamp'])
+            : now();
+
+        $provider = DataProvider::firstOrCreate(
+            ['slug' => $this->providerSlug],
+            [
+                'name' => 'AIS Live Stream Provider',
+                'type' => 'ais_stream',
+                'is_enabled' => true,
+                'health_status' => 'streaming',
+            ]
+        );
+
+        return DB::transaction(function () use ($cleanMmsi, $shipName, $callSign, $cleanImo, $vesselType, $classificationSource, $aisTypeCode, $length, $observedAt, $provider, $message) {
+            $initialMeta = [];
+            if ($classificationSource) {
+                $initialMeta['classification_source'] = $classificationSource;
+                $initialMeta['ais_ship_type_code'] = $aisTypeCode;
+                $initialMeta['classified_at'] = now()->toIso8601String();
+            }
+
+            $vessel = Vessel::firstOrCreate(
+                ['mmsi' => $cleanMmsi],
+                [
+                    'name' => $shipName ?: ('VESSEL-' . $cleanMmsi),
+                    'flag_state' => $message['flag'] ?? null,
+                    'vessel_type' => $vesselType ?: 'unknown',
+                    'callsign' => $callSign,
+                    'imo' => $cleanImo,
+                    'length_meters' => $length,
+                    'source_provider_id' => $provider->id,
+                    'verification_status' => 'provider_reported',
+                    'first_seen_at' => $observedAt,
+                    'last_seen_at' => $observedAt,
+                    'metadata' => !empty($initialMeta) ? $initialMeta : null,
+                ]
+            );
+
+            $updates = [];
+            if ($shipName && (empty($vessel->name) || str_starts_with($vessel->name, 'VESSEL-'))) {
+                $updates['name'] = $shipName;
+            }
+            if ($callSign && empty($vessel->callsign)) {
+                $updates['callsign'] = $callSign;
+            }
+            if ($cleanImo && empty($vessel->imo)) {
+                $updates['imo'] = $cleanImo;
+            }
+            if ($vesselType && $vesselType !== 'unknown') {
+                if (empty($vessel->vessel_type) || $vessel->vessel_type === 'unknown') {
+                    $updates['vessel_type'] = $vesselType;
+                    if ($classificationSource) {
+                        $meta = $vessel->metadata ?? [];
+                        $meta['classification_source'] = $classificationSource;
+                        $meta['ais_ship_type_code'] = $aisTypeCode;
+                        $meta['classified_at'] = now()->toIso8601String();
+                        $updates['metadata'] = $meta;
+                    }
+                } elseif ($classificationSource && in_array($vesselType, ['cargo', 'tanker'])) {
+                    $updates['vessel_type'] = $vesselType;
+                    $meta = $vessel->metadata ?? [];
+                    $meta['classification_source'] = $classificationSource;
+                    $meta['ais_ship_type_code'] = $aisTypeCode;
+                    $meta['classified_at'] = now()->toIso8601String();
+                    $updates['metadata'] = $meta;
+                }
+            }
+            if ($length && empty($vessel->length_meters)) {
+                $updates['length_meters'] = $length;
+            }
+
+            if (!$vessel->last_seen_at || $observedAt->gt($vessel->last_seen_at)) {
+                $updates['last_seen_at'] = $observedAt;
+            }
+
+            if (!empty($updates)) {
+                $vessel->update($updates);
+            }
+
+            // Register identifiers
+            VesselIdentifier::firstOrCreate(
+                ['vessel_id' => $vessel->id, 'identifier_type' => 'mmsi', 'identifier_value' => $cleanMmsi],
+                ['is_current' => true, 'source_provider_id' => $provider->id]
+            );
+            if ($cleanImo) {
+                VesselIdentifier::firstOrCreate(
+                    ['vessel_id' => $vessel->id, 'identifier_type' => 'imo', 'identifier_value' => $cleanImo],
+                    ['is_current' => true, 'source_provider_id' => $provider->id]
+                );
+            }
+            if ($callSign) {
+                VesselIdentifier::firstOrCreate(
+                    ['vessel_id' => $vessel->id, 'identifier_type' => 'callsign', 'identifier_value' => $callSign],
+                    ['is_current' => true, 'source_provider_id' => $provider->id]
+                );
+            }
+
+            return $vessel;
+        });
+    }
+
+    /**
      * Ingest genuine AIS message from external REST, stream, or batch payload
      *
      * @param array $message Single AIS position message
@@ -489,6 +975,11 @@ class AisStreamAdapter implements ProviderAdapterInterface
 
         // Standard maritime MMSI is 9 digits, allow 7-9 for special coastal/auxiliary craft
         if (strlen($cleanMmsi) < 7 || strlen($cleanMmsi) > 9) {
+            return null;
+        }
+
+        // SECTION C: Strictly reject positions from MMSIs known as cargo or tanker
+        if (\App\Models\ProhibitedVessel::isProhibited($cleanMmsi)) {
             return null;
         }
 
@@ -505,6 +996,31 @@ class AisStreamAdapter implements ProviderAdapterInterface
         // Validate coordinate bounds
         if ($lat < -90.0 || $lat > 90.0 || $lng < -180.0 || $lng > 180.0) {
             return null;
+        }
+
+        // Validate SOG / COG / Heading sentinel values
+        $sog = isset($message['speed_over_ground']) && is_numeric($message['speed_over_ground'])
+            ? (float) $message['speed_over_ground']
+            : null;
+        if ($sog !== null && ($sog < 0 || $sog >= 102.2)) {
+            // 102.3 knots is AIS sentinel for "not available"
+            $sog = null;
+        }
+
+        $cog = isset($message['course_over_ground']) && is_numeric($message['course_over_ground'])
+            ? (float) $message['course_over_ground']
+            : null;
+        if ($cog !== null && ($cog < 0 || $cog >= 360.0)) {
+            // 360.0 or 3600 is AIS sentinel for "not available"
+            $cog = null;
+        }
+
+        $heading = isset($message['true_heading']) && is_numeric($message['true_heading'])
+            ? (float) $message['true_heading']
+            : null;
+        if ($heading !== null && ($heading < 0 || $heading >= 360.0 || (int)$heading === 511)) {
+            // 511 is AIS sentinel for "not available"
+            $heading = null;
         }
 
         // Normalize observation timestamp
@@ -524,8 +1040,32 @@ class AisStreamAdapter implements ProviderAdapterInterface
         }
 
         $cleanCallsign = !empty($message['callsign'])
-            ? strtoupper(trim((string) $message['callsign']))
+            ? strtoupper(trim(trim((string) $message['callsign']), '@'))
             : null;
+
+        $shipName = !empty($message['vessel_name'])
+            ? trim(trim((string) $message['vessel_name']), '@')
+            : ('VESSEL-' . $cleanMmsi);
+
+        $rawShipType = $message['ship_type'] ?? null;
+        $vesselType = 'unknown';
+
+        if ($rawShipType !== null && $rawShipType !== '') {
+            $normalized = self::normalizeVesselType($rawShipType);
+            // SECTION C: Strictly reject storing cargo or tanker vessels on AIS pipeline
+            if (in_array($normalized, ['cargo', 'tanker'])) {
+                \App\Models\ProhibitedVessel::firstOrCreate(
+                    ['mmsi' => $cleanMmsi],
+                    [
+                        'reason' => 'cargo_tanker_policy',
+                        'original_name' => $shipName,
+                        'original_type' => $normalized,
+                    ]
+                );
+                return null;
+            }
+            $vesselType = $normalized;
+        }
 
         $provider = DataProvider::firstOrCreate(
             ['slug' => $this->providerSlug],
@@ -537,13 +1077,13 @@ class AisStreamAdapter implements ProviderAdapterInterface
             ]
         );
 
-        return DB::transaction(function () use ($message, $cleanMmsi, $cleanImo, $cleanCallsign, $lat, $lng, $observedAt, $provider) {
+        return DB::transaction(function () use ($message, $cleanMmsi, $cleanImo, $cleanCallsign, $shipName, $vesselType, $lat, $lng, $sog, $cog, $heading, $observedAt, $provider) {
             $vessel = Vessel::firstOrCreate(
                 ['mmsi' => $cleanMmsi],
                 [
-                    'name' => $message['vessel_name'] ?? ('VESSEL-' . $cleanMmsi),
+                    'name' => $shipName,
                     'flag_state' => $message['flag'] ?? null,
-                    'vessel_type' => $message['ship_type'] ?? 'fishing',
+                    'vessel_type' => $vesselType,
                     'callsign' => $cleanCallsign,
                     'imo' => $cleanImo,
                     'source_provider_id' => $provider->id,
@@ -560,6 +1100,12 @@ class AisStreamAdapter implements ProviderAdapterInterface
             }
             if ($cleanCallsign && !$vessel->callsign) {
                 $vesselUpdates['callsign'] = $cleanCallsign;
+            }
+            if ($vesselType !== 'unknown' && ($vessel->vessel_type === 'unknown' || empty($vessel->vessel_type))) {
+                $vesselUpdates['vessel_type'] = $vesselType;
+            }
+            if ($shipName && (empty($vessel->name) || str_starts_with($vessel->name, 'VESSEL-'))) {
+                $vesselUpdates['name'] = $shipName;
             }
 
             // Strictly guard last_seen_at: historical packets must NOT regress latest position
@@ -600,22 +1146,34 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 return $existingPosition;
             }
 
-            // Save new position
-            $position = VesselPosition::create([
-                'vessel_id' => $vessel->id,
-                'latitude' => $lat,
-                'longitude' => $lng,
-                'speed_knots' => $message['speed_over_ground'] ?? null,
-                'course_degrees' => $message['course_over_ground'] ?? null,
-                'heading_degrees' => $message['true_heading'] ?? null,
-                'nav_status' => $message['nav_status'] ?? 'under_way',
-                'observed_at' => $observedAt,
-                'received_at' => now(),
-                'source_provider_id' => $provider->id,
-                'data_quality_score' => $message['quality_score'] ?? 1.0,
-                'is_gap_indicator' => false,
-                'raw_payload' => $message,
-            ]);
+            try {
+                // Save new position
+                $position = VesselPosition::create([
+                    'vessel_id' => $vessel->id,
+                    'latitude' => $lat,
+                    'longitude' => $lng,
+                    'speed_knots' => $sog,
+                    'course_degrees' => $cog,
+                    'heading_degrees' => $heading,
+                    'nav_status' => $message['nav_status'] ?? 'under_way',
+                    'observed_at' => $observedAt,
+                    'received_at' => now(),
+                    'source_provider_id' => $provider->id,
+                    'data_quality_score' => $message['quality_score'] ?? 1.0,
+                    'is_gap_indicator' => false,
+                    'raw_payload' => $message['raw_payload'] ?? $message,
+                ]);
+            } catch (\Illuminate\Database\QueryException $e) {
+                // Concurrency duplicate race condition caught by unique index
+                if (str_contains($e->getMessage(), 'unique') || str_contains($e->getMessage(), 'Duplicate') || $e->getCode() == 23505) {
+                    return VesselPosition::where('vessel_id', $vessel->id)
+                        ->where('observed_at', $observedAt)
+                        ->where('latitude', $lat)
+                        ->where('longitude', $lng)
+                        ->first();
+                }
+                throw $e;
+            }
 
             // Update PostGIS geom if pgsql driver is active
             if (DB::connection()->getDriverName() === 'pgsql') {

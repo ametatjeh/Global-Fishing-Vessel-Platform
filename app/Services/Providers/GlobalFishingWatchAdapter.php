@@ -528,12 +528,21 @@ class GlobalFishingWatchAdapter implements ProviderAdapterInterface
         $mmsi = $vData['ssvid'] ?? $vData['mmsi'] ?? null;
         $name = $vData['name'] ?? ('VESSEL-' . ($mmsi ?: substr(md5(json_encode($vData)), 0, 6)));
 
+        $rawType = strtolower(trim((string) ($vData['vesselType'] ?? '')));
+        // RULE B: Strict prohibition on third-party / external APIs classifying cargo or tanker.
+        // Classification of cargo and tanker is exclusively reserved for local AISStream ShipType.
+        if (in_array($rawType, ['cargo', 'tanker'])) {
+            $vesselType = 'unknown';
+        } else {
+            $vesselType = !empty($vData['vesselType']) ? $vData['vesselType'] : 'fishing';
+        }
+
         return Vessel::firstOrCreate(
             ['mmsi' => $mmsi],
             [
                 'name' => $name,
                 'flag_state' => $vData['flag'] ?? null,
-                'vessel_type' => $vData['vesselType'] ?? 'fishing',
+                'vessel_type' => $vesselType,
                 'callsign' => $vData['callsign'] ?? null,
                 'imo' => $vData['imo'] ?? null,
                 'source_provider_id' => $providerId,

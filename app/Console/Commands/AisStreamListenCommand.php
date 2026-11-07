@@ -87,22 +87,25 @@ class AisStreamListenCommand extends Command
                 break;
             }
 
-            // If busy (another worker holds lock), wait and retry
+            // If busy (another worker holds lock), wait with jitter and retry
             if ($status === 'busy') {
-                $this->warn('Worker lain sedang aktif memegang lock. Menunggu 15 detik sebelum mencoba kembali...');
-                sleep(15);
+                $waitSec = 15 + random_int(1, 5);
+                $this->warn("Worker lain sedang aktif memegang lock. Menunggu {$waitSec} detik sebelum mencoba kembali...");
+                sleep($waitSec);
                 continue;
             }
 
-            // If error, apply exponential backoff
-            if ($status === 'error' || $status === 'failed') {
+            // If error, apply exponential backoff with random jitter
+            if ($status === 'error' || $status === 'failed' || $status === 'partially_failed' && $fetched === 0) {
                 $attempt++;
                 if ($attempt >= $maxReconnects) {
                     $this->error("Telah mencapai batas maksimum reconnect ({$maxReconnects}). Menghentikan daemon.");
                     return self::FAILURE;
                 }
-                $backoffSeconds = min(30, (int) pow(2, min($attempt, 5)));
-                $this->warn("Koneksi terputus. Mencoba reconnect ke-{$attempt} dalam {$backoffSeconds} detik...");
+                $baseBackoff = min(60, (int) pow(2, min($attempt, 6)));
+                $jitter = random_int(1, 5);
+                $backoffSeconds = $baseBackoff + $jitter;
+                $this->warn("Koneksi terputus. Mencoba reconnect ke-{$attempt} dalam {$backoffSeconds} detik (backoff {$baseBackoff}s + jitter {$jitter}s)...");
                 sleep($backoffSeconds);
             } else {
                 // Successful session, reset attempt counter

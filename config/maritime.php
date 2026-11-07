@@ -105,6 +105,7 @@ return [
             'name' => 'AIS Live Telemetry Stream / Provider',
             'provider' => env('AIS_PROVIDER', 'ais-stream'),
             'api_key' => env('AIS_STREAM_API_KEY', env('AIS_API_KEY', null)),
+            'ingest_token' => env('AIS_INGEST_TOKEN', env('AIS_STREAM_API_KEY', env('AIS_API_KEY', null))),
             'is_configured' => !empty(env('AIS_STREAM_API_KEY', env('AIS_API_KEY'))),
             'license_type' => 'Provider Proprietary License',
             'bounding_boxes' => env('AIS_BOUNDING_BOXES')
@@ -112,13 +113,20 @@ return [
                 : [[[-90.0, -180.0], [90.0, 180.0]]],
             'filter_message_types' => env('AIS_FILTER_MESSAGE_TYPES')
                 ? explode(',', env('AIS_FILTER_MESSAGE_TYPES'))
-                : ['PositionReport'],
+                : [
+                    'PositionReport',
+                    'ShipStaticData',
+                    'StandardClassBPositionReport',
+                    'ExtendedClassBPositionReport',
+                    'StaticDataReport',
+                ],
             'filter_mmsi' => env('AIS_FILTER_MMSI')
                 ? explode(',', env('AIS_FILTER_MMSI'))
                 : null,
             'socket_timeout' => (int) env('AIS_SOCKET_TIMEOUT', 15),
             'reconnect_delay_seconds' => (int) env('AIS_RECONNECT_DELAY', 5),
-            'max_reconnect_attempts' => (int) env('AIS_MAX_RECONNECT_ATTEMPTS', 5),
+            'max_reconnect_attempts' => (int) env('AIS_MAX_RECONNECT_ATTEMPTS', 10),
+            'batch_size' => (int) env('AIS_BATCH_SIZE', 50),
         ],
     ],
 

@@ -129,6 +129,30 @@
                     </div>
                 </div>
 
+                @if($provider->slug === 'ais-stream' && !empty($provider->rate_limit_info))
+                @php
+                    $aisMeta = $provider->rate_limit_info;
+                @endphp
+                <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px] font-mono">
+                    <div>
+                        <span class="text-slate-400">Pesan Diterima:</span>
+                        <div class="font-bold text-teal-300">{{ number_format($aisMeta['session_messages_received'] ?? $aisMeta['batch_messages_received'] ?? 0) }}</div>
+                    </div>
+                    <div>
+                        <span class="text-slate-400">Posisi & Update Baru:</span>
+                        <div class="font-bold text-sky-300">{{ number_format($aisMeta['session_inserted'] ?? $aisMeta['batch_inserted'] ?? 0) }}</div>
+                    </div>
+                    <div>
+                        <span class="text-slate-400">Duplikat / Dilewati:</span>
+                        <div class="font-bold text-slate-300">{{ number_format($aisMeta['session_skipped'] ?? $aisMeta['batch_skipped'] ?? 0) }}</div>
+                    </div>
+                    <div>
+                        <span class="text-slate-400">Total Posisi di DB:</span>
+                        <div class="font-bold text-amber-300">{{ number_format($aisMeta['total_positions_in_db'] ?? \App\Models\VesselPosition::count()) }}</div>
+                    </div>
+                </div>
+                @endif
+
                 @if($provider->last_error_message)
                 <div class="p-2.5 rounded-lg {{ $provider->health_status === 'research_access_required' ? 'bg-amber-950/40 border border-amber-500/30 text-amber-300' : 'bg-rose-950/40 border border-rose-500/30 text-rose-300' }} text-[11px]">
                     <strong>Catatan Diagnostik:</strong> {{ $provider->last_error_message }}

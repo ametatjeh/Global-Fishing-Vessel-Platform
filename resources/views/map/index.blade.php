@@ -54,11 +54,39 @@
             <button type="button" id="btnResetView" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition border border-slate-700" title="Pusatkan peta ke tampilan awal">
                 Reset View
             </button>
+
+            <!-- Basemap Switcher Dropdown Button -->
+            <div class="relative">
+                <button type="button" id="btnToggleBasemapMenu" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold border border-slate-700 flex items-center gap-1.5 transition" title="Ganti penyedia base map">
+                    <span>🗺️</span>
+                    <span class="hidden sm:inline">Base:</span>
+                    <span id="activeBasemapName" class="text-teal-300 font-bold">OpenFreeMap</span>
+                    <span class="text-[9px]">▼</span>
+                </button>
+                <div id="basemapMenuDropdown" class="hidden absolute top-full left-0 mt-1.5 w-60 rounded-xl glass-panel border border-slate-700/90 shadow-2xl p-1.5 z-30 space-y-1 text-xs">
+                    <button type="button" class="btn-select-style w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 flex items-center justify-between text-slate-200 transition" data-style="openfreemap-liberty">
+                        <span class="font-semibold">OpenFreeMap Liberty</span>
+                        <span class="text-[10px] text-teal-400 font-mono">Vector (Default)</span>
+                    </button>
+                    <button type="button" class="btn-select-style w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 flex items-center justify-between text-slate-200 transition" data-style="openfreemap-positron">
+                        <span class="font-semibold">OpenFreeMap Positron</span>
+                        <span class="text-[10px] text-teal-400 font-mono">Vector (Light)</span>
+                    </button>
+                    <button type="button" class="btn-select-style w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 flex items-center justify-between text-slate-200 transition" data-style="openfreemap-bright">
+                        <span class="font-semibold">OpenFreeMap Bright</span>
+                        <span class="text-[10px] text-teal-400 font-mono">Vector (Contrast)</span>
+                    </button>
+                    <button type="button" class="btn-select-style w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 flex items-center justify-between text-slate-200 transition" data-style="esri-dark">
+                        <span class="font-semibold">ESRI Dark Gray</span>
+                        <span class="text-[10px] text-amber-400 font-mono">Canvas Fallback</span>
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- Coverage & Metadata Modal Trigger -->
         <div class="pointer-events-auto flex items-center gap-2 p-1.5 rounded-xl glass-panel border border-slate-700/80 shadow-lg text-[11px]">
-            <span class="text-slate-400 font-semibold px-2">Basemap: <strong class="text-teal-300">ESRI Dark Gray</strong> (EPSG:4326)</span>
+            <span class="text-slate-400 font-semibold px-2">Basemap: <strong class="text-teal-300">OpenFreeMap</strong> (ESRI Dark Gray fallback)</span>
             <button type="button" id="btnOpenMetadataModal" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700 transition">
                 📜 Provenance & Legal
             </button>
@@ -86,6 +114,155 @@
 
     <!-- Map Canvas Container -->
     <div id="global-map-canvas" class="w-full h-full flex-1 bg-slate-950 min-h-[480px]"></div>
+
+    <!-- Bottom Coordinates & Map Scale Status Bar -->
+    <div class="absolute bottom-2 left-4 z-10 pointer-events-none flex flex-wrap items-center gap-2">
+        <div class="pointer-events-auto px-2.5 py-1 rounded-lg glass-panel border border-slate-700/80 shadow-md text-[11px] font-mono text-slate-300 flex items-center gap-2">
+            <span class="text-teal-400 font-bold">📍</span>
+            <span id="cursorCoordinates">Lat: 0.00000°, Lon: 0.00000° | Zoom: 3.50</span>
+        </div>
+        <div class="pointer-events-auto hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-panel border border-slate-700/80 shadow-md text-[11px] font-mono text-slate-400">
+            <span>Penyedia Peta:</span>
+            <span id="currentBasemapLabel" class="text-teal-300 font-semibold">OpenFreeMap Liberty</span>
+        </div>
+    </div>
+
+    <!-- Floating Right-Side Vessel Detail Panel (Open Waters AIS Approach) -->
+    <div id="vesselDetailPanel" class="hidden absolute top-4 right-4 bottom-4 z-20 w-80 sm:w-96 max-h-[calc(100%-2rem)] flex flex-col bg-slate-900/95 border border-slate-700/80 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden transition-all duration-300 ease-in-out text-xs">
+        <!-- Header -->
+        <div class="p-3.5 border-b border-slate-700/80 bg-slate-950/70 flex items-start justify-between gap-2 shrink-0">
+            <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                    <span id="panelVesselFlagEmoji" class="text-xl shrink-0">🌐</span>
+                    <h2 id="panelVesselName" class="font-bold text-white text-sm truncate font-sans tracking-wide">Nama Kapal</h2>
+                </div>
+                <div class="flex items-center gap-2 mt-1 text-[11px] font-mono">
+                    <span id="panelVesselFlagName" class="text-slate-400 truncate">Indonesia</span>
+                    <span id="panelVesselTypeBadge" class="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-emerald-950 text-emerald-300 border border-emerald-700">Fishing</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+                <span id="panelVesselFreshnessBadge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">● LIVE</span>
+                <button type="button" id="btnCloseVesselPanel" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition text-lg font-bold leading-none" title="Tutup panel detail (Esc)">&times;</button>
+            </div>
+        </div>
+
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+            <!-- Telemetry Summary Cards -->
+            <div class="grid grid-cols-2 gap-2 font-mono">
+                <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
+                    <div class="text-[10px] text-slate-400 uppercase tracking-wider">Speed (SOG)</div>
+                    <div class="text-base font-bold text-sky-300 mt-0.5 flex items-baseline gap-1">
+                        <span id="panelVesselSog">0.0</span>
+                        <span class="text-[10px] text-slate-400 font-normal">knots</span>
+                    </div>
+                </div>
+                <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
+                    <div class="text-[10px] text-slate-400 uppercase tracking-wider">Course (COG)</div>
+                    <div class="text-base font-bold text-sky-300 mt-0.5 flex items-baseline gap-1">
+                        <span id="panelVesselCog">0.0°</span>
+                    </div>
+                </div>
+                <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
+                    <div class="text-[10px] text-slate-400 uppercase tracking-wider">True Heading</div>
+                    <div class="text-base font-bold text-emerald-300 mt-0.5 flex items-baseline gap-1">
+                        <span id="panelVesselHeading">-</span>
+                    </div>
+                </div>
+                <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
+                    <div class="text-[10px] text-slate-400 uppercase tracking-wider">Status Nav</div>
+                    <div id="panelVesselNavStatus" class="text-xs font-semibold text-slate-200 mt-0.5 truncate capitalize">
+                        Under way
+                    </div>
+                </div>
+            </div>
+
+            <!-- Position, Orientation & Timestamp -->
+            <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5 font-mono text-[11px]">
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400">Koordinat:</span>
+                    <span id="panelVesselCoords" class="text-slate-200 font-bold select-all">0.0000°, 0.0000°</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400">Orientasi:</span>
+                    <span id="panelVesselOrientation" class="text-slate-300 font-semibold">-</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400">Laporan Terakhir:</span>
+                    <span id="panelVesselTime" class="text-slate-300 truncate max-w-[180px]" title="-">-</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400">Sumber Data:</span>
+                    <span id="panelVesselProvider" class="text-teal-300 font-semibold">AISStream Gateway</span>
+                </div>
+            </div>
+
+            <!-- Identification Table -->
+            <div class="space-y-1.5 font-mono text-[11px]">
+                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Identitas Kapal</div>
+                <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5 divide-y divide-slate-800/80">
+                    <div class="flex items-center justify-between pt-1 first:pt-0">
+                        <span class="text-slate-400">MMSI:</span>
+                        <strong id="panelVesselMmsi" class="text-white font-bold select-all">-</strong>
+                    </div>
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-slate-400">IMO:</span>
+                        <strong id="panelVesselImo" class="text-white">-</strong>
+                    </div>
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-slate-400">Callsign:</span>
+                        <strong id="panelVesselCallsign" class="text-white">-</strong>
+                    </div>
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-slate-400">Bendera:</span>
+                        <span id="panelVesselFlagFull" class="text-slate-200 font-semibold truncate max-w-[160px]">-</span>
+                    </div>
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-slate-400">Tipe Kapal:</span>
+                        <span id="panelVesselTypeDesc" class="text-slate-200 capitalize">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Historical Track Section (Open Waters AIS Approach) -->
+            <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                    <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider font-mono">Lintasan Historis AIS</div>
+                    <span id="panelTrackPointBadge" class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-cyan-950 text-cyan-300 border border-cyan-800">0 titik</span>
+                </div>
+                
+                <!-- Time Window Selector Pills -->
+                <div class="grid grid-cols-4 gap-1 text-[11px] font-mono">
+                    <button type="button" class="btn-track-range px-2 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="1h">1 Jam</button>
+                    <button type="button" class="btn-track-range px-2 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="6h">6 Jam</button>
+                    <button type="button" class="btn-track-range px-2 py-1 rounded-lg bg-cyan-950 border border-cyan-500 text-cyan-300 font-bold transition text-center" data-range="24h">24 Jam</button>
+                    <button type="button" class="btn-track-range px-2 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="7d">7 Hari</button>
+                </div>
+
+                <div class="flex items-center gap-1.5 pt-1">
+                    <button type="button" id="panelBtnFitTrack" class="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 font-semibold text-center transition flex items-center justify-center gap-1">
+                        <span>🧭</span> <span>Fit Track</span>
+                    </button>
+                    <button type="button" id="panelBtnToggleTrack" class="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-semibold text-center transition flex items-center justify-center gap-1">
+                        <span id="panelToggleTrackIcon">👁️</span> <span id="panelToggleTrackText">Sembunyikan</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="p-3 border-t border-slate-700/80 bg-slate-950/80 flex items-center gap-2 shrink-0">
+            <a id="panelVesselProfileLink" href="#" class="flex-1 px-3 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-center transition shadow-sm flex items-center justify-center gap-1.5">
+                <span>Profil Kapal Lengkap</span>
+                <span>&rarr;</span>
+            </a>
+            <button type="button" id="panelBtnShareUrl" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold transition flex items-center gap-1" title="Salin tautan posisi kapal ini">
+                <span>🔗</span>
+                <span class="hidden sm:inline">Bagikan</span>
+            </button>
+        </div>
+    </div>
 
     <!-- LEFT: Modern Advanced Maritime Filters Panel (Overlay, non-blocking) -->
     <div id="advancedFiltersPanel" class="hidden absolute top-20 left-4 z-20 w-84 sm:w-96 max-h-[calc(100%-6rem)] overflow-y-auto glass-panel p-4 rounded-2xl border border-slate-700/80 shadow-2xl space-y-3.5 text-xs">
@@ -916,6 +1093,121 @@
         if (btnClearTrack) {
             btnClearTrack.addEventListener('click', () => mapController.clearVesselTrack());
         }
+
+        // ----------------------------------------------------
+        // OPEN WATERS AIS: VESSEL DETAIL PANEL & TRACK CONTROLS
+        // ----------------------------------------------------
+        const btnCloseVesselPanel = document.getElementById('btnCloseVesselPanel');
+        const panelBtnFitTrack = document.getElementById('panelBtnFitTrack');
+        const panelBtnToggleTrack = document.getElementById('panelBtnToggleTrack');
+        const panelBtnShareUrl = document.getElementById('panelBtnShareUrl');
+        const panelToggleIcon = document.getElementById('panelToggleTrackIcon');
+        const panelToggleText = document.getElementById('panelToggleTrackText');
+
+        if (btnCloseVesselPanel) {
+            btnCloseVesselPanel.addEventListener('click', () => {
+                mapController.closeVesselDetailPanel();
+            });
+        }
+
+        if (panelBtnFitTrack) {
+            panelBtnFitTrack.addEventListener('click', () => {
+                mapController.fitVesselTrack();
+            });
+        }
+
+        if (panelBtnToggleTrack) {
+            panelBtnToggleTrack.addEventListener('click', () => {
+                if (mapController.trackVisible) {
+                    mapController.hideVesselTrack();
+                    if (panelToggleText) panelToggleText.textContent = 'Tampilkan';
+                    if (panelToggleIcon) panelToggleIcon.textContent = '🙈';
+                } else {
+                    mapController.showTrackLayer();
+                    if (panelToggleText) panelToggleText.textContent = 'Sembunyikan';
+                    if (panelToggleIcon) panelToggleIcon.textContent = '👁️';
+                }
+            });
+        }
+
+        // Track time window filter buttons (1h, 6h, 24h, 7d)
+        document.querySelectorAll('.btn-track-range').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const range = e.currentTarget.getAttribute('data-range');
+                document.querySelectorAll('.btn-track-range').forEach(b => {
+                    b.className = 'btn-track-range px-2 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center';
+                });
+                e.currentTarget.className = 'btn-track-range px-2 py-1 rounded-lg bg-cyan-950 border border-cyan-500 text-cyan-300 font-bold transition text-center';
+                const targetId = mapController.selectedVesselId || mapController.selectedMmsi;
+                if (targetId) {
+                    mapController.showVesselTrack(targetId, { range: range, fitBounds: false });
+                }
+            });
+        });
+
+        if (panelBtnShareUrl) {
+            panelBtnShareUrl.addEventListener('click', () => {
+                const url = window.location.href;
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(url).then(() => {
+                        const originalHtml = panelBtnShareUrl.innerHTML;
+                        panelBtnShareUrl.innerHTML = '<span>✓</span> <span>Tersalin!</span>';
+                        panelBtnShareUrl.classList.add('text-emerald-300', 'border-emerald-500/50');
+                        setTimeout(() => {
+                            panelBtnShareUrl.innerHTML = originalHtml;
+                            panelBtnShareUrl.classList.remove('text-emerald-300', 'border-emerald-500/50');
+                        }, 2000);
+                    }).catch(() => {
+                        prompt('Salin tautan posisi kapal ini:', url);
+                    });
+                } else {
+                    prompt('Salin tautan posisi kapal ini:', url);
+                }
+            });
+        }
+
+        // Basemap Switcher dropdown & styles
+        const btnToggleBasemap = document.getElementById('btnToggleBasemapMenu');
+        const basemapDropdown = document.getElementById('basemapMenuDropdown');
+        if (btnToggleBasemap && basemapDropdown) {
+            btnToggleBasemap.addEventListener('click', (e) => {
+                e.stopPropagation();
+                basemapDropdown.classList.toggle('hidden');
+            });
+            document.addEventListener('click', (e) => {
+                if (!basemapDropdown.contains(e.target) && !btnToggleBasemap.contains(e.target)) {
+                    basemapDropdown.classList.add('hidden');
+                }
+            });
+        }
+        document.querySelectorAll('.btn-select-style').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const style = e.currentTarget.getAttribute('data-style');
+                mapController.setBasemapStyle(style);
+                const activeName = document.getElementById('activeBasemapName');
+                if (activeName) {
+                    activeName.textContent = style === 'esri-dark' ? 'ESRI Dark' : 'OpenFreeMap';
+                }
+                const currentLabel = document.getElementById('currentBasemapLabel');
+                if (currentLabel) {
+                    const labelNames = {
+                        'openfreemap-liberty': 'OpenFreeMap Liberty',
+                        'openfreemap-positron': 'OpenFreeMap Positron',
+                        'openfreemap-bright': 'OpenFreeMap Bright',
+                        'esri-dark': 'ESRI Dark Gray'
+                    };
+                    currentLabel.textContent = labelNames[style] || style;
+                }
+                if (basemapDropdown) basemapDropdown.classList.add('hidden');
+            });
+        });
+
+        // Close panels on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                mapController.closeVesselDetailPanel();
+            }
+        });
 
         // Metadata Modal
         const modal = document.getElementById('metadataModal');

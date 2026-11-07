@@ -52,10 +52,14 @@ export class GlobalMapController {
         };
 
         this.debounceTimer = null;
+        this.hashDebounceTimer = null;
         this.currentPopup = null;
         this.basemapErrorNotified = false;
         this.livePollingInterval = null;
         this.selectedVesselId = null;
+        this.selectedMmsi = null;
+        this.currentBasemapKey = options.basemap || 'openfreemap-liberty';
+        this.onVesselSelected = options.onVesselSelected || null;
 
         // Controlled Advanced Filters State
         this.filters = {
@@ -80,9 +84,10 @@ export class GlobalMapController {
         };
         this.activeFilterCount = 0;
 
-        // Vessel Track State (Tahap 11)
+        // Vessel Track State (Tahap 11 & Open Waters Track Time Ranges)
         this.currentTrackGeoJson = null;
         this.activeTrackVesselId = null;
+        this.activeTrackRange = '24h';
         this.trackVisible = true;
         this.onTrackUpdated = null;
         this.onTrackVisibilityChanged = null;
@@ -110,19 +115,99 @@ export class GlobalMapController {
         this.setupLifecycleHooks();
     }
 
+    parseUrlLocation() {
+        if (typeof window === 'undefined') return null;
+        let result = null;
+        const hash = window.location.hash || '';
+        const search = window.location.search || '';
+
+        // Match #map=13.41/1.60898/102.28512
+        const mapMatch = hash.match(/#map=([0-9.]+)\/([0-9.-]+)\/([0-9.-]+)/);
+        if (mapMatch) {
+            const zoom = parseFloat(mapMatch[1]);
+            const lat = parseFloat(mapMatch[2]);
+            const lng = parseFloat(mapMatch[3]);
+            if (isFinite(zoom) && isFinite(lat) && isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                result = { zoom: Math.min(Math.max(zoom, 1), 22), lat, lng };
+            }
+        }
+
+        // Match vessel parameter from hash or query string
+        let vessel = null;
+        const vesselHashMatch = hash.match(/[?&]vessel=([^&]+)/);
+        if (vesselHashMatch) {
+            vessel = decodeURIComponent(vesselHashMatch[1]);
+        } else if (search) {
+            const params = new URLSearchParams(search);
+            if (params.get('vessel')) {
+                vessel = params.get('vessel');
+            }
+        }
+
+        if (vessel) {
+            result = result || { zoom: this.options.zoom || 3.5, lat: 5.0, lng: 100.0 };
+            result.vessel = vessel;
+        }
+
+        return result;
+    }
+
+    updateUrlHash() {
+        if (!this.map || typeof window === 'undefined') return;
+        try {
+            const center = this.map.getCenter();
+            const zoom = this.map.getZoom();
+            const lat = center.lat.toFixed(5);
+            const lng = center.lng.toFixed(5);
+            const z = zoom.toFixed(2);
+            let hash = `#map=${z}/${lat}/${lng}`;
+            if (this.selectedMmsi) {
+                hash += `&vessel=${encodeURIComponent(this.selectedMmsi)}`;
+            }
+            if (window.history && window.history.replaceState) {
+                window.history.replaceState(null, '', hash);
+            } else {
+                window.location.hash = hash;
+            }
+        } catch (e) {
+            // ignore
+        }
+    }
+
     createMap() {
-        const style = this.getBasemapStyle();
+        const urlLoc = this.parseUrlLocation();
+        const initialCenter = urlLoc && isFinite(urlLoc.lng) && isFinite(urlLoc.lat)
+            ? [urlLoc.lng, urlLoc.lat]
+            : (this.options.center || [100.0, 5.0]);
+        const initialZoom = urlLoc && isFinite(urlLoc.zoom)
+            ? urlLoc.zoom
+            : (this.options.zoom || 3.5);
+
+        const style = this.getBasemapStyle(this.currentBasemapKey);
 
         this.map = new maplibregl.Map({
             container: this.containerId,
             style: style,
-            center: this.options.center || [100.0, 5.0],
-            zoom: this.options.zoom || 3.5,
+            center: initialCenter,
+            zoom: initialZoom,
             attributionControl: false // Handled cleanly via custom or bottom attribution
         });
     }
 
-    getBasemapStyle() {
+    getBasemapStyle(key = this.currentBasemapKey) {
+        if (key === 'openfreemap-liberty') {
+            return 'https://tiles.openfreemap.org/styles/liberty';
+        }
+        if (key === 'openfreemap-positron') {
+            return 'https://tiles.openfreemap.org/styles/positron';
+        }
+        if (key === 'openfreemap-bright') {
+            return 'https://tiles.openfreemap.org/styles/bright';
+        }
+        return this.getEsriDarkBasemapStyle();
+    }
+
+    getEsriDarkBasemapStyle() {
         // ESRI World Dark Gray Canvas (Watermark-Free, Production Stable, No API Key Required)
         return {
             version: 8,
@@ -163,6 +248,28 @@ export class GlobalMapController {
         };
     }
 
+    setBasemapStyle(styleKey) {
+        if (!this.map) return;
+        this.currentBasemapKey = styleKey;
+        const style = this.getBasemapStyle(styleKey);
+        this.map.setStyle(style);
+        this.map.once('style.load', () => {
+            this.registerVesselIcons();
+            this.setupSourcesAndLayers();
+            this.refreshAllActiveLayers();
+        });
+        const labelEl = document.getElementById('currentBasemapLabel');
+        if (labelEl) {
+            const names = {
+                'openfreemap-liberty': 'OpenFreeMap Liberty',
+                'openfreemap-positron': 'OpenFreeMap Positron',
+                'openfreemap-bright': 'OpenFreeMap Bright',
+                'esri-dark': 'ESRI Dark Gray'
+            };
+            labelEl.textContent = names[styleKey] || styleKey;
+        }
+    }
+
     initializeControls() {
         // Navigation (Zoom, Compass, Pitch)
         this.map.addControl(new maplibregl.NavigationControl({
@@ -174,6 +281,12 @@ export class GlobalMapController {
         // Fullscreen Control
         this.map.addControl(new maplibregl.FullscreenControl(), 'top-right');
 
+        // Geolocation Control
+        this.map.addControl(new maplibregl.GeolocateControl({
+            positionOptions: { enableHighAccuracy: true },
+            trackUserLocation: true
+        }), 'top-right');
+
         // Nautical Distance Scale Control
         this.map.addControl(new maplibregl.ScaleControl({
             maxWidth: 160,
@@ -183,8 +296,27 @@ export class GlobalMapController {
         // Compact Attribution Control
         this.map.addControl(new maplibregl.AttributionControl({
             compact: true,
-            customAttribution: 'GFVIP &bull; ESRI Canvas &bull; Sentinel-1 C-SAR'
+            customAttribution: 'GFVIP &bull; OpenFreeMap &bull; ESRI Canvas &bull; Sentinel-1 C-SAR'
         }), 'bottom-right');
+
+        // Cursor coordinates tracking
+        this.map.on('mousemove', (e) => {
+            const coordEl = document.getElementById('cursorCoordinates');
+            if (coordEl && e.lngLat) {
+                const lat = e.lngLat.lat.toFixed(5);
+                const lng = e.lngLat.lng.toFixed(5);
+                const zoom = this.map.getZoom().toFixed(2);
+                coordEl.textContent = `Lat: ${lat}°, Lon: ${lng}° | Zoom: ${zoom}`;
+            }
+        });
+
+        this.map.on('mouseout', () => {
+            const coordEl = document.getElementById('cursorCoordinates');
+            if (coordEl && this.map) {
+                const center = this.map.getCenter();
+                coordEl.textContent = `Center: ${center.lat.toFixed(5)}°, ${center.lng.toFixed(5)}° | Zoom: ${this.map.getZoom().toFixed(2)}`;
+            }
+        });
     }
 
     setupErrorHandling() {
@@ -194,7 +326,7 @@ export class GlobalMapController {
             console.warn('[MapLibre Event Warning]:', msg);
 
             // Check if basemap tile loading failed
-            if (msg.includes('tile') || msg.includes('404') || msg.includes('Failed to fetch')) {
+            if (msg.includes('tile') || msg.includes('404') || msg.includes('Failed to fetch') || msg.includes('openfreemap')) {
                 this.handleBasemapDegradation();
             }
         });
@@ -210,6 +342,15 @@ export class GlobalMapController {
         // Ensure container background stays dark maritime slate so vector data is still visible
         container.style.backgroundColor = '#0b1120';
 
+        // Auto fallback to local ESRI raster style if vector style failed
+        if (this.currentBasemapKey !== 'esri-dark' && this.map) {
+            try {
+                this.setBasemapStyle('esri-dark');
+            } catch (err) {
+                console.warn('[GlobalMapController] Could not apply fallback style:', err);
+            }
+        }
+
         const existingBanner = document.getElementById(`basemap-fallback-${this.containerId}`);
         if (!existingBanner) {
             const banner = document.createElement('div');
@@ -217,7 +358,7 @@ export class GlobalMapController {
             banner.className = 'absolute top-2 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 rounded-xl bg-amber-950/80 border border-amber-600/60 text-amber-200 text-[11px] font-mono shadow-xl backdrop-blur flex items-center gap-2 pointer-events-auto';
             banner.innerHTML = `
                 <span>⚠️</span>
-                <span>Basemap unavailable. Operational data layers remain available.</span>
+                <span>Vector basemap unavailable. Falling back to offline-safe canvas. Operational layers remain active.</span>
                 <button type="button" onclick="this.parentElement.remove()" class="text-amber-400 hover:text-white font-bold ml-2">&times;</button>
             `;
             container.style.position = 'relative';
@@ -233,6 +374,14 @@ export class GlobalMapController {
             this.attachEventListeners();
             this.refreshAllActiveLayers();
             this.startLiveVesselPolling(30000);
+
+            // Check if initial URL had a vessel to select
+            const urlLoc = this.parseUrlLocation();
+            if (urlLoc && urlLoc.vessel) {
+                setTimeout(() => {
+                    this.selectVesselByIdentifier(urlLoc.vessel);
+                }, 600);
+            }
         });
 
         // Window resize observer
@@ -250,6 +399,7 @@ export class GlobalMapController {
 
         this.map.on('moveend', () => {
             this.handleViewportChange();
+            this.updateUrlHash();
         });
     }
 
@@ -415,139 +565,115 @@ export class GlobalMapController {
         if (!this.map) return;
 
         try {
-            // 1. Live Vessel Heading (Pointed Solid Ship Hull Silhouette, True North 0°)
+            const createHeadingIcon = (fillColor, strokeColor) => {
+                const size = 32;
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return null;
+
+                ctx.beginPath();
+                ctx.moveTo(16, 2); // Sharp bow tip
+                ctx.bezierCurveTo(24, 10, 25, 20, 24, 28); // Starboard hull curve
+                ctx.lineTo(8, 28); // Flat transom stern
+                ctx.bezierCurveTo(7, 20, 8, 10, 16, 2); // Port hull curve
+                ctx.closePath();
+
+                ctx.fillStyle = fillColor;
+                ctx.fill();
+                ctx.lineWidth = 2.0;
+                ctx.strokeStyle = strokeColor;
+                ctx.stroke();
+
+                // Mast/wheelhouse center dot
+                ctx.beginPath();
+                ctx.arc(16, 15, 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+                ctx.lineWidth = 1.0;
+                ctx.strokeStyle = strokeColor;
+                ctx.stroke();
+
+                return ctx.getImageData(0, 0, size, size);
+            };
+
+            const createCogIcon = (fillColor, strokeColor) => {
+                const size = 32;
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return null;
+
+                ctx.beginPath();
+                ctx.moveTo(16, 2);   // Bow arrowhead tip
+                ctx.lineTo(27, 26);  // Starboard wing outer
+                ctx.lineTo(21, 26);  // Starboard wing inner
+                ctx.lineTo(16, 18);  // Central forward notch
+                ctx.lineTo(11, 26);  // Port wing inner
+                ctx.lineTo(5, 26);   // Port wing outer
+                ctx.closePath();
+
+                ctx.fillStyle = strokeColor;
+                ctx.fill();
+                ctx.lineWidth = 2.0;
+                ctx.strokeStyle = fillColor;
+                ctx.stroke();
+
+                // Central course trajectory ray
+                ctx.beginPath();
+                ctx.moveTo(16, 8);
+                ctx.lineTo(16, 16);
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2.0;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+
+                return ctx.getImageData(0, 0, size, size);
+            };
+
+            // Register category-specific live icons
+            const categories = [
+                { id: 'fishing', fill: '#10b981', stroke: '#047857' },
+                { id: 'passenger', fill: '#0284c7', stroke: '#0369a1' },
+                { id: 'patrol', fill: '#f43f5e', stroke: '#be123c' },
+                { id: 'military', fill: '#ef4444', stroke: '#b91c1c' },
+                { id: 'special', fill: '#f59e0b', stroke: '#b45309' },
+                { id: 'unknown', fill: '#94a3b8', stroke: '#475569' },
+            ];
+
+            categories.forEach(cat => {
+                const hName = `vessel-${cat.id}-heading`;
+                if (!this.map.hasImage(hName)) {
+                    const img = createHeadingIcon(cat.fill, cat.stroke);
+                    if (img) this.map.addImage(hName, img, { pixelRatio: 2 });
+                }
+                const cName = `vessel-${cat.id}-cog`;
+                if (!this.map.hasImage(cName)) {
+                    const img = createCogIcon(cat.fill, cat.stroke);
+                    if (img) this.map.addImage(cName, img, { pixelRatio: 2 });
+                }
+            });
+
+            // Standard Live Fallbacks (Cyan tone)
             if (!this.map.hasImage('vessel-heading')) {
-                const size = 32;
-                const canvas = document.createElement('canvas');
-                canvas.width = size;
-                canvas.height = size;
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                    ctx.beginPath();
-                    ctx.moveTo(16, 2); // Sharp bow tip
-                    ctx.bezierCurveTo(24, 10, 25, 20, 24, 28); // Starboard hull curve
-                    ctx.lineTo(8, 28); // Flat transom stern
-                    ctx.bezierCurveTo(7, 20, 8, 10, 16, 2); // Port hull curve
-                    ctx.closePath();
-
-                    ctx.fillStyle = '#38bdf8'; // Solid bright cyan
-                    ctx.fill();
-                    ctx.lineWidth = 2.0;
-                    ctx.strokeStyle = '#0284c7'; // Deep blue maritime outline
-                    ctx.stroke();
-
-                    // Mast/wheelhouse center dot
-                    ctx.beginPath();
-                    ctx.arc(16, 15, 2.5, 0, Math.PI * 2);
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fill();
-                    ctx.lineWidth = 1.0;
-                    ctx.strokeStyle = '#0284c7';
-                    ctx.stroke();
-
-                    this.map.addImage('vessel-heading', ctx.getImageData(0, 0, size, size), { pixelRatio: 2 });
-                }
+                const img = createHeadingIcon('#38bdf8', '#0284c7');
+                if (img) this.map.addImage('vessel-heading', img, { pixelRatio: 2 });
             }
-
-            // 2. Live Vessel COG Fallback (Course Over Ground Directional Chevron, True North 0°)
             if (!this.map.hasImage('vessel-cog')) {
-                const size = 32;
-                const canvas = document.createElement('canvas');
-                canvas.width = size;
-                canvas.height = size;
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                    ctx.beginPath();
-                    ctx.moveTo(16, 2);   // Bow arrowhead tip
-                    ctx.lineTo(27, 26);  // Starboard wing outer
-                    ctx.lineTo(21, 26);  // Starboard wing inner
-                    ctx.lineTo(16, 18);  // Central forward notch
-                    ctx.lineTo(11, 26);  // Port wing inner
-                    ctx.lineTo(5, 26);   // Port wing outer
-                    ctx.closePath();
-
-                    ctx.fillStyle = '#0284c7'; // Cyan/Deep blue tone
-                    ctx.fill();
-                    ctx.lineWidth = 2.0;
-                    ctx.strokeStyle = '#38bdf8'; // Cyan boundary outline
-                    ctx.stroke();
-
-                    // Central course trajectory ray
-                    ctx.beginPath();
-                    ctx.moveTo(16, 8);
-                    ctx.lineTo(16, 16);
-                    ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 2.0;
-                    ctx.lineCap = 'round';
-                    ctx.stroke();
-
-                    this.map.addImage('vessel-cog', ctx.getImageData(0, 0, size, size), { pixelRatio: 2 });
-                }
+                const img = createCogIcon('#38bdf8', '#0284c7');
+                if (img) this.map.addImage('vessel-cog', img, { pixelRatio: 2 });
             }
 
-            // 3. Stale Vessel Heading (> 2h, Muted Slate)
+            // Stale Icons (> 2h, Muted Slate tone)
             if (!this.map.hasImage('vessel-heading-stale')) {
-                const size = 32;
-                const canvas = document.createElement('canvas');
-                canvas.width = size;
-                canvas.height = size;
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                    ctx.beginPath();
-                    ctx.moveTo(16, 2);
-                    ctx.bezierCurveTo(24, 10, 25, 20, 24, 28);
-                    ctx.lineTo(8, 28);
-                    ctx.bezierCurveTo(7, 20, 8, 10, 16, 2);
-                    ctx.closePath();
-
-                    ctx.fillStyle = '#64748b'; // Slate
-                    ctx.fill();
-                    ctx.lineWidth = 2.0;
-                    ctx.strokeStyle = '#334155';
-                    ctx.stroke();
-
-                    ctx.beginPath();
-                    ctx.arc(16, 15, 2.5, 0, Math.PI * 2);
-                    ctx.fillStyle = '#94a3b8';
-                    ctx.fill();
-
-                    this.map.addImage('vessel-heading-stale', ctx.getImageData(0, 0, size, size), { pixelRatio: 2 });
-                }
+                const img = createHeadingIcon('#64748b', '#334155');
+                if (img) this.map.addImage('vessel-heading-stale', img, { pixelRatio: 2 });
             }
-
-            // 4. Stale Vessel COG Fallback (> 2h, Muted Slate)
             if (!this.map.hasImage('vessel-cog-stale')) {
-                const size = 32;
-                const canvas = document.createElement('canvas');
-                canvas.width = size;
-                canvas.height = size;
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                    ctx.beginPath();
-                    ctx.moveTo(16, 2);
-                    ctx.lineTo(27, 26);
-                    ctx.lineTo(21, 26);
-                    ctx.lineTo(16, 18);
-                    ctx.lineTo(11, 26);
-                    ctx.lineTo(5, 26);
-                    ctx.closePath();
-
-                    ctx.fillStyle = '#334155';
-                    ctx.fill();
-                    ctx.lineWidth = 2.0;
-                    ctx.strokeStyle = '#64748b';
-                    ctx.stroke();
-
-                    ctx.beginPath();
-                    ctx.moveTo(16, 8);
-                    ctx.lineTo(16, 16);
-                    ctx.strokeStyle = '#94a3b8';
-                    ctx.lineWidth = 2.0;
-                    ctx.lineCap = 'round';
-                    ctx.stroke();
-
-                    this.map.addImage('vessel-cog-stale', ctx.getImageData(0, 0, size, size), { pixelRatio: 2 });
-                }
+                const img = createCogIcon('#64748b', '#334155');
+                if (img) this.map.addImage('vessel-cog-stale', img, { pixelRatio: 2 });
             }
 
             // Aliases for compatibility
@@ -583,9 +709,9 @@ export class GlobalMapController {
             filter: ['==', ['get', 'vessel_id'], this.selectedVesselId || ''],
             layout: { visibility: this.activeLayers.vessels ? 'visible' : 'none' },
             paint: {
-                'circle-radius': 15,
-                'circle-color': 'rgba(56, 189, 248, 0.15)',
-                'circle-stroke-color': '#38bdf8',
+                'circle-radius': 16,
+                'circle-color': 'rgba(6, 182, 212, 0.20)',
+                'circle-stroke-color': '#06b6d4',
                 'circle-stroke-width': 2.5,
                 'circle-stroke-opacity': 0.95
             }
@@ -600,18 +726,50 @@ export class GlobalMapController {
             layout: {
                 'icon-image': [
                     'case',
-                    ['boolean', ['get', 'is_fresh'], false],
+                    ['!=', ['get', 'is_fresh'], true],
                     [
                         'case',
-                        ['==', ['get', 'orientation_source'], 'heading'],
-                        'vessel-heading',
-                        'vessel-cog'
+                        ['==', ['get', 'orientation_source'], 'heading'], 'vessel-heading-stale',
+                        'vessel-cog-stale'
                     ],
                     [
-                        'case',
-                        ['==', ['get', 'orientation_source'], 'heading'],
-                        'vessel-heading-stale',
-                        'vessel-cog-stale'
+                        'match',
+                        ['get', 'vessel_type'],
+                        'fishing', [
+                            'case',
+                            ['==', ['get', 'orientation_source'], 'heading'], 'vessel-fishing-heading',
+                            'vessel-fishing-cog'
+                        ],
+                        'passenger', [
+                            'case',
+                            ['==', ['get', 'orientation_source'], 'heading'], 'vessel-passenger-heading',
+                            'vessel-passenger-cog'
+                        ],
+                        'patrol', [
+                            'case',
+                            ['==', ['get', 'orientation_source'], 'heading'], 'vessel-patrol-heading',
+                            'vessel-patrol-cog'
+                        ],
+                        'military', [
+                            'case',
+                            ['==', ['get', 'orientation_source'], 'heading'], 'vessel-military-heading',
+                            'vessel-military-cog'
+                        ],
+                        'support', [
+                            'case',
+                            ['==', ['get', 'orientation_source'], 'heading'], 'vessel-special-heading',
+                            'vessel-special-cog'
+                        ],
+                        'carrier', [
+                            'case',
+                            ['==', ['get', 'orientation_source'], 'heading'], 'vessel-special-heading',
+                            'vessel-special-cog'
+                        ],
+                        [
+                            'case',
+                            ['==', ['get', 'orientation_source'], 'heading'], 'vessel-unknown-heading',
+                            'vessel-unknown-cog'
+                        ]
                     ]
                 ],
                 'icon-rotate': ['get', 'orientation_degrees'],
@@ -619,7 +777,16 @@ export class GlobalMapController {
                 'icon-pitch-alignment': 'map',
                 'icon-allow-overlap': true,
                 'icon-ignore-placement': true,
-                'icon-size': 0.85,
+                'icon-size': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    2, 0.5,
+                    6, 0.7,
+                    10, 0.9,
+                    14, 1.2,
+                    18, 1.5
+                ],
                 'visibility': this.activeLayers.vessels ? 'visible' : 'none'
             }
         });
@@ -633,16 +800,28 @@ export class GlobalMapController {
             layout: { visibility: this.activeLayers.vessels ? 'visible' : 'none' },
             paint: {
                 'circle-radius': [
-                    'case',
-                    ['boolean', ['get', 'is_fresh'], false],
-                    5.5,
-                    4.0
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    2, 3.5,
+                    8, 5.0,
+                    14, 7.5
                 ],
                 'circle-color': [
                     'case',
-                    ['boolean', ['get', 'is_fresh'], false],
-                    '#38bdf8', // Live (< 2h) - Bright sky cyan
-                    '#64748b'  // Stale (> 2h) - Muted slate
+                    ['!=', ['get', 'is_fresh'], true],
+                    '#64748b', // Stale (> 2h)
+                    [
+                        'match',
+                        ['get', 'vessel_type'],
+                        'fishing', '#10b981',
+                        'passenger', '#0284c7',
+                        'patrol', '#f43f5e',
+                        'military', '#ef4444',
+                        'support', '#f59e0b',
+                        'carrier', '#06b6d4',
+                        '#38bdf8' // Default live cyan
+                    ]
                 ],
                 'circle-stroke-width': 1.5,
                 'circle-stroke-color': '#ffffff'
@@ -692,6 +871,23 @@ export class GlobalMapController {
                 'circle-stroke-color': '#ffffff',
                 'circle-stroke-width': 1.0,
                 'circle-stroke-opacity': 0.85
+            }
+        });
+
+        // 2b. Start Observation Point (Departure marker)
+        this.map.addLayer({
+            id: 'vessel-track-start-point-layer',
+            type: 'circle',
+            source: 'vessel-track-source',
+            filter: ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'is_start'], true], ['!=', ['get', 'is_latest'], true]],
+            layout: {
+                'visibility': this.trackVisible ? 'visible' : 'none'
+            },
+            paint: {
+                'circle-radius': 5.5,
+                'circle-color': '#3b82f6',
+                'circle-stroke-color': '#ffffff',
+                'circle-stroke-width': 2.0
             }
         });
 
@@ -1008,6 +1204,7 @@ export class GlobalMapController {
             'dark-vessels-circle-layer',
             'sar-scenes-fill-layer',
             'vessel-track-points-layer',
+            'vessel-track-start-point-layer',
             'vessel-track-latest-point-layer'
         ];
         clickableLayers.forEach((layerId) => {
@@ -1018,6 +1215,40 @@ export class GlobalMapController {
                 if (this.map.getCanvas()) this.map.getCanvas().style.cursor = '';
             });
         });
+
+        // Click on historical track observation points
+        const handleTrackPointInspect = (e) => {
+            if (!e.features || !e.features.length) return;
+            const feat = e.features[0];
+            const props = feat.properties || {};
+            const coords = feat.geometry?.coordinates || [e.lngLat.lng, e.lngLat.lat];
+            const dateStr = props.observed_at ? new Date(props.observed_at).toUTCString() : 'Unavailable';
+            const sog = props.speed_knots !== null && props.speed_knots !== undefined ? `${props.speed_knots} kn` : '-';
+            const cog = props.course_degrees !== null && props.course_degrees !== undefined ? `${props.course_degrees}°` : '-';
+            const heading = props.heading_degrees !== null && props.heading_degrees !== undefined ? `${props.heading_degrees}°` : '-';
+            const pointType = props.is_start ? '🚀 Titik Keberangkatan Awal' : (props.is_latest ? '📍 Posisi Terkini' : '🛰️ Titik Observasi AIS');
+
+            const html = `
+                <div class="space-y-1 text-xs font-mono p-1">
+                    <div class="font-bold text-cyan-300 flex items-center justify-between border-b border-cyan-800/80 pb-1">
+                        <span>${pointType}</span>
+                        <span class="text-[10px] text-slate-400">${props.name || props.mmsi || ''}</span>
+                    </div>
+                    <div class="text-slate-300">Waktu: <strong class="text-white">${dateStr}</strong></div>
+                    <div class="text-slate-300">Posisi: <span class="text-slate-200">${coords[1].toFixed(5)}°, ${coords[0].toFixed(5)}°</span></div>
+                    <div class="flex items-center gap-3 text-slate-300 pt-0.5">
+                        <span>SOG: <strong class="text-emerald-300">${sog}</strong></span>
+                        <span>COG: <strong class="text-sky-300">${cog}</strong></span>
+                        <span>HDG: <strong class="text-teal-300">${heading}</strong></span>
+                    </div>
+                </div>
+            `;
+            this.showPopup({ lng: coords[0], lat: coords[1] }, html);
+        };
+
+        this.map.on('click', 'vessel-track-points-layer', handleTrackPointInspect);
+        this.map.on('click', 'vessel-track-start-point-layer', handleTrackPointInspect);
+        this.map.on('click', 'vessel-track-latest-point-layer', handleTrackPointInspect);
 
         // Delegate "Show Track" click inside vessel popup
         document.addEventListener('click', (e) => {
@@ -1054,7 +1285,180 @@ export class GlobalMapController {
         if (props.vessel_id) {
             this.setSelectedVessel(props.vessel_id);
         }
-        this.showVesselPopup(props, { lng: coords[0], lat: coords[1] });
+        if (props.mmsi) {
+            this.selectedMmsi = props.mmsi;
+        }
+
+        const panel = document.getElementById('vesselDetailPanel');
+        if (panel) {
+            this.openVesselDetailPanel(props, { lng: coords[0], lat: coords[1] });
+        } else {
+            this.showVesselPopup(props, { lng: coords[0], lat: coords[1] });
+        }
+
+        if (typeof this.onVesselSelected === 'function') {
+            this.onVesselSelected(props, { lng: coords[0], lat: coords[1] });
+        }
+
+        this.updateUrlHash();
+    }
+
+    openVesselDetailPanel(props, coords) {
+        const panel = document.getElementById('vesselDetailPanel');
+        if (!panel) return;
+
+        this.selectedVesselId = props.vessel_id || null;
+        this.selectedMmsi = props.mmsi || null;
+
+        if (this.map && this.map.getLayer('vessels-selected-ring')) {
+            this.map.setFilter('vessels-selected-ring', ['==', ['get', 'vessel_id'], this.selectedVesselId || '']);
+        }
+
+        const isFresh = props.is_fresh === true || props.is_fresh === 'true';
+        const nameEl = document.getElementById('panelVesselName');
+        const flagEmojiEl = document.getElementById('panelVesselFlagEmoji');
+        const flagNameEl = document.getElementById('panelVesselFlagName');
+        const flagFullEl = document.getElementById('panelVesselFlagFull');
+        const typeBadgeEl = document.getElementById('panelVesselTypeBadge');
+        const typeDescEl = document.getElementById('panelVesselTypeDesc');
+        const freshnessBadgeEl = document.getElementById('panelVesselFreshnessBadge');
+        const mmsiEl = document.getElementById('panelVesselMmsi');
+        const imoEl = document.getElementById('panelVesselImo');
+        const callsignEl = document.getElementById('panelVesselCallsign');
+        const sogEl = document.getElementById('panelVesselSog');
+        const cogEl = document.getElementById('panelVesselCog');
+        const headingEl = document.getElementById('panelVesselHeading');
+        const navStatusEl = document.getElementById('panelVesselNavStatus');
+        const coordsEl = document.getElementById('panelVesselCoords');
+        const orientationEl = document.getElementById('panelVesselOrientation');
+        const timeEl = document.getElementById('panelVesselTime');
+        const providerEl = document.getElementById('panelVesselProvider');
+        const profileLink = document.getElementById('panelVesselProfileLink');
+
+        if (nameEl) nameEl.textContent = props.name || 'Unknown Vessel';
+        if (flagEmojiEl) flagEmojiEl.textContent = props.flag_emoji || '🌐';
+        if (flagNameEl) flagNameEl.textContent = `${props.flag_country || 'Flag state unknown'} (${props.flag_state || 'UN'})`;
+        if (flagFullEl) flagFullEl.textContent = `${props.flag_emoji || '🌐'} ${props.flag_country || 'Unknown'} (${props.flag_state || 'UN'})`;
+
+        const vType = props.vessel_type || 'unknown';
+        if (typeBadgeEl) {
+            typeBadgeEl.textContent = vType;
+            if (vType === 'fishing') {
+                typeBadgeEl.className = 'px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-emerald-950 text-emerald-300 border border-emerald-700';
+            } else if (vType === 'passenger') {
+                typeBadgeEl.className = 'px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-sky-950 text-sky-300 border border-sky-700';
+            } else if (vType === 'military' || vType === 'patrol') {
+                typeBadgeEl.className = 'px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-rose-950 text-rose-300 border border-rose-700';
+            } else {
+                typeBadgeEl.className = 'px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-slate-800 text-slate-300 border border-slate-700';
+            }
+        }
+        if (typeDescEl) typeDescEl.textContent = vType;
+
+        if (freshnessBadgeEl) {
+            if (isFresh) {
+                freshnessBadgeEl.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+                freshnessBadgeEl.innerHTML = '● LIVE (&lt; 2h)';
+            } else {
+                freshnessBadgeEl.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-amber-300 border border-amber-500/30';
+                freshnessBadgeEl.innerHTML = '⏳ KEDALUWARSA';
+            }
+        }
+
+        if (mmsiEl) mmsiEl.textContent = props.mmsi || '-';
+        if (imoEl) imoEl.textContent = props.imo || '-';
+        if (callsignEl) callsignEl.textContent = props.callsign || '-';
+
+        const sogVal = props.speed_knots !== null && props.speed_knots !== undefined && isFinite(Number(props.speed_knots))
+            ? Number(props.speed_knots).toFixed(1)
+            : '-';
+        if (sogEl) sogEl.textContent = sogVal;
+
+        const cogVal = props.course_degrees !== null && props.course_degrees !== undefined && isFinite(Number(props.course_degrees))
+            ? `${Number(props.course_degrees).toFixed(1)}°`
+            : '-';
+        if (cogEl) cogEl.textContent = cogVal;
+
+        const headingVal = props.heading_degrees !== null && props.heading_degrees !== undefined && isFinite(Number(props.heading_degrees))
+            ? `${Number(props.heading_degrees).toFixed(1)}°`
+            : 'Tidak tersedia';
+        if (headingEl) headingEl.textContent = headingVal;
+
+        if (navStatusEl) navStatusEl.textContent = (props.nav_status || 'under_way').replace(/_/g, ' ');
+
+        const cLng = coords?.lng !== undefined ? coords.lng : (coords ? coords[0] : 0);
+        const cLat = coords?.lat !== undefined ? coords.lat : (coords ? coords[1] : 0);
+        if (coordsEl) coordsEl.textContent = `${Number(cLat).toFixed(5)}°, ${Number(cLng).toFixed(5)}°`;
+
+        let oriText = 'Tidak diketahui';
+        if (props.orientation_source === 'heading') oriText = `🧭 True Heading (${headingVal})`;
+        else if (props.orientation_source === 'cog') oriText = `⚓ COG Fallback (${cogVal})`;
+        if (orientationEl) orientationEl.textContent = oriText;
+
+        if (timeEl) {
+            const d = props.observed_at ? new Date(props.observed_at) : null;
+            timeEl.textContent = d ? d.toUTCString() : '-';
+            timeEl.title = props.observed_at || '';
+        }
+
+        if (providerEl) providerEl.textContent = props.provider || 'AISStream Gateway';
+
+        if (profileLink) {
+            if (props.vessel_id) {
+                profileLink.href = `/vessels/${props.vessel_id}`;
+                profileLink.style.display = 'flex';
+            } else {
+                profileLink.style.display = 'none';
+            }
+        }
+
+        panel.classList.remove('hidden');
+
+        // Automatically load track for selected vessel
+        this.showVesselTrack(props.vessel_id || props.mmsi, { range: this.activeTrackRange, fitBounds: false });
+        this.updateUrlHash();
+    }
+
+    closeVesselDetailPanel() {
+        const panel = document.getElementById('vesselDetailPanel');
+        if (panel) panel.classList.add('hidden');
+        this.setSelectedVessel(null);
+        this.selectedMmsi = null;
+        this.updateUrlHash();
+    }
+
+    async selectVesselByIdentifier(identifier) {
+        if (!identifier) return;
+        const idStr = String(identifier).trim();
+
+        if (this.layerData.vessels && Array.isArray(this.layerData.vessels.features)) {
+            const feat = this.layerData.vessels.features.find(f =>
+                f.properties?.mmsi === idStr ||
+                f.properties?.vessel_id === idStr ||
+                f.id === idStr
+            );
+            if (feat) {
+                const coords = feat.geometry?.coordinates || [0, 0];
+                this.setSelectedVessel(feat.properties.vessel_id);
+                this.selectedMmsi = feat.properties.mmsi;
+                this.openVesselDetailPanel(feat.properties, { lng: coords[0], lat: coords[1] });
+                return;
+            }
+        }
+
+        try {
+            const res = await fetch(`/api/map/search?q=${encodeURIComponent(idStr)}`);
+            if (res.ok) {
+                const data = await res.json();
+                const vesselResult = data.results?.find(r => r.type === 'vessel' && (r.vessel_id == idStr || r.subtitle?.includes(idStr)));
+                if (vesselResult && isFinite(vesselResult.lat) && isFinite(vesselResult.lng)) {
+                    this.focusEntity('vessel', vesselResult.id, vesselResult.lat, vesselResult.lng);
+                    this.showVesselTrack(vesselResult.id, { range: this.activeTrackRange, fitBounds: true });
+                }
+            }
+        } catch (e) {
+            console.warn('[GlobalMap] Failed to select vessel from URL identifier:', e);
+        }
     }
 
     setSelectedVessel(vesselId) {
@@ -1638,12 +2042,17 @@ export class GlobalMapController {
         if (type === 'vessel') {
             this.setSelectedVessel(id);
 
-            // If feature in cached layer data, open popup
+            let feat = null;
             if (this.layerData.vessels && Array.isArray(this.layerData.vessels.features)) {
-                const feat = this.layerData.vessels.features.find(f => (f.properties?.vessel_id == id || f.id == id));
-                if (feat) {
-                    this.showVesselPopup({ lngLat: { lng, lat }, features: [feat] });
-                }
+                feat = this.layerData.vessels.features.find(f => (f.properties?.vessel_id == id || f.properties?.mmsi == id || f.id == id));
+            }
+
+            const panel = document.getElementById('vesselDetailPanel');
+            if (panel) {
+                const props = feat ? feat.properties : { vessel_id: id, mmsi: id, name: `Vessel ${id}` };
+                this.openVesselDetailPanel(props, { lng, lat });
+            } else if (feat) {
+                this.showVesselPopup({ lngLat: { lng, lat }, features: [feat] });
             }
         } else if (type === 'sar_candidate') {
             if (this.layerData.darkVessels && Array.isArray(this.layerData.darkVessels.features)) {
@@ -1711,13 +2120,15 @@ export class GlobalMapController {
         if (!vesselIdentifier) return;
         const fitBounds = options.fitBounds !== false;
         const idStr = String(vesselIdentifier);
+        const range = options.range || this.activeTrackRange || '24h';
+        this.activeTrackRange = range;
 
         // Prevent race conditions when user switches vessels quickly
         this.activeTrackVesselId = idStr;
-        this.notifyTrackStatus('loading', `Memuat lintasan historis AIS...`);
+        this.notifyTrackStatus('loading', `Memuat lintasan historis AIS (${range})...`);
 
         try {
-            const res = await fetch(`/api/vessels/${encodeURIComponent(idStr)}/track`);
+            const res = await fetch(`/api/vessels/${encodeURIComponent(idStr)}/track?range=${encodeURIComponent(range)}`);
             if (!res.ok) {
                 if (res.status === 404) {
                     this.notifyTrackStatus('error', `Kapal identifier '${idStr}' tidak ditemukan.`);
@@ -1744,11 +2155,17 @@ export class GlobalMapController {
             const vesselName = geoJson.properties?.name || geoJson.properties?.mmsi || idStr;
 
             if (count === 0) {
-                this.notifyTrackStatus('warning', `No historical AIS track available untuk ${vesselName}.`);
+                this.notifyTrackStatus('warning', `No historical AIS track available (${range}) untuk ${vesselName}.`);
             } else if (count === 1) {
                 this.notifyTrackStatus('info', `Hanya 1 posisi AIS tersedia untuk ${vesselName} (titik observasi tunggal).`);
             } else {
-                this.notifyTrackStatus('success', `Lintasan AIS aktif: ${vesselName} (${count} titik observasi).`);
+                this.notifyTrackStatus('success', `Lintasan AIS (${range}): ${vesselName} (${count} titik observasi).`);
+            }
+
+            // Update badge in side panel if present
+            const panelTrackBadge = document.getElementById('panelTrackPointBadge');
+            if (panelTrackBadge) {
+                panelTrackBadge.textContent = `${count} titik`;
             }
 
             if (fitBounds && count > 0) {
@@ -1770,7 +2187,7 @@ export class GlobalMapController {
     setTrackVisibility(visible) {
         this.trackVisible = visible;
         const val = visible ? 'visible' : 'none';
-        ['vessel-track-line-layer', 'vessel-track-points-layer', 'vessel-track-latest-point-layer'].forEach(id => {
+        ['vessel-track-line-layer', 'vessel-track-points-layer', 'vessel-track-start-point-layer', 'vessel-track-latest-point-layer'].forEach(id => {
             if (this.map && this.map.getLayer(id)) {
                 this.map.setLayoutProperty(id, 'visibility', val);
             }

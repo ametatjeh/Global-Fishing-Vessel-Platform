@@ -61,3 +61,44 @@ Route::post('/telemetry/ais', function (Request $request, AisStreamAdapter $adap
         'observed_at' => $position->observed_at->toIso8601String(),
     ]);
 })->name('api.telemetry.ais');
+
+// Production Batch Ingestion Endpoint (used by Node.js ais/worker.mjs & aaPanel worker)
+Route::post('/telemetry/ais/batch', function (Request $request, AisStreamAdapter $adapter) {
+    $expectedToken = config('maritime.providers.ais_stream.ingest_token')
+        ?: config('maritime.providers.ais_stream.api_key');
+    $providedToken = $request->header('X-AIS-Token')
+        ?: $request->bearerToken();
+
+    if (!$expectedToken || !hash_equals((string) $expectedToken, (string) $providedToken)) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Unauthorized: Invalid or missing X-AIS-Token header.',
+        ], 401);
+    }
+
+    $messages = $request->input('messages');
+    if (!is_array($messages)) {
+        $raw = $request->all();
+        if (is_array($raw) && !empty($raw) && array_is_list($raw)) {
+            $messages = $raw;
+        }
+    }
+
+    if (!is_array($messages) || empty($messages)) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Format payload batch tidak valid atau kosong. Array pesan diperlukan.',
+        ], 422);
+    }
+
+    $result = $adapter->ingestBatch($messages);
+
+    return response()->json([
+        'status' => 'success',
+        'message' => 'Batch telemetri AIS berhasil diproses.',
+        'received' => $result['received'],
+        'inserted' => $result['inserted'],
+        'skipped' => $result['skipped'],
+        'errors_count' => count($result['errors'] ?? []),
+    ]);
+})->name('api.telemetry.ais.batch');

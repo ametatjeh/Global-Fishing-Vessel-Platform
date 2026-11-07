@@ -761,17 +761,33 @@ class SpatialQueryService
      * @param int $limit Maximum historical positions to return (default: 200, max: 1000)
      * @return array GeoJSON FeatureCollection containing LineString and Point features
      */
-    public function getVesselTrackFeatureCollection(Vessel $vessel, int $limit = 200): array
+    public function getVesselTrackFeatureCollection(Vessel $vessel, int $limit = 200, ?string $timeRange = null): array
     {
-        $limit = min(max($limit, 10), 1000);
+        $limit = min(max($limit, 10), 2000);
 
-        $rawPositions = VesselPosition::where('vessel_id', $vessel->id)
+        $query = VesselPosition::where('vessel_id', $vessel->id)
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->whereBetween('latitude', [-90.0, 90.0])
             ->whereBetween('longitude', [-180.0, 180.0])
-            ->whereRaw('NOT (latitude = 0.0 AND longitude = 0.0)')
-            ->orderBy('observed_at', 'asc')
+            ->whereRaw('NOT (latitude = 0.0 AND longitude = 0.0)');
+
+        if (!empty($timeRange)) {
+            $rangeStr = strtolower(trim($timeRange));
+            if ($rangeStr === '1h') {
+                $query->where('observed_at', '>=', now()->subHours(1));
+            } elseif ($rangeStr === '6h') {
+                $query->where('observed_at', '>=', now()->subHours(6));
+            } elseif ($rangeStr === '24h') {
+                $query->where('observed_at', '>=', now()->subHours(24));
+            } elseif ($rangeStr === '7d') {
+                $query->where('observed_at', '>=', now()->subDays(7));
+            } elseif (is_numeric($rangeStr)) {
+                $query->where('observed_at', '>=', now()->subHours((int) $rangeStr));
+            }
+        }
+
+        $rawPositions = $query->orderBy('observed_at', 'asc')
             ->limit($limit)
             ->get();
 
@@ -821,11 +837,44 @@ class SpatialQueryService
             ];
         }
 
-        // Add LineString feature if >= 2 points available
-        if ($count >= 2) {
+        // Segment tracks to avoid connecting across significant gaps (> 4 hours or large distance jumps)
+        $segments = [];
+        $currentSegment = [];
+        $maxGapSeconds = 4 * 3600; // 4 hours
+
+        foreach ($validPositions as $pos) {
+            if (empty($currentSegment)) {
+                $currentSegment[] = $pos;
+                continue;
+            }
+
+            $prevPos = end($currentSegment);
+            $timeGap = ($pos->observed_at && $prevPos->observed_at)
+                ? abs($pos->observed_at->getTimestamp() - $prevPos->observed_at->getTimestamp())
+                : 0;
+
+            $dLat = abs((float) $pos->latitude - (float) $prevPos->latitude);
+            $dLng = abs((float) $pos->longitude - (float) $prevPos->longitude);
+
+            if ($timeGap > $maxGapSeconds || ($dLat > 2.0 || $dLng > 2.0)) {
+                // Large gap detected: finish current segment and begin new one
+                if (count($currentSegment) >= 2) {
+                    $segments[] = $currentSegment;
+                }
+                $currentSegment = [$pos];
+            } else {
+                $currentSegment[] = $pos;
+            }
+        }
+        if (count($currentSegment) >= 2) {
+            $segments[] = $currentSegment;
+        }
+
+        // Add LineString features for valid segments
+        foreach ($segments as $sIdx => $seg) {
             $coordinates = array_map(function ($p) {
                 return [(float) $p->longitude, (float) $p->latitude];
-            }, $validPositions);
+            }, $seg);
 
             $features[] = [
                 'type' => 'Feature',
@@ -835,18 +884,20 @@ class SpatialQueryService
                 ],
                 'properties' => [
                     'feature_type' => 'ais_vessel_track_line',
+                    'segment_index' => $sIdx,
                     'vessel_id' => $vessel->id,
                     'mmsi' => $vessel->mmsi,
                     'name' => $vessel->name,
-                    'point_count' => $count,
-                    'start_time' => $validPositions[0]->observed_at?->toIso8601String(),
-                    'end_time' => $validPositions[$count - 1]->observed_at?->toIso8601String(),
+                    'point_count' => count($seg),
+                    'start_time' => $seg[0]->observed_at?->toIso8601String(),
+                    'end_time' => $seg[count($seg) - 1]->observed_at?->toIso8601String(),
                 ],
             ];
         }
 
         // Add individual Point features for each observation along the track
         foreach ($validPositions as $idx => $p) {
+            $isStart = ($idx === 0);
             $isLatest = ($idx === $count - 1);
 
             $features[] = [
@@ -867,6 +918,7 @@ class SpatialQueryService
                     'speed_knots' => $p->speed_knots !== null && is_finite((float) $p->speed_knots) ? round((float) $p->speed_knots, 1) : null,
                     'course_degrees' => $p->course_degrees !== null && is_finite((float) $p->course_degrees) ? round((float) $p->course_degrees, 1) : null,
                     'heading_degrees' => $p->heading_degrees !== null && is_finite((float) $p->heading_degrees) ? round((float) $p->heading_degrees, 1) : null,
+                    'is_start' => $isStart,
                     'is_latest' => $isLatest,
                     'is_fresh' => $p->isFresh(),
                 ],
