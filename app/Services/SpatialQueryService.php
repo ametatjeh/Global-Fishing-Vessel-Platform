@@ -212,6 +212,101 @@ class SpatialQueryService
     ];
 
     /**
+     * Official color mapping per country:
+     * - Indonesia: Cyan (#06b6d4)
+     * - Malaysia: Orange (#f97316)
+     * - Thailand: Yellow (#eab308)
+     * - Vietnam: Magenta (#d946ef)
+     * - Filipina: Green (#22c55e)
+     * - Brunei Darussalam: Violet (#8b5cf6)
+     * - Singapura: Coral (#fb7185)
+     * - Kamboja: Blue (#3b82f6)
+     * - Myanmar: Pink (#ec4899)
+     * - Laos: Teal (#14b8a6)
+     * - Timor-Leste: Violet/Indigo (#a855f7)
+     * - Australia: Red-Orange (#ef4444)
+     */
+    public const COUNTRY_COLORS = [
+        'IDN' => '#06b6d4',
+        'MYS' => '#f97316',
+        'THA' => '#eab308',
+        'VNM' => '#d946ef',
+        'PHL' => '#22c55e',
+        'BRN' => '#8b5cf6',
+        'SGP' => '#fb7185',
+        'KHM' => '#3b82f6',
+        'MMR' => '#ec4899',
+        'LAO' => '#14b8a6',
+        'TLS' => '#a855f7',
+        'AUS' => '#ef4444',
+    ];
+
+    /**
+     * Resolve primary ASEAN sovereign country, ISO3 code, and visual palette
+     */
+    public static function resolveAseanCountry(?string $sovereign1, ?string $sovereign2 = null, ?string $territory = null, ?string $iso3 = null): array
+    {
+        $aseanIsoMap = [
+            'IDN' => ['code' => 'IDN', 'name' => 'Indonesia', 'color' => '#06b6d4'],
+            'MYS' => ['code' => 'MYS', 'name' => 'Malaysia', 'color' => '#f97316'],
+            'THA' => ['code' => 'THA', 'name' => 'Thailand', 'color' => '#eab308'],
+            'VNM' => ['code' => 'VNM', 'name' => 'Vietnam', 'color' => '#d946ef'],
+            'PHL' => ['code' => 'PHL', 'name' => 'Philippines', 'color' => '#22c55e'],
+            'BRN' => ['code' => 'BRN', 'name' => 'Brunei Darussalam', 'color' => '#8b5cf6'],
+            'SGP' => ['code' => 'SGP', 'name' => 'Singapore', 'color' => '#fb7185'],
+            'KHM' => ['code' => 'KHM', 'name' => 'Cambodia', 'color' => '#3b82f6'],
+            'MMR' => ['code' => 'MMR', 'name' => 'Myanmar', 'color' => '#ec4899'],
+            'LAO' => ['code' => 'LAO', 'name' => 'Laos', 'color' => '#14b8a6'],
+            'TLS' => ['code' => 'TLS', 'name' => 'Timor-Leste', 'color' => '#a855f7'],
+        ];
+
+        if ($iso3 && isset($aseanIsoMap[$iso3])) {
+            return $aseanIsoMap[$iso3];
+        }
+
+        $names = [
+            'indonesia' => 'IDN',
+            'malaysia' => 'MYS',
+            'thailand' => 'THA',
+            'vietnam' => 'VNM',
+            'philippines' => 'PHL',
+            'brunei' => 'BRN',
+            'singapore' => 'SGP',
+            'cambodia' => 'KHM',
+            'myanmar' => 'MMR',
+            'burma' => 'MMR',
+            'laos' => 'LAO',
+            'timor' => 'TLS',
+        ];
+
+        // 1. Check sovereign1
+        $s1 = strtolower((string)$sovereign1);
+        foreach ($names as $key => $code) {
+            if (str_contains($s1, $key)) {
+                return $aseanIsoMap[$code];
+            }
+        }
+
+        // 2. Check sovereign2
+        $s2 = strtolower((string)$sovereign2);
+        foreach ($names as $key => $code) {
+            if (str_contains($s2, $key)) {
+                return $aseanIsoMap[$code];
+            }
+        }
+
+        // 3. Check territory
+        $t = strtolower((string)$territory);
+        foreach ($names as $key => $code) {
+            if (str_contains($t, $key)) {
+                return $aseanIsoMap[$code];
+            }
+        }
+
+        return ['code' => 'ASEAN', 'name' => 'ASEAN Region', 'color' => '#06b6d4'];
+    }
+
+    /**
      * Classify maritime boundary line delimitation status (4-level classification)
      * 1. AGREED / DELIMITATED (Treaty, Court ruling)
      * 2. UNDELIMITED / UNRESOLVED (Median line, Connection line, Unsettled, Baselines)
@@ -337,17 +432,15 @@ class SpatialQueryService
                 if (stripos($polType, 'overlapping') !== false || stripos($geoname, 'overlapping') !== false || stripos($polType, 'disputed') !== false) {
                     $status = 'DISPUTED';
                     $statusLabel = 'Disputed / Overlapping Claim';
-                    $color = '#f43f5e';
                 } elseif (stripos($polType, 'joint') !== false || stripos($geoname, 'joint') !== false) {
                     $status = 'JOINT_REGIME';
                     $statusLabel = 'Joint Regime Area';
-                    $color = '#a855f7';
                 } else {
                     $status = 'AGREED';
                     $statusLabel = 'National Exclusive Economic Zone (200 NM)';
-                    $color = '#10b981';
                 }
 
+                $countryInfo = self::resolveAseanCountry($zone->sovereign_state, $zone->sovereign2, $zone->territory1, $zone->sovereign_iso3);
                 $bordering = array_filter([$zone->sovereign_state, $zone->sovereign2, $zone->sovereign3]);
 
                 $features[] = [
@@ -359,13 +452,14 @@ class SpatialQueryService
                         'feature_type' => 'zone',
                         'geom_type' => $geom['type'] ?? 'Polygon',
                         'name' => $zone->geoname,
-                        'country' => $zone->sovereign_state,
-                        'sovereign_iso3' => $zone->sovereign_iso3,
+                        'country' => $countryInfo['name'],
+                        'country_code' => $countryInfo['code'],
+                        'sovereign_iso3' => $countryInfo['code'],
                         'territory' => $zone->territory1,
                         'zone_type' => $zone->pol_type,
                         'delimitation_status' => $status,
                         'status_label' => $statusLabel,
-                        'color' => $color,
+                        'color' => $countryInfo['color'],
                         'area_sqkm' => $zone->area_sqkm,
                         'sovereign1' => $zone->sovereign_state,
                         'sovereign2' => $zone->sovereign2,
@@ -416,6 +510,7 @@ class SpatialQueryService
                 if (!$geom) continue;
 
                 $classification = self::classifyBoundaryStatus($b->line_type, $b->line_name);
+                $countryInfo = self::resolveAseanCountry($b->sovereign1, $b->sovereign2, $b->territory1);
 
                 $parties = array_filter([$b->sovereign1, $b->sovereign2]);
                 $borderingStr = count($parties) > 1 ? implode(' & ', $parties) : ($parties[0] ?? $b->line_name);
@@ -430,7 +525,8 @@ class SpatialQueryService
                         'geom_type' => $geom['type'] ?? 'LineString',
                         'line_id' => $b->line_id,
                         'name' => $b->line_name,
-                        'country' => $b->sovereign1 ?: $b->sovereign2 ?: 'ASEAN Region',
+                        'country' => $countryInfo['name'],
+                        'country_code' => $countryInfo['code'],
                         'sovereign1' => $b->sovereign1,
                         'sovereign2' => $b->sovereign2,
                         'territory1' => $b->territory1,
@@ -439,7 +535,7 @@ class SpatialQueryService
                         'line_type' => $b->line_type,
                         'delimitation_status' => $classification['status'],
                         'status_label' => $classification['status_label'],
-                        'color' => $classification['color'],
+                        'color' => $countryInfo['color'],
                         'dasharray' => $classification['dasharray'],
                         'treaty_name' => $b->source1 ?: $b->line_name,
                         'url' => $b->url1,
@@ -538,12 +634,13 @@ class SpatialQueryService
                         'geom_type' => $geom['type'] ?? 'Polygon',
                         'name' => $zone->geoname,
                         'country' => 'Australia',
+                        'country_code' => 'AUS',
                         'sovereign_iso3' => 'AUS',
                         'territory' => $zone->territory1,
                         'zone_type' => $zone->pol_type,
                         'delimitation_status' => 'AGREED',
                         'status_label' => 'Australian Exclusive Economic Zone (200 NM)',
-                        'color' => '#0284c7', // Azure
+                        'color' => '#ef4444', // Australia: Red-Orange
                         'area_sqkm' => $zone->area_sqkm,
                         'sovereign1' => $zone->sovereign_state,
                         'sovereign2' => $zone->sovereign2,
@@ -623,6 +720,7 @@ class SpatialQueryService
                         'line_id' => $b->line_id,
                         'name' => $b->line_name,
                         'country' => 'Australia',
+                        'country_code' => 'AUS',
                         'sovereign1' => $b->sovereign1,
                         'sovereign2' => $b->sovereign2,
                         'territory1' => $b->territory1,
@@ -631,7 +729,7 @@ class SpatialQueryService
                         'line_type' => $b->line_type,
                         'delimitation_status' => $status,
                         'status_label' => $statusLabel,
-                        'color' => $color,
+                        'color' => '#ef4444', // Australia: Red-Orange
                         'dasharray' => $dasharray,
                         'treaty_name' => $b->source1 ?: $b->line_name,
                         'url' => $b->url1,

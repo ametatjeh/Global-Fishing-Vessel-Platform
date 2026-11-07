@@ -626,6 +626,33 @@ export class GlobalMapController {
             }
         });
 
+        // Shared styling constants for EEZ boundaries:
+        // Thin 1.0-1.2px at normal zoom (4-6), 70% opacity to preserve underlying operational tracks
+        const aseanLineColor = [
+            'match',
+            ['get', 'country_code'],
+            'IDN', '#06b6d4', // Indonesia: Cyan
+            'MYS', '#f97316', // Malaysia: Orange
+            'THA', '#eab308', // Thailand: Yellow
+            'VNM', '#d946ef', // Vietnam: Magenta
+            'PHL', '#22c55e', // Filipina: Green
+            'BRN', '#8b5cf6', // Brunei: Violet
+            'SGP', '#fb7185', // Singapura: Coral
+            'KHM', '#3b82f6', // Kamboja: Blue
+            'MMR', '#ec4899', // Myanmar: Pink
+            'LAO', '#14b8a6', // Laos: Teal
+            'TLS', '#a855f7', // Timor-Leste: Violet/Indigo
+            ['coalesce', ['get', 'color'], '#06b6d4']
+        ];
+
+        const eezLineWidth = [
+            'interpolate', ['linear'], ['zoom'],
+            2, 0.8,
+            4, 1.0,
+            6, 1.2,
+            10, 1.8
+        ];
+
         // 2. Subtle Zone Outline
         this.map.addLayer({
             id: 'asean-eez-polygon-outline-layer',
@@ -634,19 +661,13 @@ export class GlobalMapController {
             filter: ['==', ['get', 'feature_type'], 'zone'],
             layout: { visibility: this.activeLayers.aseanEez ? 'visible' : 'none' },
             paint: {
-                'line-color': [
-                    'match',
-                    ['get', 'delimitation_status'],
-                    'DISPUTED', '#f43f5e',
-                    'JOINT_REGIME', '#c084fc',
-                    '#10b981'
-                ],
-                'line-width': 1.0,
-                'line-opacity': 0.30
+                'line-color': aseanLineColor,
+                'line-width': 0.8,
+                'line-opacity': 0.25
             }
         });
 
-        // 3a. AGREED / DELIMITATED Lines (Solid Emerald Line)
+        // 3a. AGREED / DELIMITATED Lines (Solid Country Line)
         this.map.addLayer({
             id: 'asean-eez-line-agreed',
             type: 'line',
@@ -662,18 +683,13 @@ export class GlobalMapController {
                 'line-join': 'round'
             },
             paint: {
-                'line-color': '#10b981',
-                'line-opacity': 0.95,
-                'line-width': [
-                    'interpolate', ['linear'], ['zoom'],
-                    2, 1.4,
-                    6, 2.2,
-                    10, 3.0
-                ]
+                'line-color': aseanLineColor,
+                'line-opacity': 0.70,
+                'line-width': eezLineWidth
             }
         });
 
-        // 3b. UNDELIMITED / UNRESOLVED Lines (Dashed Amber Line)
+        // 3b. UNDELIMITED / UNRESOLVED Lines (Dashed Country Line)
         this.map.addLayer({
             id: 'asean-eez-line-undelimited',
             type: 'line',
@@ -689,19 +705,14 @@ export class GlobalMapController {
                 'line-join': 'round'
             },
             paint: {
-                'line-color': '#f59e0b',
-                'line-opacity': 0.90,
+                'line-color': aseanLineColor,
+                'line-opacity': 0.70,
                 'line-dasharray': [3, 2],
-                'line-width': [
-                    'interpolate', ['linear'], ['zoom'],
-                    2, 1.2,
-                    6, 1.8,
-                    10, 2.6
-                ]
+                'line-width': eezLineWidth
             }
         });
 
-        // 3c. DISPUTED / OVERLAPPING CLAIM Lines (Dashed Rose / Red Line)
+        // 3c. DISPUTED / OVERLAPPING CLAIM Lines (Dashed Country Line)
         this.map.addLayer({
             id: 'asean-eez-line-disputed',
             type: 'line',
@@ -717,19 +728,14 @@ export class GlobalMapController {
                 'line-join': 'round'
             },
             paint: {
-                'line-color': '#f43f5e',
-                'line-opacity': 0.95,
+                'line-color': aseanLineColor,
+                'line-opacity': 0.70,
                 'line-dasharray': [2, 2],
-                'line-width': [
-                    'interpolate', ['linear'], ['zoom'],
-                    2, 1.4,
-                    6, 2.2,
-                    10, 3.0
-                ]
+                'line-width': eezLineWidth
             }
         });
 
-        // 3d. JOINT REGIME Lines (Dash-Dotted Purple Line)
+        // 3d. JOINT REGIME Lines (Dash-Dotted Country Line)
         this.map.addLayer({
             id: 'asean-eez-line-joint',
             type: 'line',
@@ -745,19 +751,14 @@ export class GlobalMapController {
                 'line-join': 'round'
             },
             paint: {
-                'line-color': '#a855f7',
-                'line-opacity': 0.95,
+                'line-color': aseanLineColor,
+                'line-opacity': 0.70,
                 'line-dasharray': [4, 2],
-                'line-width': [
-                    'interpolate', ['linear'], ['zoom'],
-                    2, 1.4,
-                    6, 2.2,
-                    10, 3.0
-                ]
+                'line-width': eezLineWidth
             }
         });
 
-        // 3e. UNKNOWN / NOT VERIFIED Lines (Dotted Slate Line)
+        // 3e. UNKNOWN / NOT VERIFIED Lines (Dotted Country Line)
         this.map.addLayer({
             id: 'asean-eez-line-unknown',
             type: 'line',
@@ -773,10 +774,10 @@ export class GlobalMapController {
                 'line-join': 'round'
             },
             paint: {
-                'line-color': '#94a3b8',
-                'line-opacity': 0.80,
+                'line-color': aseanLineColor,
+                'line-opacity': 0.70,
                 'line-dasharray': [1, 2],
-                'line-width': 1.2
+                'line-width': eezLineWidth
             }
         });
     }
@@ -802,6 +803,16 @@ export class GlobalMapController {
             }
         });
 
+        // Distinct Red-Orange color (#ef4444) for Australia EEZ - highly distinguishable from ASEAN countries
+        const australiaLineColor = '#ef4444';
+        const australiaLineWidth = [
+            'interpolate', ['linear'], ['zoom'],
+            2, 0.8,
+            4, 1.0,
+            6, 1.2,
+            10, 1.8
+        ];
+
         // 2. Subtle Zone Outline
         this.map.addLayer({
             id: 'australia-eez-polygon-outline-layer',
@@ -810,13 +821,13 @@ export class GlobalMapController {
             filter: ['==', ['get', 'feature_type'], 'zone'],
             layout: { visibility: this.activeLayers.australiaEez ? 'visible' : 'none' },
             paint: {
-                'line-color': '#38bdf8',
-                'line-width': 1.0,
+                'line-color': australiaLineColor,
+                'line-width': 0.8,
                 'line-opacity': 0.25
             }
         });
 
-        // 3a. Bilateral Maritime Treaty Boundaries (Solid Sky-Blue / Azure Line)
+        // 3a. Bilateral Maritime Treaty Boundaries (Solid Red-Orange Line)
         this.map.addLayer({
             id: 'australia-eez-line-treaty',
             type: 'line',
@@ -832,18 +843,13 @@ export class GlobalMapController {
                 'line-join': 'round'
             },
             paint: {
-                'line-color': '#38bdf8',
-                'line-opacity': 0.95,
-                'line-width': [
-                    'interpolate', ['linear'], ['zoom'],
-                    2, 1.4,
-                    6, 2.2,
-                    10, 3.0
-                ]
+                'line-color': australiaLineColor,
+                'line-opacity': 0.70,
+                'line-width': australiaLineWidth
             }
         });
 
-        // 3b. Outer 200 NM EEZ Limit Lines (Dashed Cyan / Azure Line)
+        // 3b. Outer 200 NM EEZ Limit Lines (Dashed Red-Orange Line)
         this.map.addLayer({
             id: 'australia-eez-line-200nm',
             type: 'line',
@@ -859,19 +865,14 @@ export class GlobalMapController {
                 'line-join': 'round'
             },
             paint: {
-                'line-color': '#0ea5e9',
-                'line-opacity': 0.90,
+                'line-color': australiaLineColor,
+                'line-opacity': 0.70,
                 'line-dasharray': [4, 2],
-                'line-width': [
-                    'interpolate', ['linear'], ['zoom'],
-                    2, 1.3,
-                    6, 2.0,
-                    10, 2.8
-                ]
+                'line-width': australiaLineWidth
             }
         });
 
-        // 3c. Median Lines / Equidistant Boundaries (Dashed Amber Line)
+        // 3c. Median Lines / Equidistant Boundaries (Dashed Amber/Orange Line)
         this.map.addLayer({
             id: 'australia-eez-line-median',
             type: 'line',
@@ -887,15 +888,10 @@ export class GlobalMapController {
                 'line-join': 'round'
             },
             paint: {
-                'line-color': '#f59e0b',
-                'line-opacity': 0.90,
+                'line-color': australiaLineColor,
+                'line-opacity': 0.70,
                 'line-dasharray': [3, 2],
-                'line-width': [
-                    'interpolate', ['linear'], ['zoom'],
-                    2, 1.2,
-                    6, 1.8,
-                    10, 2.6
-                ]
+                'line-width': australiaLineWidth
             }
         });
     }

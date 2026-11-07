@@ -67,3 +67,4 @@ class MapBasemapSettingsTest extends TestCase
         $this->assertStringContainsString('restoreCachedLayerData', $content);
     }
 }
+

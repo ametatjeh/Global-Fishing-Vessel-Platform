@@ -497,54 +497,104 @@
 
             <!-- 3. Batas Maritim Regional (EEZ) & Overlays -->
             <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2.5 text-[10px] font-mono">
-                <!-- ASEAN EEZ -->
+                <!-- ASEAN EEZ Header & Metadata -->
                 <div class="space-y-1.5">
                     <div class="text-[9px] uppercase font-bold text-emerald-400 tracking-wider flex items-center justify-between">
                         <span>Status Batas Maritim ASEAN &bull; ASEAN EEZ (Marine Regions v12)</span>
-                        <span class="text-emerald-500 text-[9px] font-bold">ASEAN</span>
+                        <span class="text-slate-400 text-[8px] bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">1–1.2px &bull; Opacity 70%</span>
                     </div>
-                    <div class="space-y-1 text-slate-300">
+
+                    <!-- ASEAN Country Colors Grid -->
+                    <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-[9px] text-slate-300 pt-0.5">
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-3 h-1 rounded-sm bg-[#06b6d4] shrink-0 shadow-sm"></span>
+                            <span class="truncate"><span class="text-slate-400 font-semibold">IDN</span> Indonesia (Cyan)</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-3 h-1 rounded-sm bg-[#f97316] shrink-0 shadow-sm"></span>
+                            <span class="truncate"><span class="text-slate-400 font-semibold">MYS</span> Malaysia (Orange)</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-3 h-1 rounded-sm bg-[#eab308] shrink-0 shadow-sm"></span>
+                            <span class="truncate"><span class="text-slate-400 font-semibold">THA</span> Thailand (Yellow)</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-3 h-1 rounded-sm bg-[#d946ef] shrink-0 shadow-sm"></span>
+                            <span class="truncate"><span class="text-slate-400 font-semibold">VNM</span> Vietnam (Magenta)</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-3 h-1 rounded-sm bg-[#22c55e] shrink-0 shadow-sm"></span>
+                            <span class="truncate"><span class="text-slate-400 font-semibold">PHL</span> Filipina (Green)</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-3 h-1 rounded-sm bg-[#8b5cf6] shrink-0 shadow-sm"></span>
+                            <span class="truncate"><span class="text-slate-400 font-semibold">BRN</span> Brunei (Violet)</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-3 h-1 rounded-sm bg-[#fb7185] shrink-0 shadow-sm"></span>
+                            <span class="truncate"><span class="text-slate-400 font-semibold">SGP</span> Singapura (Coral)</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-3 h-1 rounded-sm bg-[#3b82f6] shrink-0 shadow-sm"></span>
+                            <span class="truncate"><span class="text-slate-400 font-semibold">KHM</span> Kamboja (Blue)</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-3 h-1 rounded-sm bg-[#ec4899] shrink-0 shadow-sm"></span>
+                            <span class="truncate"><span class="text-slate-400 font-semibold">MMR</span> Myanmar (Pink)</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-3 h-1 rounded-sm bg-[#14b8a6] shrink-0 shadow-sm"></span>
+                            <span class="truncate"><span class="text-slate-400 font-semibold">LAO</span> Laos (Teal)</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 col-span-2">
+                            <span class="w-3 h-1 rounded-sm bg-[#a855f7] shrink-0 shadow-sm"></span>
+                            <span class="truncate"><span class="text-slate-400 font-semibold">TLS</span> Timor-Leste (Violet-Indigo)</span>
+                        </div>
+                    </div>
+
+                    <!-- Line Pattern Classification -->
+                    <div class="pt-1.5 border-t border-slate-800/80 space-y-1 text-[9px] text-slate-300">
                         <div class="flex items-center gap-2">
-                            <span class="w-4 h-0.5 bg-emerald-500 shrink-0"></span>
-                            <span class="truncate">Agreed / Delimitated (Traktat Resmi)</span>
+                            <span class="w-4 h-0.5 bg-slate-300 shrink-0"></span>
+                            <span class="truncate">Agreed / Delimitated (Traktat Bilateral Resmi)</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <span class="w-4 h-0.5 bg-amber-500 border-b border-dashed border-amber-400 shrink-0"></span>
-                            <span class="truncate">Undelimited / Unresolved (Median Line)</span>
+                            <span class="w-4 h-0.5 border-b border-dashed border-slate-400 shrink-0"></span>
+                            <span class="truncate">Undelimited / Median Line</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <span class="w-4 h-0.5 bg-rose-500 border-b border-dashed border-rose-400 shrink-0"></span>
+                            <span class="w-4 h-0.5 border-b border-dashed border-rose-400 shrink-0"></span>
                             <span class="truncate">Disputed / Overlapping Claim</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <span class="w-4 h-0.5 bg-purple-500 border-b border-dashed border-purple-400 shrink-0"></span>
+                            <span class="w-4 h-0.5 border-b border-dotted border-purple-400 shrink-0"></span>
                             <span class="truncate">Joint Regime Area (Zona Bersama)</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <span class="w-4 h-0.5 bg-emerald-500/80 shrink-0"></span>
+                            <span class="w-4 h-0.5 border-b border-dashed border-slate-400 shrink-0"></span>
                             <span class="truncate">Garis Batas Luar ZEE (200 NM)</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Australia EEZ -->
+                <!-- Australia EEZ (Terpisah) -->
                 <div class="pt-2 border-t border-slate-800 space-y-1.5">
-                    <div class="text-[9px] uppercase font-bold text-sky-400 tracking-wider flex items-center justify-between">
+                    <div class="text-[9px] uppercase font-bold text-red-400 tracking-wider flex items-center justify-between">
                         <span>Australia EEZ (AMSIS / AMB / v12)</span>
-                        <span class="text-sky-400 text-[9px] font-bold">Australia</span>
+                        <span class="text-red-400 text-[8px] font-bold bg-red-950/60 px-1.5 py-0.5 rounded border border-red-800/80">AUS &bull; Merah-Oranye</span>
                     </div>
-                    <div class="space-y-1 text-slate-300">
+                    <div class="space-y-1 text-[9px] text-slate-300">
                         <div class="flex items-center gap-2">
-                            <span class="w-4 h-0.5 bg-sky-400 shrink-0"></span>
-                            <span class="truncate">Agreed Bilateral Maritime Treaty</span>
+                            <span class="w-4 h-0.5 bg-[#ef4444] shrink-0"></span>
+                            <span class="truncate">Agreed Bilateral Maritime Treaty (Solid)</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <span class="w-4 h-0.5 border-b-2 border-dashed border-sky-500 shrink-0"></span>
+                            <span class="w-4 h-0.5 border-b border-dashed border-[#ef4444] shrink-0"></span>
                             <span class="truncate">Australia 200 NM Outer Limit (ZEE)</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <span class="w-4 h-0.5 bg-amber-500 border-b border-dashed border-amber-400 shrink-0"></span>
-                            <span class="truncate">Median / Equidistant Line</span>
+                            <span class="w-4 h-0.5 border-b border-dotted border-[#ef4444] shrink-0"></span>
+                            <span class="truncate">Median / Equidistant Boundary Line</span>
                         </div>
                     </div>
                 </div>

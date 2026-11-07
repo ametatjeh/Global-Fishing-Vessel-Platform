@@ -217,5 +217,53 @@ class AseanAndAustraliaEezTest extends TestCase
         $this->assertStringContainsString("'vessels-oriented-layer'", $content);
         $this->assertStringContainsString("'australia-eez-line-treaty'", $content);
         $this->assertStringContainsString("'australia-eez-line-200nm'", $content);
+
+        // Thin line width and 70% opacity
+        $this->assertStringContainsString("'line-opacity': 0.70", $content);
+        $this->assertStringContainsString("'IDN', '#06b6d4'", $content);
+        $this->assertStringContainsString("'MYS', '#f97316'", $content);
+        $this->assertStringContainsString("'THA', '#eab308'", $content);
+        $this->assertStringContainsString("'VNM', '#d946ef'", $content);
+        $this->assertStringContainsString("'PHL', '#22c55e'", $content);
+        $this->assertStringContainsString("'BRN', '#8b5cf6'", $content);
+        $this->assertStringContainsString("'SGP', '#fb7185'", $content);
+        $this->assertStringContainsString("'KHM', '#3b82f6'", $content);
+        $this->assertStringContainsString("'MMR', '#ec4899'", $content);
+        $this->assertStringContainsString("'LAO', '#14b8a6'", $content);
+        $this->assertStringContainsString("australiaLineColor = '#ef4444'", $content);
+    }
+
+    public function test_eez_country_colors_and_metadata_attributes(): void
+    {
+        $this->actingAs($this->analyst);
+
+        // Seed sample ASEAN Boundary (Indonesia - Malaysia)
+        EezBoundary::create([
+            'line_id' => 9001,
+            'line_name' => 'Indonesia - Malaysia',
+            'line_type' => 'Treaty',
+            'sovereign1' => 'Indonesia',
+            'sovereign2' => 'Malaysia',
+            'territory1' => 'Indonesia',
+            'territory2' => 'Malaysia',
+            'eez1' => 'Indonesian Exclusive Economic Zone',
+            'eez2' => 'Malaysian Exclusive Economic Zone',
+            'source1' => 'Treaty 1969',
+            'length_km' => 150.0,
+            'geometry_geojson' => json_encode([
+                'type' => 'LineString',
+                'coordinates' => [[102.0, 2.0], [103.0, 1.5]]
+            ]),
+        ]);
+
+        $service = app(SpatialQueryService::class);
+        $aseanFeatures = $service->getAseanEezFeatureCollection();
+
+        $line = collect($aseanFeatures['features'])->firstWhere('properties.line_id', 9001);
+        $this->assertNotNull($line);
+        $this->assertEquals('IDN', $line['properties']['country_code']);
+        $this->assertEquals('#06b6d4', $line['properties']['color']);
+        $this->assertEquals('Indonesia', $line['properties']['country']);
     }
 }
+
