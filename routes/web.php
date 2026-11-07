@@ -35,7 +35,17 @@ Route::middleware(['auth', 'role'])->group(function () {
     // 1. Global Vessel Map
     Route::get('/map', [MapController::class, 'index'])->name('map.index');
 
-    // 2. Vessel Registry
+    // 2. Vessel Registry & Classification Review
+    Route::get('/vessels/classification-review', [\App\Http\Controllers\VesselClassificationReviewController::class, 'index'])
+        ->middleware('role:super_admin,admin,analyst')
+        ->name('vessels.classification-review.index');
+    Route::get('/vessels/classification-review/{id}', [\App\Http\Controllers\VesselClassificationReviewController::class, 'show'])
+        ->middleware('role:super_admin,admin,analyst')
+        ->name('vessels.classification-review.show');
+    Route::post('/vessels/classification-review/{id}/decision', [\App\Http\Controllers\VesselClassificationReviewController::class, 'decision'])
+        ->middleware('role:super_admin,admin,analyst')
+        ->name('vessels.classification-review.decision');
+
     Route::get('/vessels', [VesselController::class, 'index'])->name('vessels.index');
     Route::get('/vessels/{id}', [VesselController::class, 'show'])->name('vessels.show');
     Route::post('/vessels/{id}/gfw-sync', [VesselController::class, 'syncGfw'])->name('vessels.gfw-sync');

@@ -89,10 +89,26 @@
             </div>
 
             <a href="{{ route('vessels.index') }}" data-tooltip="Vessel Registry"
-                class="sidebar-item flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('vessels.*') ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                class="sidebar-item flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition {{ (request()->routeIs('vessels.index') || request()->routeIs('vessels.show')) ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
                 <span class="sidebar-icon">🚢</span>
                 <span class="sidebar-text truncate">Vessel Registry</span>
             </a>
+
+            @if(in_array(auth()->user()?->role, ['super_admin', 'admin', 'analyst']))
+            <a href="{{ route('vessels.classification-review.index') }}" data-tooltip="Classification Review"
+                class="sidebar-item flex items-center justify-between px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('vessels.classification-review.*') ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <span class="sidebar-icon">⚖️</span>
+                    <span class="sidebar-text truncate">Classification Review</span>
+                </div>
+                @php
+                    $disputedBadgeCount = \App\Models\Vessel::disputedClassification()->count();
+                @endphp
+                @if($disputedBadgeCount > 0)
+                    <span class="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-rose-500/30 text-rose-300 border border-rose-500/40">{{ $disputedBadgeCount }}</span>
+                @endif
+            </a>
+            @endif
 
             <a href="{{ route('encounters.index') }}" data-tooltip="Vessel Encounters"
                 class="sidebar-item flex items-center justify-between px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('encounters.*') ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
