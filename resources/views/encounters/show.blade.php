@@ -63,7 +63,14 @@
                     <div>Callsign: <span class="text-slate-200 font-mono">{{ $encounter->vessel1?->callsign ?? '-' }}</span></div>
                 </div>
                 <div class="pt-2 text-right">
-                    <a href="{{ route('vessels.show', $encounter->vessel1_id) }}" class="text-cyan-400 hover:underline text-[11px]">Buka Profil Kapal &rarr;</a>
+                    @php
+                        $vessel1Id = $encounter->vessel1?->id ?? $encounter->vessel1_id ?? $encounter->vessel_1_id ?? null;
+                    @endphp
+                    @if($vessel1Id)
+                        <a href="{{ route('vessels.show', ['id' => $vessel1Id]) }}" class="text-cyan-400 hover:underline text-[11px]">Buka Profil Kapal &rarr;</a>
+                    @else
+                        <span class="text-slate-500 text-[11px] italic">Profil kapal tidak tersedia</span>
+                    @endif
                 </div>
             </div>
         </div>
@@ -84,7 +91,14 @@
                     <div>Callsign: <span class="text-slate-200 font-mono">{{ $encounter->vessel2?->callsign ?? '-' }}</span></div>
                 </div>
                 <div class="pt-2 text-right">
-                    <a href="{{ route('vessels.show', $encounter->vessel2_id) }}" class="text-cyan-400 hover:underline text-[11px]">Buka Profil Kapal &rarr;</a>
+                    @php
+                        $vessel2Id = $encounter->vessel2?->id ?? $encounter->vessel2_id ?? $encounter->vessel_2_id ?? null;
+                    @endphp
+                    @if($vessel2Id)
+                        <a href="{{ route('vessels.show', ['id' => $vessel2Id]) }}" class="text-cyan-400 hover:underline text-[11px]">Buka Profil Kapal &rarr;</a>
+                    @else
+                        <span class="text-slate-500 text-[11px] italic">Profil kapal tidak tersedia</span>
+                    @endif
                 </div>
             </div>
         </div>

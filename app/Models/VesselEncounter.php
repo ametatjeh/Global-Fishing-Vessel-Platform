@@ -37,6 +37,16 @@ class VesselEncounter extends Model
         return $this->belongsTo(Vessel::class, 'vessel_2_id');
     }
 
+    public function getVessel1IdAttribute(): ?string
+    {
+        return $this->attributes['vessel_1_id'] ?? $this->vessel1?->id ?? null;
+    }
+
+    public function getVessel2IdAttribute(): ?string
+    {
+        return $this->attributes['vessel_2_id'] ?? $this->vessel2?->id ?? null;
+    }
+
     public function encounterVessels(): HasMany
     {
         return $this->hasMany(EncounterVessel::class, 'encounter_id');
