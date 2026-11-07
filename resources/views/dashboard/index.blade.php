@@ -147,7 +147,6 @@
                             <th class="pb-2">Penyedia Data</th>
                             <th class="pb-2">Tipe Ingest</th>
                             <th class="pb-2">Status Operasional</th>
-                            <th class="pb-2">Hak Komersial</th>
                             <th class="pb-2">Sinkronisasi</th>
                         </tr>
                     </thead>
@@ -183,20 +182,13 @@
                                     </span>
                                 @endif
                             </td>
-                            <td class="py-2.5 text-[11px]">
-                                @if($provider->commercial_use_allowed)
-                                    <span class="text-teal-300">Dizinkan</span>
-                                @else
-                                    <span class="text-rose-400 font-semibold">Non-Komersial</span>
-                                @endif
-                            </td>
                             <td class="py-2.5 text-[11px] text-slate-400 font-mono">
                                 {{ $provider->last_sync_at ? $provider->last_sync_at->diffForHumans() : 'Belum pernah' }}
                             </td>
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="5" class="py-4 text-center text-slate-500">Tidak ada provider terdaftar.</td>
+                            <td colspan="4" class="py-4 text-center text-slate-500">Tidak ada provider terdaftar.</td>
                         </tr>
                         @endforelse
                     </tbody>

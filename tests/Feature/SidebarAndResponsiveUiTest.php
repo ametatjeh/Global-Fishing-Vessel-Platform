@@ -90,6 +90,7 @@ class SidebarAndResponsiveUiTest extends TestCase
         $dash = $this->actingAs($this->superAdmin)->get(route('dashboard'));
         $dash->assertStatus(200);
         $dash->assertSee('responsive-table-container', false);
+        $dash->assertDontSee('Hak Komersial', false);
 
         // 2. Vessels Registry
         $vessels = $this->actingAs($this->superAdmin)->get(route('vessels.index'));
