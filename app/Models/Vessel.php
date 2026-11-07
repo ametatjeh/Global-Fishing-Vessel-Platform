@@ -17,9 +17,13 @@ class Vessel extends Model
 
     protected $casts = [
         'length_meters' => 'float',
+        'beam_meters' => 'float',
         'tonnage' => 'float',
+        'engine_power_kw' => 'float',
+        'build_year' => 'integer',
         'first_seen_at' => 'datetime',
         'last_seen_at' => 'datetime',
+        'last_enriched_at' => 'datetime',
         'metadata' => 'array',
     ];
 
@@ -86,5 +90,41 @@ class Vessel extends Model
     public function getFlagInfoAttribute(): array
     {
         return \App\Services\Maritime\FlagStateService::resolveForVessel($this);
+    }
+
+    /**
+     * Determine if vessel identity has been manually verified by an analyst
+     */
+    public function isManuallyVerified(): bool
+    {
+        return $this->verification_status === 'verified';
+    }
+
+    /**
+     * Get alternative names recorded in metadata / identifiers
+     */
+    public function getAlternativeNamesAttribute(): array
+    {
+        $names = $this->metadata['alternative_names'] ?? [];
+        if (!is_array($names)) {
+            $names = [];
+        }
+        return array_values(array_unique(array_filter($names, fn ($n) => !empty($n) && $n !== $this->name)));
+    }
+
+    /**
+     * Get enrichment conflicts recorded during multi-source reconciliation
+     */
+    public function getEnrichmentConflictsAttribute(): array
+    {
+        return $this->metadata['enrichment']['conflicts'] ?? [];
+    }
+
+    /**
+     * Get GFW events intelligence summary
+     */
+    public function getGfwEventsSummaryAttribute(): ?array
+    {
+        return $this->metadata['enrichment']['events_summary'] ?? null;
     }
 }
