@@ -17,6 +17,7 @@ class GfwApiService
     public const DATASET_LOITERING = 'public-global-loitering-events:latest';
     public const DATASET_ENCOUNTERS = 'public-global-encounters-events:latest';
     public const DATASET_FISHING = 'public-global-fishing-events:latest';
+    public const DATASET_AIS_GAPS = 'public-global-gaps-events:latest';
 
     public function __construct()
     {
@@ -112,6 +113,7 @@ class GfwApiService
             'loitering' => self::DATASET_LOITERING,
             'fishing' => self::DATASET_FISHING,
             'encounters' => self::DATASET_ENCOUNTERS,
+            'ais_gaps' => self::DATASET_AIS_GAPS,
         ];
 
         $capabilities = [];

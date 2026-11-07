@@ -100,12 +100,32 @@ class GfwVesselEnrichmentService
                 return $result;
             }
 
-            $result['status'] = 'no_match';
+            $isReview = ($searchResult['review_required'] ?? false) || str_contains($searchResult['message'] ?? '', 'Multiple candidates');
+            $status = $isReview ? 'conflict_detected' : 'no_match';
+            $result['status'] = $status;
+            $result['sync_status'] = $isReview ? 'match_review_required' : 'not_found';
             $result['message'] = $searchResult['message'] ?? 'No verified GFW candidate found matching local identifiers.';
-            if (!$dryRun && $vessel->enrichment_status === 'not_enriched') {
+            if (!$dryRun) {
+                $meta = $vessel->metadata ?? [];
+                if (!is_array($meta)) {
+                    $meta = [];
+                }
+                $meta['enrichment'] = [
+                    'provider' => 'global-fishing-watch',
+                    'gfw_vessel_id' => null,
+                    'dataset' => $this->vesselIdentityDataset,
+                    'match_method' => null,
+                    'match_confidence' => null,
+                    'matching_identifiers' => [],
+                    'enriched_at' => now()->toIso8601String(),
+                    'status' => $result['sync_status'],
+                    'message' => $result['message'],
+                    'search_attempts' => $result['search_attempts'],
+                ];
                 $vessel->update([
-                    'enrichment_status' => 'no_match',
+                    'enrichment_status' => $status,
                     'last_enriched_at' => now(),
+                    'metadata' => $meta,
                 ]);
             }
             return $result;
@@ -121,6 +141,7 @@ class GfwVesselEnrichmentService
 
         // 2. Fetch full vessel details from GET /v3/vessels/{vesselId} if available
         $vesselDetails = $this->getGfwVesselDetails($result['gfw_vessel_id']);
+        $result['raw_vessel_details'] = $vesselDetails;
 
         // 3. Query events summary (port visits, loitering, encounters, fishing)
         $eventsResult = $this->getGfwEventsSummary($result['gfw_vessel_id']);
@@ -138,9 +159,11 @@ class GfwVesselEnrichmentService
         if (!$dryRun) {
             $this->applyEnrichment($vessel, $result, $reconciliation);
             $result['status'] = count($reconciliation['conflicts']) > 0 ? 'conflict_detected' : 'enriched';
+            $result['sync_status'] = count($reconciliation['conflicts']) > 0 ? 'match_review_required' : 'synced';
             $result['message'] = "Enrichment successfully applied (" . count($reconciliation['updates']) . " fields updated).";
         } else {
             $result['status'] = count($reconciliation['conflicts']) > 0 ? 'conflict_detected' : 'preview_ready';
+            $result['sync_status'] = count($reconciliation['conflicts']) > 0 ? 'match_review_required' : 'preview_ready';
             $result['message'] = "Dry run completed: " . count($reconciliation['updates']) . " fields eligible for update.";
         }
 
@@ -256,6 +279,7 @@ class GfwVesselEnrichmentService
                 } elseif (count($verifiedMatches) > 1) {
                     return [
                         'candidate' => null,
+                        'review_required' => true,
                         'attempts' => $attempts,
                         'message' => 'Multiple candidates found matching name with conflicting identifiers. Refusing ambiguous link.',
                     ];
@@ -347,6 +371,7 @@ class GfwVesselEnrichmentService
             'loitering' => ['count' => null, 'status' => 'not_queried'],
             'encounters' => ['count' => null, 'status' => 'not_queried'],
             'fishing' => ['count' => null, 'status' => 'not_queried'],
+            'ais_gaps' => ['count' => null, 'status' => 'not_queried'],
         ];
         $permissions = [];
 
@@ -355,6 +380,7 @@ class GfwVesselEnrichmentService
             'loitering' => GfwApiService::DATASET_LOITERING,
             'encounters' => GfwApiService::DATASET_ENCOUNTERS,
             'fishing' => GfwApiService::DATASET_FISHING,
+            'ais_gaps' => GfwApiService::DATASET_AIS_GAPS,
         ];
 
         foreach ($datasets as $key => $dataset) {
@@ -759,6 +785,15 @@ class GfwVesselEnrichmentService
             $missingInGfw['owner'] = 'Owner not listed in GFW registry records.';
         }
 
+        if (!empty($ownerInfo['owner_country']) && empty($vessel->owner_country)) {
+            $updates['owner_country'] = [
+                'current' => null,
+                'new' => $ownerInfo['owner_country'],
+                'source' => $ownerInfo['source'] ?? 'GFW_IMO_REGISTRY',
+                'confidence' => 'high',
+            ];
+        }
+
         if (!empty($ownerInfo['operator'])) {
             if (empty($vessel->operator)) {
                 $updates['operator'] = [
@@ -775,6 +810,15 @@ class GfwVesselEnrichmentService
             }
         } else {
             $missingInGfw['operator'] = 'Operator not listed in GFW registry records.';
+        }
+
+        if (!empty($ownerInfo['operator_country']) && empty($vessel->operator_country)) {
+            $updates['operator_country'] = [
+                'current' => null,
+                'new' => $ownerInfo['operator_country'],
+                'source' => $ownerInfo['source'] ?? 'GFW_REGISTRY',
+                'confidence' => 'medium',
+            ];
         }
 
         return [
@@ -817,6 +861,9 @@ class GfwVesselEnrichmentService
         $mergedAltNames = array_values(array_unique(array_merge($existingAltNames, $reconciliation['alternative_names'])));
         $currentMetadata['alternative_names'] = $mergedAltNames;
 
+        $dbStatus = count($reconciliation['conflicts']) > 0 ? 'conflict_detected' : 'enriched';
+        $syncStatus = count($reconciliation['conflicts']) > 0 ? 'match_review_required' : 'synced';
+
         // Structured enrichment block
         $currentMetadata['enrichment'] = [
             'provider' => 'global-fishing-watch',
@@ -826,16 +873,19 @@ class GfwVesselEnrichmentService
             'match_confidence' => $result['match_confidence'],
             'matching_identifiers' => $result['matching_identifiers'],
             'enriched_at' => now()->toIso8601String(),
+            'status' => $syncStatus,
+            'enrichment_status' => $dbStatus,
             'field_provenance' => $fieldProvenance,
             'conflicts' => $reconciliation['conflicts'],
             'events_summary' => $result['events_summary'],
             'api_permissions' => $result['api_permissions'],
             'raw_gfw_candidate' => $result['gfw_candidate'],
+            'raw_vessel_details' => $result['raw_vessel_details'] ?? null,
         ];
 
         $dbUpdates['metadata'] = $currentMetadata;
         $dbUpdates['last_enriched_at'] = now();
-        $dbUpdates['enrichment_status'] = count($reconciliation['conflicts']) > 0 ? 'conflict_detected' : 'enriched';
+        $dbUpdates['enrichment_status'] = $dbStatus;
 
         $vessel->update($dbUpdates);
 
@@ -1103,14 +1153,17 @@ class GfwVesselEnrichmentService
         foreach ($sources as $src) {
             if (!$src) continue;
             if (!empty($src['registryOwners'][0]['name'])) {
+                $ownerFlag = $src['registryOwners'][0]['flag'] ?? ($src['registryOwners'][0]['country'] ?? null);
                 return [
                     'owner' => trim($src['registryOwners'][0]['name']),
+                    'owner_country' => $ownerFlag ? strtoupper(trim($ownerFlag)) : null,
                     'operator' => null,
+                    'operator_country' => null,
                     'source' => 'GFW_IMO_REGISTRY',
                 ];
             }
         }
-        return ['owner' => null, 'operator' => null, 'source' => null];
+        return ['owner' => null, 'owner_country' => null, 'operator' => null, 'operator_country' => null, 'source' => null];
     }
 }
 

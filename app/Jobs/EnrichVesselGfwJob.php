@@ -79,7 +79,7 @@ class EnrichVesselGfwJob implements ShouldQueue
             }
 
             // If already enriched and not forcing re-enrichment, skip
-            if (!$this->force && in_array($vessel->enrichment_status, ['enriched', 'conflict_detected', 'no_match'], true)) {
+            if (!$this->force && in_array($vessel->enrichment_status, ['synced', 'enriched', 'conflict_detected', 'match_review_required', 'no_match', 'not_found'], true)) {
                 // If it was enriched within the past 7 days, skip
                 if ($vessel->last_enriched_at && $vessel->last_enriched_at->gt(now()->subDays(7))) {
                     Log::info("EnrichVesselGfwJob: Vessel {$vessel->id} already enriched recently ({$vessel->enrichment_status}). Skipping.");
@@ -88,12 +88,22 @@ class EnrichVesselGfwJob implements ShouldQueue
                 }
             }
 
+            $previousStatus = $vessel->enrichment_status;
+
+            // Update status to syncing while processing
+            $vessel->update([
+                'enrichment_status' => 'syncing',
+            ]);
+
             Log::info("EnrichVesselGfwJob: Enriching vessel {$vessel->id} ({$vessel->name}, MMSI: {$vessel->mmsi}, Type: {$vessel->vessel_type})...");
 
             $result = $enrichmentService->enrichVessel($vessel, dryRun: false);
 
             if (!empty($result['is_rate_limited']) || ($result['status'] ?? '') === 'rate_limited') {
                 Log::warning("EnrichVesselGfwJob: Rate limited (429) for vessel {$this->vesselId}. Releasing job with backoff.");
+                $vessel->update([
+                    'enrichment_status' => $previousStatus,
+                ]);
                 $lock->release();
                 if ($this->job) {
                     $this->release(300);
@@ -105,7 +115,25 @@ class EnrichVesselGfwJob implements ShouldQueue
             $lock->release();
         } catch (\Throwable $e) {
             $lock->release();
-            Log::error("EnrichVesselGfwJob: Exception occurred for vessel {$this->vesselId}: " . $enrichmentService->apiService?->sanitizeMessage($e->getMessage()));
+            try {
+                if (isset($vessel) && $vessel) {
+                    $meta = $vessel->metadata ?? [];
+                    if (!is_array($meta)) {
+                        $meta = [];
+                    }
+                    $meta['enrichment'] = array_merge($meta['enrichment'] ?? [], [
+                        'status' => 'failed',
+                        'error_message' => $enrichmentService->apiService?->sanitizeMessage($e->getMessage()) ?? 'Sync failed.',
+                        'failed_at' => now()->toIso8601String(),
+                    ]);
+                    $vessel->update([
+                        'enrichment_status' => 'failed',
+                        'last_enriched_at' => now(),
+                        'metadata' => $meta,
+                    ]);
+                }
+            } catch (\Throwable $ignored) {}
+            Log::error("EnrichVesselGfwJob: Exception occurred for vessel {$this->vesselId}: " . ($enrichmentService->apiService?->sanitizeMessage($e->getMessage()) ?? $e->getMessage()));
             throw $e;
         }
     }

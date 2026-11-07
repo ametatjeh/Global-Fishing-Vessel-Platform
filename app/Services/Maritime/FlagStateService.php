@@ -333,6 +333,72 @@ class FlagStateService
     ];
 
     /**
+     * Resolve structured Country Details strictly from a country code (ISO-2 or ISO-3).
+     * Strictly adheres to data-integrity principles:
+     * - Never guesses from vessel name, MMSI, or ownership.
+     * - Returns 'Unknown' with neutral icon when code is missing, empty, or unknown.
+     * - Provides ISO-2, ISO-3, country name, and flag emoji.
+     *
+     * @param string|null $code Country code (e.g. 'IDN', 'ID', 'ESP', 'TWN')
+     * @return array
+     */
+    public static function resolveCountryDetails(?string $code): array
+    {
+        if (empty($code)) {
+            return [
+                'code' => null,
+                'name' => 'Unknown',
+                'iso2' => null,
+                'iso3' => null,
+                'flag_emoji' => '🌐',
+                'is_known' => false,
+                'label' => '🌐 Unknown',
+            ];
+        }
+
+        $clean = strtoupper(trim($code));
+        if ($clean === 'UNKNOWN' || $clean === 'UN' || $clean === 'XXX' || $clean === '-') {
+            return [
+                'code' => $clean,
+                'name' => 'Unknown',
+                'iso2' => null,
+                'iso3' => null,
+                'flag_emoji' => '🌐',
+                'is_known' => false,
+                'label' => '🌐 Unknown',
+            ];
+        }
+
+        $iso2 = self::normalizeToIso2($clean);
+
+        // 1. Check in $iso2Table
+        $name = self::$iso2Table[$iso2] ?? null;
+
+        // 2. Fallback search in $midTable
+        if (!$name) {
+            foreach (self::$midTable as $entry) {
+                if ($entry['iso2'] === $iso2 || ($entry['iso3'] ?? null) === $clean) {
+                    $name = $entry['name'];
+                    break;
+                }
+            }
+        }
+
+        $name = $name ?: $clean;
+        $flagEmoji = self::getFlagEmoji($iso2);
+
+        return [
+            'code' => $clean,
+            'name' => $name,
+            'iso2' => $iso2,
+            'iso3' => strlen($clean) === 3 ? $clean : null,
+            'flag_emoji' => $flagEmoji,
+            'is_known' => true,
+            'label' => "{$flagEmoji} {$name}",
+        ];
+    }
+
+    /**
      * Resolve Flag State metadata for a Vessel
      * Strictly adheres to maritime intelligence verification principles:
      * - Does NOT guess from vessel name or owner.

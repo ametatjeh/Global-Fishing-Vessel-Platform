@@ -149,6 +149,8 @@ class VesselSeeder extends Seeder
                 'verification_status' => $v[8],
                 'operator' => $v[9],
                 'owner' => $v[9],
+                'owner_country' => $v[1],
+                'operator_country' => $v[1],
                 'source_provider_id' => $fallbackProviderId,
                 'first_seen_at' => now()->subDays(rand(30, 360)),
                 'last_seen_at' => now()->subHours(rand(1, 48)),

@@ -39,6 +39,7 @@ Route::middleware(['auth', 'role'])->group(function () {
     // 2. Vessel Registry
     Route::get('/vessels', [VesselController::class, 'index'])->name('vessels.index');
     Route::get('/vessels/{id}', [VesselController::class, 'show'])->name('vessels.show');
+    Route::post('/vessels/{id}/gfw-sync', [VesselController::class, 'syncGfw'])->name('vessels.gfw-sync');
 
     // 3. Live Vessel Tracking
     Route::get('/tracking', [TrackingController::class, 'index'])->name('tracking.index');

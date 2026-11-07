@@ -93,6 +93,47 @@ class Vessel extends Model
     }
 
     /**
+     * Get strict Flag State country details without guessing from MMSI or name
+     */
+    public function getFlagDetailsAttribute(): array
+    {
+        return \App\Services\Maritime\FlagStateService::resolveCountryDetails($this->flag_state);
+    }
+
+    /**
+     * Get resolved Owner Country metadata
+     */
+    public function getOwnerCountryInfoAttribute(): array
+    {
+        return \App\Services\Maritime\FlagStateService::resolveCountryDetails($this->owner_country);
+    }
+
+    /**
+     * Get resolved Operator Country metadata
+     */
+    public function getOperatorCountryInfoAttribute(): array
+    {
+        return \App\Services\Maritime\FlagStateService::resolveCountryDetails($this->operator_country);
+    }
+
+    /**
+     * Get synchronized display string for Operator Kapal
+     */
+    public function getDisplayOperatorAttribute(): string
+    {
+        return !empty($this->operator) ? $this->operator : 'Not available';
+    }
+
+    /**
+     * Get synchronized display string for Pemilik (Owner)
+     * Strictly uses owner field (never falls back to operator).
+     */
+    public function getDisplayOwnerAttribute(): string
+    {
+        return !empty($this->owner) ? $this->owner : 'Not available';
+    }
+
+    /**
      * Determine if vessel identity has been manually verified by an analyst
      */
     public function isManuallyVerified(): bool
@@ -126,5 +167,41 @@ class Vessel extends Model
     public function getGfwEventsSummaryAttribute(): ?array
     {
         return $this->metadata['enrichment']['events_summary'] ?? null;
+    }
+
+    /**
+     * Check if vessel has eligible identifiers for GFW v3 API query (MMSI or IMO)
+     */
+    public function isEligibleForGfwSync(): bool
+    {
+        $hasImo = !empty($this->imo) && preg_match('/^[0-9]{7}$/', trim($this->imo));
+        $hasMmsi = !empty($this->mmsi) && preg_match('/^[0-9]{9}$/', trim($this->mmsi));
+        return $hasImo || $hasMmsi;
+    }
+
+    /**
+     * Get normalized GFW sync status:
+     * 'synced', 'syncing', 'not_found', 'match_review_required', 'failed', 'pending'
+     */
+    public function getGfwSyncStatusAttribute(): string
+    {
+        $status = $this->enrichment_status ?? 'pending';
+
+        return match ($status) {
+            'syncing' => 'syncing',
+            'synced', 'enriched' => 'synced',
+            'not_found', 'no_match' => 'not_found',
+            'match_review_required', 'conflict_detected', 'review_required' => 'match_review_required',
+            'failed', 'error' => 'failed',
+            default => 'pending',
+        };
+    }
+
+    /**
+     * Get GFW intelligence metadata payload
+     */
+    public function getGfwIntelligenceAttribute(): array
+    {
+        return $this->metadata['enrichment'] ?? [];
     }
 }

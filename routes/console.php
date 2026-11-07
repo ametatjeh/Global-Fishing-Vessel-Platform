@@ -34,3 +34,8 @@ Schedule::command('backup:create')
     ->withoutOverlapping()
     ->description('Execute automated PostgreSQL database dump, archive SAR storage, and generate health manifest');
 
+Schedule::command('gfw:vessels:enrich --batch --queue --limit=50')
+    ->everySixHours()
+    ->withoutOverlapping()
+    ->description('Automatically enrich eligible unenriched vessels via Global Fishing Watch API v3');
+
