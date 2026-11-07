@@ -20,7 +20,7 @@ class GfwApiService
 
     public function __construct()
     {
-        $this->token = config('maritime.providers.gfw.token') ?: env('GFW_API_TOKEN');
+        $this->token = config('maritime.providers.gfw.token') ?: (env('GFW_API_ACCESS_TOKEN') ?: env('GFW_API_TOKEN'));
         $this->baseUrl = rtrim(config('maritime.providers.gfw.base_url', 'https://gateway.api.globalfishingwatch.org/v3'), '/');
         $this->timeout = (int) config('maritime.providers.gfw.timeout', 20);
     }

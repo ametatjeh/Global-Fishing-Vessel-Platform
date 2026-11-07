@@ -6,7 +6,9 @@ use App\Models\AuditLog;
 use App\Models\DataProvider;
 use App\Models\Vessel;
 use App\Models\VesselIdentifier;
+use App\Services\Providers\AisStreamAdapter;
 use App\Services\Providers\GfwApiService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class GfwVesselEnrichmentService
@@ -17,7 +19,7 @@ class GfwVesselEnrichmentService
     public function __construct(GfwApiService $apiService)
     {
         $this->apiService = $apiService;
-        $this->vesselIdentityDataset = GfwApiService::DATASET_VESSEL_IDENTITY;
+        $this->vesselIdentityDataset = config('maritime.providers.gfw.dataset', GfwApiService::DATASET_VESSEL_IDENTITY);
     }
 
     public function isConfigured(): bool
@@ -82,6 +84,22 @@ class GfwVesselEnrichmentService
         $result['search_attempts'] = $searchResult['attempts'];
 
         if (!$searchResult['candidate']) {
+            // Check if any attempt failed due to rate limiting (HTTP 429)
+            $isRateLimited = false;
+            foreach ($searchResult['attempts'] as $att) {
+                if (($att['status'] ?? 0) === 429) {
+                    $isRateLimited = true;
+                    break;
+                }
+            }
+            if ($isRateLimited) {
+                $result['is_rate_limited'] = true;
+                $result['status'] = 'no_match';
+                $result['message'] = 'GFW API rate limit exceeded (HTTP 429 Too Many Requests).';
+                // Do not mark vessel as permanent no_match in database during rate limiting
+                return $result;
+            }
+
             $result['status'] = 'no_match';
             $result['message'] = $searchResult['message'] ?? 'No verified GFW candidate found matching local identifiers.';
             if (!$dryRun && $vessel->enrichment_status === 'not_enriched') {
@@ -287,11 +305,28 @@ class GfwVesselEnrichmentService
     }
 
     /**
-     * Query GET /v3/vessels/search
+     * Query GET /v3/vessels/search with cache for stable identifiers
      */
     public function querySearchEndpoint(string $query): array
     {
-        return $this->apiService->searchVessels($query, $this->vesselIdentityDataset);
+        $cacheKey = 'gfw_vessels_search_' . md5(trim($query) . '_' . $this->vesselIdentityDataset);
+        $ttl = (int) config('maritime.providers.gfw.search_cache_ttl', 604800);
+
+        if (Cache::has($cacheKey)) {
+            $cached = Cache::get($cacheKey);
+            if (is_array($cached)) {
+                return $cached;
+            }
+        }
+
+        $res = $this->apiService->searchVessels($query, $this->vesselIdentityDataset);
+
+        // Only cache successful HTTP 200 responses (do NOT cache 429, 500, or network timeouts)
+        if (($res['status'] ?? 0) === 200) {
+            Cache::put($cacheKey, $res, $ttl);
+        }
+
+        return $res;
     }
 
     /**
@@ -517,31 +552,27 @@ class GfwVesselEnrichmentService
 
         // 5. Vessel Type / Classification
         $gfwShiptype = $this->extractEntryShiptype($candidate);
-        // Prohibited check: Never ingest or re-classify as cargo or tanker
-        if ($gfwShiptype && in_array(strtolower($gfwShiptype), ['cargo', 'tanker'], true)) {
-            $conflicts['vessel_type'] = [
-                'local' => $vessel->vessel_type,
-                'gfw' => $gfwShiptype,
-                'message' => 'GFW reports cargo/tanker classification which is prohibited in GFVIP per Phase 10 policy. Classification rejected.',
-            ];
-            $preserved['vessel_type'] = [
-                'value' => $vessel->vessel_type,
-                'reason' => 'Cargo/tanker classification prohibited.',
-            ];
-        } elseif ($isVerified) {
+        if ($isVerified) {
             $preserved['vessel_type'] = [
                 'value' => $vessel->vessel_type,
                 'reason' => 'Vessel has verified manual classification. Automatic update blocked.',
             ];
         } elseif (!empty($gfwShiptype)) {
-            $normalizedType = strtolower($gfwShiptype);
+            $normalizedType = AisStreamAdapter::normalizeVesselType($gfwShiptype);
             if ($vessel->vessel_type === 'unknown' || empty($vessel->vessel_type)) {
-                $updates['vessel_type'] = [
-                    'current' => $vessel->vessel_type,
-                    'new' => $normalizedType,
-                    'source' => 'GFW_CLASSIFIER_AND_IMO_REGISTRY',
-                    'confidence' => 'high',
-                ];
+                if ($normalizedType !== 'unknown') {
+                    $updates['vessel_type'] = [
+                        'current' => $vessel->vessel_type,
+                        'new' => $normalizedType,
+                        'source' => 'GFW_VESSELS_API_V3',
+                        'confidence' => 'high',
+                    ];
+                } else {
+                    $preserved['vessel_type'] = [
+                        'value' => 'unknown',
+                        'reason' => 'GFW reports ambiguous or unclassified vessel type. Unknown classification retained.',
+                    ];
+                }
             } elseif ($vessel->vessel_type !== $normalizedType) {
                 $conflicts['vessel_type'] = [
                     'local' => $vessel->vessel_type,
@@ -560,6 +591,12 @@ class GfwVesselEnrichmentService
             }
         } else {
             $missingInGfw['vessel_type'] = 'Not reported by GFW.';
+            if ($vessel->vessel_type === 'unknown') {
+                $preserved['vessel_type'] = [
+                    'value' => 'unknown',
+                    'reason' => 'No classification evidence in GFW. Unknown classification retained.',
+                ];
+            }
         }
 
         // 6. Fishing Gear (if fishing vessel)
@@ -940,15 +977,31 @@ class GfwVesselEnrichmentService
 
     protected function extractEntryShiptype(array $entry): ?string
     {
-        // Check combinedSourcesInfo shiptypes / vesselClassSc
+        // 1. Check combinedSourcesInfo shiptypes / vesselClassSc
         if (!empty($entry['combinedSourcesInfo'][0]['shiptypes'][0]['name'])) {
             return $entry['combinedSourcesInfo'][0]['shiptypes'][0]['name'];
         }
         if (!empty($entry['combinedSourcesInfo'][0]['vesselClassSc'][0]['value'])) {
             return $entry['combinedSourcesInfo'][0]['vesselClassSc'][0]['value'];
         }
+        // 2. Check registryInfo shiptypes
+        if (!empty($entry['registryInfo'][0]['shiptypes'][0]['name'])) {
+            return $entry['registryInfo'][0]['shiptypes'][0]['name'];
+        }
+        if (!empty($entry['registryInfo'][0]['shiptype']) && is_string($entry['registryInfo'][0]['shiptype'])) {
+            return $entry['registryInfo'][0]['shiptype'];
+        }
+        // 3. Check selfReportedInfo shiptypes
+        if (!empty($entry['selfReportedInfo'][0]['shiptypes'][0]['name'])) {
+            return $entry['selfReportedInfo'][0]['shiptypes'][0]['name'];
+        }
+        if (!empty($entry['selfReportedInfo'][0]['shiptype']) && is_string($entry['selfReportedInfo'][0]['shiptype'])) {
+            return $entry['selfReportedInfo'][0]['shiptype'];
+        }
+        // 4. Fallback to gear types (if fishing gear is present, it indicates fishing)
         if (!empty($entry['registryInfo'][0]['geartypes'][0])) {
-            return $entry['registryInfo'][0]['geartypes'][0];
+            $gear = is_array($entry['registryInfo'][0]['geartypes'][0]) ? ($entry['registryInfo'][0]['geartypes'][0]['name'] ?? null) : $entry['registryInfo'][0]['geartypes'][0];
+            if ($gear) return 'fishing';
         }
         return null;
     }

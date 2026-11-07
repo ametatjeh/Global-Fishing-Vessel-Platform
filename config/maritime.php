@@ -71,9 +71,11 @@ return [
         'gfw' => [
             'name' => 'Global Fishing Watch (Events API v3)',
             'base_url' => env('GFW_API_BASE_URL', 'https://gateway.api.globalfishingwatch.org/v3'),
-            'token' => env('GFW_API_TOKEN', null),
+            'token' => env('GFW_API_ACCESS_TOKEN', env('GFW_API_TOKEN', null)),
+            'dataset' => env('GFW_VESSELS_DATASET', 'public-global-vessel-identity:latest'),
             'timeout' => (int) env('GFW_API_TIMEOUT', 30),
             'cache_ttl' => (int) env('GFW_API_CACHE_TTL', 3600),
+            'search_cache_ttl' => (int) env('GFW_SEARCH_CACHE_TTL', 604800), // 7 days cache for stable identifiers
             'license_type' => 'GFW Research & Non-Commercial Terms',
             'commercial_use_allowed' => false,
             'monetization_allowed' => false,
@@ -84,6 +86,11 @@ return [
             'badge' => 'NON-COMMERCIAL RESEARCH',
             'attribution' => 'This application uses data and services provided by Global Fishing Watch (GFW) for non-commercial research, educational, and public-interest purposes. GFW data are subject to applicable licensing, attribution, and usage restrictions.',
             'disclaimer' => 'Aktivitas kapal yang ditampilkan merupakan estimasi atau hasil analisis berdasarkan sumber data, bukan bukti final pelanggaran.',
+            'unknown_policy' => [
+                'allow_limited_monitoring' => true,
+                'exempt_from_fishing_compliance' => true,
+                'async_enrichment_enabled' => (bool) env('GFW_ASYNC_ENRICHMENT_ENABLED', true),
+            ],
         ],
         'copernicus_sar' => [
             'name' => 'Copernicus Data Space Ecosystem (Sentinel-1 SAR)',

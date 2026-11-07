@@ -2,11 +2,13 @@
 
 namespace App\Services\Providers;
 
+use App\Jobs\EnrichVesselGfwJob;
 use App\Models\DataProvider;
 use App\Models\ProviderIngestionRun;
 use App\Models\Vessel;
 use App\Models\VesselIdentifier;
 use App\Models\VesselPosition;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -960,6 +962,12 @@ class AisStreamAdapter implements ProviderAdapterInterface
 
             return $vessel;
         });
+
+        if ($vessel && $vessel->vessel_type === 'unknown' && $vessel->enrichment_status === 'not_enriched') {
+            $this->dispatchGfwEnrichmentAsync($vessel->id);
+        }
+
+        return $vessel;
     }
 
     /**
@@ -1196,6 +1204,30 @@ class AisStreamAdapter implements ProviderAdapterInterface
 
             return $position;
         });
+
+        if ($position && $position->vessel && $position->vessel->vessel_type === 'unknown' && $position->vessel->enrichment_status === 'not_enriched') {
+            $this->dispatchGfwEnrichmentAsync($position->vessel->id);
+        }
+
+        return $position;
+    }
+
+    /**
+     * Dispatch GFW vessel enrichment asynchronously in the background.
+     * Prevents queue spam and rate-limit exhaustion using a 1-hour debounce lock.
+     */
+    protected function dispatchGfwEnrichmentAsync(string $vesselId): void
+    {
+        if (!config('maritime.providers.gfw.unknown_policy.async_enrichment_enabled', true)) {
+            return;
+        }
+
+        $lockKey = 'gfw_enrich_dispatch_' . $vesselId;
+        $lock = Cache::lock($lockKey, 3600);
+
+        if ($lock->get()) {
+            EnrichVesselGfwJob::dispatch($vesselId)->delay(now()->addSeconds(10));
+        }
     }
 
     public function getMetadata(): array

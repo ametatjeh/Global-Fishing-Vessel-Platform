@@ -274,7 +274,10 @@ class EncounterDetectionService
 
     protected function classifyEncounter(?string $type1, ?string $type2): string
     {
-        $types = strtolower(($type1 ?? '') . ' ' . ($type2 ?? ''));
+        $t1 = strtolower(trim($type1 ?? ''));
+        $t2 = strtolower(trim($type2 ?? ''));
+        $types = "$t1 $t2";
+
         if (str_contains($types, 'carrier') || str_contains($types, 'reefer')) {
             return 'fishing_carrier';
         }
@@ -284,7 +287,9 @@ class EncounterDetectionService
         if (str_contains($types, 'support') || str_contains($types, 'tug')) {
             return 'fishing_support';
         }
-        if (str_contains($types, 'fishing')) {
+        // Strictly require both vessels to be verified fishing vessels to classify as fishing_fishing.
+        // Never classify an encounter with an unknown vessel as fishing_fishing.
+        if ($t1 === 'fishing' && $t2 === 'fishing') {
             return 'fishing_fishing';
         }
         return 'other';

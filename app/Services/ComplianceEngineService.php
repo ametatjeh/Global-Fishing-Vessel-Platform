@@ -83,6 +83,11 @@ class ComplianceEngineService
 
         switch ($category) {
             case 'license_validity':
+                // Policy: Unknown vessels must not automatically trigger fishing compliance rules
+                if ($vessel->vessel_type === 'unknown' || empty($vessel->vessel_type)) {
+                    return null;
+                }
+
                 // Check if vessel has an active valid authorization
                 $hasActivePermit = VesselAuthorization::where('vessel_id', $vessel->id)
                     ->where('status', 'active')

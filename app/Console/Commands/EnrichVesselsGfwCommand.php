@@ -16,7 +16,9 @@ class EnrichVesselsGfwCommand extends Command
     protected $signature = 'gfw:vessels:enrich
                             {--vessel= : Target vessel UUID, MMSI, or IMO}
                             {--dry-run : Perform simulation without modifying database}
-                            {--batch= : Run batch enrichment on unenriched vessels}
+                            {--batch : Run batch enrichment on unenriched vessels}
+                            {--type= : Filter batch by vessel type (e.g. unknown, fishing)}
+                            {--queue : Dispatch as background queue jobs instead of running synchronously}
                             {--limit=25 : Batch limit}
                             {--sleep=1 : Sleep seconds between batch requests for rate limiting}
                             {--force : Re-enrich already enriched vessels}';
@@ -202,8 +204,13 @@ class EnrichVesselsGfwCommand extends Command
         $limit = (int) $this->option('limit');
         $sleep = (int) $this->option('sleep');
         $isForce = (bool) $this->option('force');
+        $typeFilter = $this->option('type');
+        $useQueue = (bool) $this->option('queue');
 
         $query = Vessel::query();
+        if ($typeFilter) {
+            $query->where('vessel_type', $typeFilter);
+        }
         if (!$isForce) {
             $query->whereIn('enrichment_status', ['not_enriched', 'no_match']);
         }
@@ -213,6 +220,15 @@ class EnrichVesselsGfwCommand extends Command
 
         if ($total === 0) {
             $this->info(' No vessels eligible for batch enrichment.');
+            return Command::SUCCESS;
+        }
+
+        if ($useQueue) {
+            $this->info(" Dispatching {$total} vessel(s) to background queue (EnrichVesselGfwJob)...");
+            foreach ($vessels as $vessel) {
+                \App\Jobs\EnrichVesselGfwJob::dispatch($vessel->id, $isForce);
+            }
+            $this->info(" Successfully dispatched {$total} jobs to the queue worker.\n");
             return Command::SUCCESS;
         }
 
