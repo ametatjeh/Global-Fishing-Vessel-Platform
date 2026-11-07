@@ -45,9 +45,82 @@ class User extends Authenticatable
         return $this->hasMany(AuditLog::class);
     }
 
+    public const ROLE_PERMISSIONS = [
+        'super_admin' => [
+            'investigations.view',
+            'investigations.create',
+            'investigations.update',
+            'investigations.export',
+            'investigations.assign',
+            'vessels.view',
+            'vessels.enrich',
+            'ownership.view',
+            'ownership.manage',
+            'eez.analysis.view',
+            'iuu.analysis.view',
+            'research.audit.view',
+            'users.manage',
+            'settings.manage',
+        ],
+        'admin' => [
+            'users.manage',
+            'research.audit.view',
+            'settings.manage',
+            'vessels.view',
+            'investigations.view',
+            'investigations.create',
+            'investigations.update',
+            'investigations.export',
+        ],
+        'research_lead' => [
+            'investigations.view',
+            'investigations.create',
+            'investigations.update',
+            'investigations.export',
+            'investigations.assign',
+            'vessels.view',
+            'vessels.enrich',
+            'ownership.view',
+            'ownership.manage',
+            'eez.analysis.view',
+            'iuu.analysis.view',
+            'research.audit.view',
+        ],
+        'researcher' => [
+            'investigations.view',
+            'investigations.create',
+            'investigations.update',
+            'investigations.export',
+            'vessels.view',
+            'vessels.enrich',
+            'ownership.view',
+            'eez.analysis.view',
+            'iuu.analysis.view',
+        ],
+        'analyst' => [
+            'investigations.view',
+            'investigations.create',
+            'investigations.update',
+            'investigations.export',
+            'vessels.view',
+            'vessels.enrich',
+            'ownership.view',
+            'eez.analysis.view',
+            'iuu.analysis.view',
+        ],
+        'institutional_researcher' => [
+            'investigations.view',
+            'investigations.update',
+            'vessels.view',
+            'ownership.view',
+            'eez.analysis.view',
+            'iuu.analysis.view',
+        ],
+    ];
+
     public function isAdmin(): bool
     {
-        return in_array($this->role, ['super_admin', 'admin']);
+        return in_array($this->role, ['super_admin', 'admin', 'administrator'], true);
     }
 
     public function isSuperAdmin(): bool
@@ -55,9 +128,38 @@ class User extends Authenticatable
         return $this->role === 'super_admin';
     }
 
+    public function isResearchLead(): bool
+    {
+        return in_array($this->role, ['super_admin', 'research_lead'], true);
+    }
+
+    public function isResearcher(): bool
+    {
+        return in_array($this->role, ['super_admin', 'admin', 'administrator', 'research_lead', 'researcher', 'analyst', 'institutional_researcher'], true);
+    }
+
+    public function isInstitutionalResearcher(): bool
+    {
+        return $this->role === 'institutional_researcher';
+    }
+
     public function isAnalyst(): bool
     {
-        return in_array($this->role, ['super_admin', 'admin', 'analyst']);
+        return in_array($this->role, ['super_admin', 'admin', 'administrator', 'analyst', 'research_lead', 'researcher', 'institutional_researcher'], true);
+    }
+
+    public function hasPermission(string $permission): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        $normalizedRole = match ($this->role) {
+            'administrator' => 'admin',
+            default => $this->role,
+        };
+
+        return in_array($permission, self::ROLE_PERMISSIONS[$normalizedRole] ?? [], true);
     }
 
     public function hasRole(string ...$roles): bool

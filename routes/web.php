@@ -76,15 +76,19 @@ Route::middleware(['auth', 'role'])->group(function () {
         ->middleware('role:super_admin,admin,analyst')
         ->name('compliance.update-status');
 
-    // 8. Investigations
+    // 8. Investigations (Restricted — Private Research Team Dossiers)
     Route::get('/investigations', [InvestigationController::class, 'index'])->name('investigations.index');
     Route::get('/investigations/create', [InvestigationController::class, 'create'])
-        ->middleware('role:super_admin,admin,analyst')
+        ->middleware('role:super_admin,admin,analyst,research_lead,researcher,institutional_researcher')
         ->name('investigations.create');
     Route::post('/investigations', [InvestigationController::class, 'store'])
-        ->middleware('role:super_admin,admin,analyst')
+        ->middleware('role:super_admin,admin,analyst,research_lead,researcher,institutional_researcher')
         ->name('investigations.store');
     Route::get('/investigations/{id}', [InvestigationController::class, 'show'])->name('investigations.show');
+    Route::patch('/investigations/{id}/findings', [InvestigationController::class, 'updateFindings'])
+        ->name('investigations.findings.update');
+    Route::get('/investigations/{id}/export', [InvestigationController::class, 'export'])
+        ->name('investigations.export');
 
     // 9. Data Sources & Providers
     Route::get('/providers', [ProviderController::class, 'index'])->name('providers.index');

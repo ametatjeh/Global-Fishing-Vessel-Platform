@@ -43,7 +43,7 @@ class AuthController extends Controller
                 ]);
             }
 
-            if ($user->role === 'viewer' || !in_array($user->role, ['super_admin', 'admin', 'analyst'], true)) {
+            if ($user->role === 'viewer' || !in_array($user->role, ['super_admin', 'admin', 'analyst', 'research_lead', 'researcher', 'institutional_researcher'], true)) {
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
@@ -141,7 +141,7 @@ class AuthController extends Controller
             return redirect()->route('login')->with('error', 'Akun ini telah dinonaktifkan oleh administrator. Silakan hubungi Super Admin.');
         }
 
-        if ($user && ($user->role === 'viewer' || !in_array($user->role, ['super_admin', 'admin', 'analyst'], true))) {
+        if ($user && ($user->role === 'viewer' || !in_array($user->role, ['super_admin', 'admin', 'analyst', 'research_lead', 'researcher', 'institutional_researcher'], true))) {
             return redirect()->route('login')->with('error', 'Akses ditolak: Peran akun Anda (' . $user->role . ') telah dinonaktifkan. Silakan hubungi Super Administrator.');
         }
 

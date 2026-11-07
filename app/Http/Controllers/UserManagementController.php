@@ -20,7 +20,10 @@ class UserManagementController extends Controller
     public const ROLES = [
         'super_admin' => 'Super Administrator (Akses Penuh)',
         'admin' => 'Administrator Sistem',
+        'research_lead' => 'Research Lead / Principal Investigator',
+        'researcher' => 'Maritime Researcher',
         'analyst' => 'Intelligence Analyst',
+        'institutional_researcher' => 'Institutional / Partner Researcher',
     ];
 
     /**

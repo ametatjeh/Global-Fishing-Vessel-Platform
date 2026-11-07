@@ -13,9 +13,32 @@ class Investigation extends Model
 
     protected $guarded = [];
 
+    public const CONFIDENTIALITY_PRIVATE = 'private';
+    public const CONFIDENTIALITY_RESTRICTED = 'restricted';
+    public const CONFIDENTIALITY_STRICTLY_CONFIDENTIAL = 'strictly_confidential';
+
+    public const VERDICT_CONFIRMED = 'confirmed';
+    public const VERDICT_SUSPECTED = 'suspected';
+    public const VERDICT_POTENTIAL = 'potential';
+    public const VERDICT_UNDER_REVIEW = 'under_review';
+    public const VERDICT_INCONCLUSIVE = 'inconclusive';
+
+    public const FOCUS_IDENTITY_FLAG = 'identity_flag';
+    public const FOCUS_CORPORATE_OWNERSHIP = 'corporate_ownership';
+    public const FOCUS_EEZ_VIOLATION = 'eez_violation';
+    public const FOCUS_IUU_FISHING = 'iuu_fishing';
+
     protected $casts = [
         'closed_at' => 'datetime',
+        'collaborator_ids' => 'array',
+        'focus_areas' => 'array',
+        'evidence_matrix' => 'array',
     ];
+
+    public function leadResearcher(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'lead_user_id');
+    }
 
     public function targetVessel(): BelongsTo
     {

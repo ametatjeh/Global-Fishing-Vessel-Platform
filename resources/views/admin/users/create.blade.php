@@ -97,11 +97,13 @@
                     </select>
 
                     <div class="mt-3 p-3 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-400 space-y-1">
-                        <div class="font-bold text-slate-300 mb-1">Panduan Otorisasi Sistem:</div>
+                        <div class="font-bold text-slate-300 mb-1">Panduan Otorisasi Sistem Riset & Operasional:</div>
                         <ul class="list-disc pl-4 space-y-0.5">
                             <li><strong class="text-amber-300">Super Admin:</strong> Hak akses penuh root, manajemen akun, offsite backup, dan seluruh modul.</li>
-                            <li><strong class="text-blue-300">Admin:</strong> Kelola provider health, system settings, activity log, dan operasional.</li>
-                            <li><strong class="text-teal-300">Analyst:</strong> Evaluasi SAR/Dark Vessels, buat investigasi, update compliance status.</li>
+                            <li><strong class="text-blue-300">Admin:</strong> Kelola provider health, system settings, activity log, dan operasional teknis.</li>
+                            <li><strong class="text-purple-300">Research Lead:</strong> Pimpinan tim riset (Akses kasus per institusi, kelola kolaborator, persetujuan temuan, ekspor dossier).</li>
+                            <li><strong class="text-teal-300">Researcher / Analyst:</strong> Peneliti inti / analis data (Akses kasus yang ditugaskan, input temuan, matriks bukti).</li>
+                            <li><strong class="text-sky-300">Institutional Researcher:</strong> Peneliti mitra universitas / NGO (Hanya dapat mengakses kasus yang secara eksplisit ditugaskan).</li>
                             <li class="text-rose-400"><strong>Viewer:</strong> Dinonaktifkan secara permanen. Hanya peran terdaftar di atas yang dapat mengakses sistem.</li>
                         </ul>
                     </div>

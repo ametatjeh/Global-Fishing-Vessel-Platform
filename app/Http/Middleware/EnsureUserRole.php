@@ -54,8 +54,8 @@ class EnsureUserRole
             abort(403, 'Akses ditolak: Peran pengguna viewer telah dinonaktifkan.');
         }
 
-        // 4. Valid Active Role Verification (Only super_admin, admin, analyst allowed)
-        if (!in_array($effectiveRole, ['super_admin', 'admin', 'analyst'], true)) {
+        // 4. Valid Active Role Verification (super_admin, admin, research_lead, researcher, analyst, institutional_researcher)
+        if (!in_array($effectiveRole, ['super_admin', 'admin', 'analyst', 'research_lead', 'researcher', 'institutional_researcher'], true)) {
             auth()->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
@@ -71,12 +71,28 @@ class EnsureUserRole
             return $next($request);
         }
 
-        // 6. Role-specific privilege check if specific roles are required
-        if (!empty($roles) && !in_array($effectiveRole, $roles, true)) {
-            if ($request->is('api/*') || $request->expectsJson()) {
-                return response()->json(['message' => 'Akses ditolak: Peran pengguna (' . $userRole . ') tidak memiliki otorisasi untuk tindakan operasional ini.'], 403);
+        // 6. Role-specific or permission-specific privilege check if specific roles/permissions are required
+        if (!empty($roles)) {
+            $isAuthorized = false;
+            foreach ($roles as $roleOrPermission) {
+                if (str_starts_with($roleOrPermission, 'permission:')) {
+                    $permission = substr($roleOrPermission, 11);
+                    if ($request->user()->hasPermission($permission)) {
+                        $isAuthorized = true;
+                        break;
+                    }
+                } elseif ($effectiveRole === $roleOrPermission) {
+                    $isAuthorized = true;
+                    break;
+                }
             }
-            abort(403, 'Akses ditolak: Peran pengguna (' . $userRole . ') tidak memiliki otorisasi untuk tindakan operasional ini.');
+
+            if (!$isAuthorized) {
+                if ($request->is('api/*') || $request->expectsJson()) {
+                    return response()->json(['message' => 'Akses ditolak: Peran pengguna (' . $userRole . ') tidak memiliki otorisasi untuk tindakan operasional ini.'], 403);
+                }
+                abort(403, 'Akses ditolak: Peran pengguna (' . $userRole . ') tidak memiliki otorisasi untuk tindakan operasional ini.');
+            }
         }
 
         return $next($request);
