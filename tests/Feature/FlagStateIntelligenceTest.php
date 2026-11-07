@@ -153,10 +153,14 @@ class FlagStateIntelligenceTest extends TestCase
             'course_degrees' => 90.0,
         ]);
 
-        $response = $this->actingAs($user)->get('/tracking');
-        $response->assertStatus(200);
-        $response->assertSee('TRACKING TESTER');
-        $response->assertSee('AU');
-        $response->assertSee('🇦🇺');
+        // Live tracking is consolidated into /api/layers/vessels for the Global Map
+        $apiResponse = $this->actingAs($user)->getJson('/api/layers/vessels');
+        $apiResponse->assertStatus(200);
+        $apiResponse->assertJsonFragment([
+            'flag_state' => 'AU',
+        ]);
+
+        // Redundant /tracking route is permanently removed (returns 404)
+        $this->actingAs($user)->get('/tracking')->assertStatus(404);
     }
 }

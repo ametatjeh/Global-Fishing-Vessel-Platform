@@ -53,7 +53,7 @@ class SidebarAndResponsiveUiTest extends TestCase
         // Check tooltip attributes on core navigation links
         $response->assertSee('data-tooltip="Overview Dashboard"', false);
         $response->assertSee('data-tooltip="Global Vessel Map"', false);
-        $response->assertSee('data-tooltip="Live Vessel Tracking"', false);
+        $response->assertDontSee('data-tooltip="Live Vessel Tracking"', false);
         $response->assertSee('data-tooltip="Vessel Registry"', false);
         $response->assertDontSee('data-tooltip="Fishing Grounds (FAO/EEZ)"', false);
         $response->assertSee('data-tooltip="Vessel Encounters"', false);
@@ -152,9 +152,9 @@ class SidebarAndResponsiveUiTest extends TestCase
         $map = $this->actingAs($this->superAdmin)->get(route('map.index'));
         $map->assertStatus(200);
 
-        // 14. Live Tracking View
-        $track = $this->actingAs($this->superAdmin)->get(route('tracking.index'));
-        $track->assertStatus(200);
+        // 14. Live Tracking View is removed (returns 404)
+        $track = $this->actingAs($this->superAdmin)->get('/tracking');
+        $track->assertStatus(404);
     }
 }
 

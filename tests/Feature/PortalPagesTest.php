@@ -40,7 +40,6 @@ class PortalPagesTest extends TestCase
             '/providers',
             '/settings',
             '/audit-logs',
-            '/tracking',
         ];
 
         foreach ($routes as $route) {

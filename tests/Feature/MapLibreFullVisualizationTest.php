@@ -111,17 +111,19 @@ class MapLibreFullVisualizationTest extends TestCase
 
     public function test_tracking_page_renders_dedicated_maplibre_canvas_and_telemetry(): void
     {
-        $response = $this->actingAs($this->analyst)->get(route('tracking.index'));
-
+        // Consolidated Live Vessel Tracking hub in Global Map
+        $response = $this->actingAs($this->analyst)->get(route('map.index'));
         $response->assertOk();
-        $response->assertSee('id="tracking-map-canvas"', false);
-        $response->assertSee('Vessel Telemetry Inspector');
-        $response->assertSee('btnFitAllVessels');
-        $response->assertSee('btnTrackingShowTrack');
-        $response->assertSee('btnTrackingFitTrack');
-        $response->assertSee('btnTrackingToggleTrack');
-        $response->assertSee('btnTrackingClearTrack');
-        $response->assertSee('Daftar Posisi Broadcast Terkini');
+        $response->assertSee('id="global-map-canvas"', false);
+        $response->assertSee('id="activeTrackBanner"', false);
+        $response->assertSee('btnFitActiveTrack');
+        $response->assertSee('btnToggleActiveTrack');
+        $response->assertSee('btnClearActiveTrack');
+        $response->assertSee('btnToggleAdvancedFilters');
+        $response->assertSee('btnToggleLayers');
+
+        // /tracking route is cleanly removed and returns 404
+        $this->actingAs($this->analyst)->get('/tracking')->assertStatus(404);
     }
 
     public function test_candidate_detail_page_renders_maplibre_spatial_inspector(): void

@@ -83,12 +83,15 @@ class ApplicationAccessRestrictionTest extends TestCase
     }
 
     /**
-     * 2. Pengunjung tanpa login tidak dapat membuka halaman AIS.
+     * 2. Pengunjung tanpa login tidak dapat membuka halaman peta AIS.
      */
     public function test_guest_cannot_access_ais_tracking_page(): void
     {
-        $response = $this->get('/tracking');
+        $response = $this->get('/map');
         $response->assertRedirect('/login');
+
+        // /tracking is no longer registered as an active page (returns 404)
+        $this->get('/tracking')->assertStatus(404);
     }
 
     /**
@@ -141,7 +144,7 @@ class ApplicationAccessRestrictionTest extends TestCase
     {
         // Analyst has access to operational modules
         $this->actingAs($this->analyst)->get('/dashboard')->assertStatus(200);
-        $this->actingAs($this->analyst)->get('/tracking')->assertStatus(200);
+        $this->actingAs($this->analyst)->get('/map')->assertStatus(200);
         $this->actingAs($this->analyst)->get('/vessels')->assertStatus(200);
         $this->actingAs($this->analyst)->get('/dark-vessels')->assertStatus(200);
         $this->actingAs($this->analyst)->get('/compliance')->assertStatus(200);

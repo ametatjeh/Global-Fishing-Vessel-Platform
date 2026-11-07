@@ -4,7 +4,6 @@ import './bootstrap';
 const hasMapCanvas = () => {
     return !!(
         document.getElementById('global-map-canvas') ||
-        document.getElementById('tracking-map-canvas') ||
         document.getElementById('candidate-detail-map') ||
         document.querySelector('[data-map-canvas]')
     );

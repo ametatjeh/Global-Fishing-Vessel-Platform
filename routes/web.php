@@ -9,7 +9,6 @@ use App\Http\Controllers\InvestigationController;
 use App\Http\Controllers\MapController;
 use App\Http\Controllers\ProviderController;
 use App\Http\Controllers\SystemController;
-use App\Http\Controllers\TrackingController;
 use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\VesselController;
 use Illuminate\Support\Facades\Route;
@@ -41,10 +40,7 @@ Route::middleware(['auth', 'role'])->group(function () {
     Route::get('/vessels/{id}', [VesselController::class, 'show'])->name('vessels.show');
     Route::post('/vessels/{id}/gfw-sync', [VesselController::class, 'syncGfw'])->name('vessels.gfw-sync');
 
-    // 3. Live Vessel Tracking
-    Route::get('/tracking', [TrackingController::class, 'index'])->name('tracking.index');
-
-    // 4. Vessel Encounters
+    // 3. Vessel Encounters
     Route::get('/encounters', [EncounterController::class, 'index'])->name('encounters.index');
     Route::get('/encounters/{id}', [EncounterController::class, 'show'])->name('encounters.show');
     Route::post('/encounters/{id}/status', [EncounterController::class, 'updateStatus'])

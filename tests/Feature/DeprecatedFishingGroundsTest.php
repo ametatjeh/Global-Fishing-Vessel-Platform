@@ -64,7 +64,6 @@ class DeprecatedFishingGroundsTest extends TestCase
         $routes = [
             '/dashboard',
             '/map',
-            '/tracking',
             '/vessels',
             '/encounters',
             '/dark-vessels',

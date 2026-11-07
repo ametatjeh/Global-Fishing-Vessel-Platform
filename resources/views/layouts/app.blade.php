@@ -84,12 +84,6 @@
                 <span class="sidebar-text truncate">Global Vessel Map</span>
             </a>
 
-            <a href="{{ route('tracking.index') }}" data-tooltip="Live Vessel Tracking"
-                class="sidebar-item flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('tracking.*') ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
-                <span class="sidebar-icon">📡</span>
-                <span class="sidebar-text truncate">Live Vessel Tracking</span>
-            </a>
-
             <div class="sidebar-section-title pt-4 px-2 pb-1 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
                 Intelijen &amp; Registry
             </div>
