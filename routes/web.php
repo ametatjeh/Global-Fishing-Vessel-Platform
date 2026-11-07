@@ -95,6 +95,7 @@ Route::middleware(['auth', 'role'])->group(function () {
     Route::post('/providers/{slug}/health', [ProviderController::class, 'checkHealth'])
         ->middleware('role:super_admin,admin')
         ->name('providers.health');
+    Route::get('/about', [SystemController::class, 'about'])->name('about');
 
     // 10. System Settings & Activity Logs
     Route::get('/settings', [SystemController::class, 'settings'])

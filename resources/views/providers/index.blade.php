@@ -7,10 +7,45 @@
 
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-            <h2 class="text-xl font-bold text-white tracking-wide uppercase">Data Sources & Provider Catalog</h2>
+            <div class="flex items-center gap-2">
+                <h2 class="text-xl font-bold text-white tracking-wide uppercase">Data Sources &amp; Provider Catalog</h2>
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider uppercase bg-teal-500/20 text-teal-300 border border-teal-500/40">
+                    NON-COMMERCIAL RESEARCH
+                </span>
+            </div>
             <p class="text-xs text-slate-400 mt-1">
                 Matriks integrasi provider eksternal: Global Fishing Watch, Copernicus Sentinel-1, AIS Live Telemetry, FAO, dan Marine Regions EEZ.
             </p>
+        </div>
+        <div class="text-right text-[11px] text-slate-400 font-mono">
+            <div>Waktu Pembaruan Data:</div>
+            <div class="text-slate-200 font-bold">{{ now()->format('Y-m-d H:i') }} UTC</div>
+        </div>
+    </div>
+
+    <!-- Global Fishing Watch Data Attribution Banner -->
+    <div class="glass-panel p-5 rounded-2xl border border-teal-500/30 bg-teal-950/15 shadow-xl space-y-3 text-xs">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-teal-500/20 pb-2.5">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">🌐</span>
+                <div>
+                    <h3 class="font-bold uppercase tracking-wider text-teal-300">Global Fishing Watch Data Attribution</h3>
+                    <div class="text-[11px] text-slate-400">
+                        Sumber Data: <a href="https://globalfishingwatch.org" target="_blank" rel="noopener noreferrer" class="text-teal-400 hover:underline font-semibold">Global Fishing Watch (GFW)</a>
+                    </div>
+                </div>
+            </div>
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-teal-500/20 text-teal-300 border border-teal-500/40">
+                NON-COMMERCIAL RESEARCH
+            </span>
+        </div>
+
+        <blockquote class="p-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 italic text-[11px] leading-relaxed">
+            &ldquo;This application uses data and services provided by Global Fishing Watch (GFW) for non-commercial research, educational, and public-interest purposes. GFW data are subject to applicable licensing, attribution, and usage restrictions.&rdquo;
+        </blockquote>
+
+        <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300/90 text-[11px] leading-relaxed">
+            <strong>Pemberitahuan Estimasi Intelijen:</strong> Aktivitas kapal yang ditampilkan merupakan estimasi atau hasil analisis berdasarkan sumber data, bukan bukti final pelanggaran. Seluruh fitur berbasis data GFW disediakan secara gratis tanpa paket langganan komersial, paywall, atau monetisasi data.
         </div>
     </div>
 

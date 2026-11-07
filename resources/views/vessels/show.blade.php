@@ -330,7 +330,9 @@
                     <span>🛰️</span>
                     <span>5. Intelijen Global Fishing Watch (GFW v3)</span>
                 </span>
-                <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-amber-300 font-mono">API v3</span>
+                <span class="text-[9px] px-2 py-0.5 rounded font-mono font-bold uppercase bg-teal-500/20 text-teal-300 border border-teal-500/40">
+                    NON-COMMERCIAL RESEARCH
+                </span>
             </h3>
 
             <div class="space-y-3 text-xs">
@@ -351,13 +353,13 @@
                     <!-- Port visits -->
                     <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
                         <div class="text-[10px] text-slate-400 uppercase font-semibold">Kunjungan Pelabuhan</div>
-                        @if($eventsSummary['port_visits']['status'] === 'available')
+                        @if(($eventsSummary['port_visits']['status'] ?? '') === 'available')
                         <div class="text-lg font-bold text-white font-mono mt-0.5">
-                            {{ number_format($eventsSummary['port_visits']['count']) }}
+                            {{ number_format($eventsSummary['port_visits']['count'] ?? 0) }}
                             <span class="text-[10px] text-slate-400 font-normal">event</span>
                         </div>
                         <div class="text-[9px] text-emerald-400 font-mono">✓ Authorized (HTTP 200)</div>
-                        @elseif($eventsSummary['port_visits']['status'] === 'permission_restricted')
+                        @elseif(($eventsSummary['port_visits']['status'] ?? '') === 'permission_restricted')
                         <div class="text-[11px] text-amber-400 mt-1">⚠️ Izin Diperlukan (HTTP 403)</div>
                         @else
                         <div class="text-[11px] text-slate-500 mt-1">Tidak tersedia</div>
@@ -367,13 +369,13 @@
                     <!-- Loitering -->
                     <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
                         <div class="text-[10px] text-slate-400 uppercase font-semibold">Aktivitas Loitering</div>
-                        @if($eventsSummary['loitering']['status'] === 'available')
+                        @if(($eventsSummary['loitering']['status'] ?? '') === 'available')
                         <div class="text-lg font-bold text-white font-mono mt-0.5">
-                            {{ number_format($eventsSummary['loitering']['count']) }}
+                            {{ number_format($eventsSummary['loitering']['count'] ?? 0) }}
                             <span class="text-[10px] text-slate-400 font-normal">event</span>
                         </div>
                         <div class="text-[9px] text-emerald-400 font-mono">✓ Authorized (HTTP 200)</div>
-                        @elseif($eventsSummary['loitering']['status'] === 'permission_restricted')
+                        @elseif(($eventsSummary['loitering']['status'] ?? '') === 'permission_restricted')
                         <div class="text-[11px] text-amber-400 mt-1">⚠️ Izin Diperlukan (HTTP 403)</div>
                         @else
                         <div class="text-[11px] text-slate-500 mt-1">Tidak tersedia</div>
@@ -383,13 +385,13 @@
                     <!-- Encounters -->
                     <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
                         <div class="text-[10px] text-slate-400 uppercase font-semibold">Encounter di Laut</div>
-                        @if($eventsSummary['encounters']['status'] === 'available')
+                        @if(($eventsSummary['encounters']['status'] ?? '') === 'available')
                         <div class="text-lg font-bold text-white font-mono mt-0.5">
-                            {{ number_format($eventsSummary['encounters']['count']) }}
+                            {{ number_format($eventsSummary['encounters']['count'] ?? 0) }}
                             <span class="text-[10px] text-slate-400 font-normal">event</span>
                         </div>
                         <div class="text-[9px] text-emerald-400 font-mono">✓ Authorized (HTTP 200)</div>
-                        @elseif($eventsSummary['encounters']['status'] === 'permission_restricted')
+                        @elseif(($eventsSummary['encounters']['status'] ?? '') === 'permission_restricted')
                         <div class="text-[11px] text-amber-400 mt-1 font-mono">Research Access Req.</div>
                         <div class="text-[9px] text-slate-500">HTTP 403 (Katalog Publik)</div>
                         @else
@@ -400,13 +402,13 @@
                     <!-- Fishing Activity -->
                     <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
                         <div class="text-[10px] text-slate-400 uppercase font-semibold">Aktivitas Penangkapan</div>
-                        @if($eventsSummary['fishing']['status'] === 'available')
+                        @if(($eventsSummary['fishing']['status'] ?? '') === 'available')
                         <div class="text-lg font-bold text-white font-mono mt-0.5">
-                            {{ number_format($eventsSummary['fishing']['count']) }}
+                            {{ number_format($eventsSummary['fishing']['count'] ?? 0) }}
                             <span class="text-[10px] text-slate-400 font-normal">event</span>
                         </div>
                         <div class="text-[9px] text-emerald-400 font-mono">✓ Authorized (HTTP 200)</div>
-                        @elseif($eventsSummary['fishing']['status'] === 'permission_restricted')
+                        @elseif(($eventsSummary['fishing']['status'] ?? '') === 'permission_restricted')
                         <div class="text-[11px] text-amber-400 mt-1 font-mono">Research Access Req.</div>
                         <div class="text-[9px] text-slate-500">HTTP 403 (Katalog Publik)</div>
                         @else
@@ -415,9 +417,17 @@
                     </div>
                 </div>
 
-                <div class="pt-2 border-t border-slate-800 text-[10px] text-slate-400 flex items-center justify-between">
-                    <span>Sumber Data: <strong>Global Fishing Watch API v3</strong></span>
-                    <span>Dataset: <span class="font-mono text-slate-300">public-global-vessel-identity</span></span>
+                <div class="pt-2 border-t border-slate-800 text-[10px] text-slate-400 space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span>Sumber Data: <a href="https://globalfishingwatch.org" target="_blank" rel="noopener noreferrer" class="text-teal-400 hover:underline font-bold">Global Fishing Watch (GFW)</a></span>
+                        <span>Dataset: <span class="font-mono text-slate-300">public-global-vessel-identity</span></span>
+                    </div>
+                    <div class="text-[9px] text-slate-400 italic leading-relaxed">
+                        &ldquo;This application uses data and services provided by Global Fishing Watch (GFW) for non-commercial research, educational, and public-interest purposes. GFW data are subject to applicable licensing, attribution, and usage restrictions.&rdquo;
+                    </div>
+                    <div class="text-[9px] text-amber-300/90">
+                        Pemberitahuan: Aktivitas kapal yang ditampilkan merupakan estimasi atau hasil analisis berdasarkan sumber data, bukan bukti final pelanggaran.
+                    </div>
                 </div>
                 @else
                 <div class="py-8 text-center text-slate-500 text-xs">

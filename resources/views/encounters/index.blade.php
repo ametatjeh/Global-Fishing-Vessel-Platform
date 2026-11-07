@@ -7,7 +7,12 @@
 
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-            <h2 class="text-xl font-bold text-white tracking-wide uppercase">Vessel Encounter Events</h2>
+            <div class="flex items-center gap-2">
+                <h2 class="text-xl font-bold text-white tracking-wide uppercase">Vessel Encounter Events</h2>
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider uppercase bg-teal-500/20 text-teal-300 border border-teal-500/40">
+                    NON-COMMERCIAL RESEARCH
+                </span>
+            </div>
             <p class="text-xs text-slate-400 mt-1">
                 Deteksi kedekatan temporal-spasial antara pasangan kapal (indikasi rendezvous penangkapan, support, bunker, atau carrier).
             </p>
@@ -17,6 +22,21 @@
             <a href="{{ route('map.index') }}" class="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs transition shadow-lg shadow-teal-500/20">
                 Peta Layer Encounter
             </a>
+        </div>
+    </div>
+
+    <!-- Data Attribution & Non-Commercial Disclaimer -->
+    <div class="glass-panel p-4 rounded-xl border border-slate-800 text-xs text-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="space-y-0.5">
+            <div class="text-[11px] text-slate-400">
+                Sumber Data: <a href="https://globalfishingwatch.org" target="_blank" rel="noopener noreferrer" class="text-teal-400 hover:underline font-semibold">Global Fishing Watch (GFW)</a> &amp; Observasi Native AIS
+            </div>
+            <div class="text-[11px] text-amber-300/90 italic">
+                Pemberitahuan: Aktivitas kapal yang ditampilkan merupakan estimasi atau hasil analisis berdasarkan sumber data, bukan bukti final pelanggaran.
+            </div>
+        </div>
+        <div class="text-[10px] text-slate-500 font-mono shrink-0">
+            Pembaruan: {{ now()->format('Y-m-d H:i') }} UTC
         </div>
     </div>
 

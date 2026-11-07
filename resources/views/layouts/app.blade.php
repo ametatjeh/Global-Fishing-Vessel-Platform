@@ -110,6 +110,11 @@
                 <span>Activity Logs</span>
             </a>
 
+            <a href="{{ route('about') }}" class="flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('about') ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                <span>ℹ️</span>
+                <span>About &amp; Attributions</span>
+            </a>
+
             @if(auth()->user()?->isSuperAdmin())
             <div class="pt-4 px-2 pb-1 text-[10px] uppercase font-bold text-amber-400 tracking-wider flex items-center justify-between">
                 <span>Administrasi Root</span>
@@ -210,13 +215,31 @@
             @yield('content')
         </main>
 
-        <!-- Global Disclaimer Footer -->
-        <footer class="px-6 py-4 border-t border-slate-800 text-[11px] text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <div>
-                &copy; {{ date('Y') }} Global Fishing Vessel Tracking. All rights reserved.
+        <!-- Global Disclaimer & Data Attribution Footer -->
+        <footer class="px-6 py-4 border-t border-slate-800 text-[11px] text-slate-400 space-y-2 bg-slate-950/60">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-800/80 pb-2">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-teal-500/20 text-teal-300 border border-teal-500/40">
+                        NON-COMMERCIAL RESEARCH
+                    </span>
+                    <span>&copy; {{ date('Y') }} Global Fishing Vessel Tracking.</span>
+                    <span class="hidden sm:inline">&bull;</span>
+                    <a href="{{ route('about') }}" class="text-teal-400 hover:underline font-semibold">About &amp; Attributions</a>
+                </div>
+                <div class="text-[10px] text-slate-500 font-mono">
+                    Sumber Data: <a href="https://globalfishingwatch.org" target="_blank" rel="noopener noreferrer" class="text-teal-400 hover:underline font-semibold">Global Fishing Watch</a> &bull; Pembaruan: {{ now()->format('Y-m-d') }} UTC
+                </div>
             </div>
-            <div class="text-[10px] text-slate-400 max-w-xl text-center sm:text-right">
-                Pemberitahuan: Proximity encounter, batas statistik FAO, dan deteksi SAR merupakan indikasi observasional intelijen maritim dan bukan bukti definitif pelanggaran hukum tanpa pembuktian multi-sumber.
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-[10px] leading-relaxed text-slate-400">
+                <div>
+                    <strong class="text-slate-300 block mb-0.5">Global Fishing Watch Data Attribution:</strong>
+                    &ldquo;This application uses data and services provided by Global Fishing Watch (GFW) for non-commercial research, educational, and public-interest purposes. GFW data are subject to applicable licensing, attribution, and usage restrictions.&rdquo;
+                </div>
+                <div>
+                    <strong class="text-amber-400/90 block mb-0.5">Pemberitahuan Estimasi Intelijen Maritim:</strong>
+                    Aktivitas kapal yang ditampilkan merupakan estimasi atau hasil analisis berdasarkan sumber data, bukan bukti final pelanggaran. Platform beroperasi 100% bebas biaya tanpa monetisasi komersial.
+                </div>
             </div>
         </footer>
     </div>

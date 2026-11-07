@@ -296,7 +296,7 @@ export class GlobalMapController {
         // Compact Attribution Control
         this.map.addControl(new maplibregl.AttributionControl({
             compact: true,
-            customAttribution: 'GFVIP &bull; OpenFreeMap &bull; ESRI Canvas &bull; Sentinel-1 C-SAR'
+            customAttribution: 'GFVIP &bull; OpenFreeMap &bull; ESRI &bull; Global Fishing Watch &bull; Sentinel-1 C-SAR &bull; Marine Regions &bull; FAO'
         }), 'bottom-right');
 
         // Cursor coordinates tracking

@@ -717,6 +717,23 @@
                 <div>Lisensi: Creative Commons Attribution 4.0 International (CC BY 4.0)</div>
                 <div class="text-[11px] text-slate-400 italic">Batas yurisdiksi maritim negara pantai sesuai konvensi hukum laut UNCLOS 1982.</div>
             </div>
+
+            <div class="p-3.5 rounded-xl bg-slate-900 border border-teal-500/30 space-y-1.5">
+                <div class="flex items-center justify-between">
+                    <div class="font-bold text-teal-300">5. Global Fishing Watch (GFW API v3)</div>
+                    <span class="px-2 py-0.2 rounded text-[9px] font-mono font-bold uppercase bg-teal-500/20 text-teal-300 border border-teal-500/40">
+                        NON-COMMERCIAL RESEARCH
+                    </span>
+                </div>
+                <div>Sumber: <a href="https://globalfishingwatch.org" target="_blank" rel="noopener noreferrer" class="text-teal-400 hover:underline">Global Fishing Watch</a></div>
+                <div>Lisensi: GFW Research &amp; Non-Commercial Terms</div>
+                <blockquote class="p-2.5 rounded-lg bg-slate-950/70 border border-slate-800 text-[10px] text-slate-300 italic leading-relaxed">
+                    &ldquo;This application uses data and services provided by Global Fishing Watch (GFW) for non-commercial research, educational, and public-interest purposes. GFW data are subject to applicable licensing, attribution, and usage restrictions.&rdquo;
+                </blockquote>
+                <div class="text-[10px] text-amber-300/90">
+                    Pemberitahuan: Aktivitas kapal yang ditampilkan merupakan estimasi atau hasil analisis berdasarkan sumber data, bukan bukti final pelanggaran.
+                </div>
+            </div>
         </div>
 
         <div class="pt-3 border-t border-slate-800 text-right">

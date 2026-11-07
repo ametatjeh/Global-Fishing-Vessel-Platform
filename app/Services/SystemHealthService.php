@@ -340,17 +340,28 @@ class SystemHealthService
      */
     public function getGfwStatus(): array
     {
-        $token = config('maritime.providers.gfw.api_token');
+        $token = config('maritime.providers.gfw.token') ?: config('maritime.providers.gfw.api_token') ?: env('GFW_API_TOKEN');
         $isConfigured = !empty($token);
 
+        $provider = DataProvider::where('slug', 'global-fishing-watch')->first();
+        $healthStatus = $provider?->health_status ?? ($isConfigured ? 'research_access_required' : 'not_configured');
+
+        $isEventsAvailable = in_array($healthStatus, ['receiving_data', 'authenticated'], true);
+
         return [
-            'status' => 'access_not_authorized',
+            'status' => $healthStatus,
             'provider' => 'Global Fishing Watch (GFW v3 Gateway)',
             'token_configured' => $isConfigured,
             'datasets_endpoint' => $isConfigured ? 'available (HTTP 200)' : 'not_configured',
-            'events_endpoint' => 'access_not_authorized (HTTP 403 Forbidden)',
+            'events_endpoint' => $isEventsAvailable ? 'available (HTTP 200)' : 'access_not_authorized (HTTP 403 Forbidden)',
             'reason' => 'Non-commercial research tier license required for /events endpoint.',
             'synthetic_data_policy' => 'STRICT: Synthetic encounter records are prohibited.',
+            'license_type' => config('maritime.providers.gfw.license_type', 'GFW Research & Non-Commercial Terms'),
+            'commercial_use_allowed' => false,
+            'badge' => config('maritime.providers.gfw.badge', 'NON-COMMERCIAL RESEARCH'),
+            'attribution' => config('maritime.providers.gfw.attribution', 'This application uses data and services provided by Global Fishing Watch (GFW) for non-commercial research, educational, and public-interest purposes. GFW data are subject to applicable licensing, attribution, and usage restrictions.'),
+            'disclaimer' => config('maritime.providers.gfw.disclaimer', 'Aktivitas kapal yang ditampilkan merupakan estimasi atau hasil analisis berdasarkan sumber data, bukan bukti final pelanggaran.'),
+            'source_url' => config('maritime.providers.gfw.source_url', 'https://globalfishingwatch.org'),
         ];
     }
 
