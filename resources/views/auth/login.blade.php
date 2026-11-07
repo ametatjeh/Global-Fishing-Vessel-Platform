@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Login — Global Fishing Vessel Tracking</title>
+    <title>Login — Global Fishing Vessel Monitoring Platform</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -54,10 +54,10 @@
                 🛰️
             </div>
             <h1 class="text-xl font-black text-white tracking-wide uppercase">
-                Global Fishing Vessel Tracking
+                Global Fishing Vessel Monitoring Platform
             </h1>
             <p class="text-xs text-slate-400 mt-1">
-                Platform Intelijen Maritim: Tracking, Compliance & Dark Vessel Detection
+                Platform Pemantauan Maritim Global: Vessel Tracking, Compliance &amp; Unusual Vessel Activity
             </p>
         </div>
 

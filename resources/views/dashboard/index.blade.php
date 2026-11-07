@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header_title', 'Overview Dashboard — Intelijen Maritim Global')
+@section('header_title', 'Overview Dashboard — Pemantauan Maritim Global')
 
 @section('content')
 <div class="space-y-6">
@@ -14,10 +14,10 @@
                     <span>Global Situation Room</span>
                 </div>
                 <h2 class="text-xl sm:text-2xl font-black text-white tracking-wide">
-                    Global Fishing Vessel Tracking
+                    Global Fishing Vessel Monitoring Platform
                 </h2>
                 <p class="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl leading-relaxed">
-                    Sistem pemantauan armada perikanan global dengan tiga pilar operasional: <strong>Live Vessel Tracking</strong>, <strong>Fishing Compliance</strong>, dan <strong>Dark Vessel Detection</strong> berbasis fusi telemetri AIS, citra radar satelit SAR, serta batas yurisdiksi FAO dan EEZ.
+                    Sistem pemantauan armada perikanan global dengan tiga pilar operasional: <strong>Live Vessel Monitoring</strong>, <strong>Maritime Compliance Monitoring</strong>, dan <strong>Unusual Vessel Activity</strong> berbasis fusi telemetri AIS, citra radar satelit SAR, serta batas yurisdiksi FAO dan EEZ.
                 </p>
             </div>
 
@@ -59,13 +59,13 @@
                 <span>🤝</span>
             </div>
             <div class="text-2xl font-black text-amber-300 font-mono">{{ number_format($encountersNeedingReview) }}</div>
-            <div class="text-[10px] text-slate-400">Perlu telaah analis intelijen</div>
+            <div class="text-[10px] text-slate-400">Perlu telaah analis maritim</div>
         </div>
 
         <!-- Metric 4: Dark Vessel Candidates -->
         <div class="glass-panel p-4 rounded-xl border border-slate-800 space-y-2">
             <div class="flex items-center justify-between text-slate-400 text-xs">
-                <span class="font-semibold uppercase tracking-wider text-[10px]">Kandidat Dark Vessel</span>
+                <span class="font-semibold uppercase tracking-wider text-[10px]">Unusual Vessel Activity</span>
                 <span>🛰️</span>
             </div>
             <div class="text-2xl font-black text-rose-400 font-mono">{{ number_format($darkVesselCandidates) }}</div>

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header_title', 'Activity Logs — Jejak Audit Operasional Intelijen')
+@section('header_title', 'Activity Logs — Jejak Audit Operasional Pemantauan Maritim')
 
 @section('content')
 <div class="space-y-6">

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header_title', 'Global Maritime Intelligence Map — MapLibre GL JS')
+@section('header_title', 'Global Maritime Monitoring Map — MapLibre GL JS')
 
 @section('content')
 @php
@@ -112,7 +112,7 @@
                 <span class="text-base text-teal-400">🎚️</span>
                 <div>
                     <h3 class="font-bold uppercase tracking-wider text-white text-[12px]">Advanced Maritime Filters</h3>
-                    <p class="text-[10px] text-slate-400">Filter operasi intelijen armada &amp; satelit radar</p>
+                    <p class="text-[10px] text-slate-400">Filter pemantauan armada &amp; satelit radar</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -345,9 +345,9 @@
                 </label>
             </div>
 
-            <!-- 3. Intelligence & Analysis -->
+            <!-- 3. Monitoring & Analysis -->
             <div class="space-y-1.5 pt-1 border-t border-slate-800">
-                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">3. Intelijen &amp; Anomali</div>
+                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">3. Analisis &amp; Anomali</div>
 
                 <label class="flex items-start justify-between p-2 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-amber-500/50 transition cursor-pointer">
                     <div class="flex items-start gap-2.5">
@@ -355,7 +355,7 @@
                         <div>
                             <div class="font-bold text-slate-200 flex items-center gap-1.5">
                                 <span class="w-2.5 h-2.5 rounded-full bg-amber-400 border border-amber-300"></span>
-                                <span>Dark Vessels / SAR Targets</span>
+                                <span>Unusual Activity / SAR Targets</span>
                             </div>
                             <p class="text-[10px] text-slate-400 mt-0.5">Anomali radar tanpa korelasi AIS aktif</p>
                         </div>
@@ -958,7 +958,7 @@
             searchDropdown.classList.remove('hidden');
             searchDropdown.innerHTML = `
                 <div class="p-3 text-center text-slate-400 font-mono flex items-center justify-center gap-2">
-                    <span class="animate-spin text-teal-400">⏳</span> Memindai intelijen kapal & SAR...
+                    <span class="animate-spin text-teal-400">⏳</span> Memindai data kapal & SAR...
                 </div>
             `;
 

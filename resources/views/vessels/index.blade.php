@@ -11,7 +11,7 @@
             <div class="flex items-center gap-2.5 flex-wrap">
                 <h2 class="text-xl font-bold text-white tracking-wide uppercase">Vessel Registry</h2>
                 <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase bg-teal-500/15 text-teal-300 border border-teal-500/30">
-                    Armada Global & Intelijen Maritim
+                    Armada Global & Pemantauan Maritim
                 </span>
                 @if($activeFiltersCount > 0)
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30">

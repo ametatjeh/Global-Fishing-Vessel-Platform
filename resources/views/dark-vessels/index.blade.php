@@ -47,7 +47,7 @@
         </div>
     </div>
 
-    <!-- Metrics Summary Cards (Tahap 9 Multi-Source Maritime Intelligence) -->
+    <!-- Metrics Summary Cards (Tahap 9 Multi-Source Maritime Monitoring) -->
     <div class="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2.5">
         <div class="glass-panel p-3 rounded-xl border border-slate-800 text-center">
             <div class="text-[9px] uppercase font-bold text-slate-400">Total SAR</div>

@@ -45,7 +45,7 @@
         </blockquote>
 
         <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300/90 text-[11px] leading-relaxed">
-            <strong>Pemberitahuan Estimasi Intelijen:</strong> Aktivitas kapal yang ditampilkan merupakan estimasi atau hasil analisis berdasarkan sumber data, bukan bukti final pelanggaran. Seluruh fitur berbasis data GFW disediakan secara gratis tanpa paket langganan komersial, paywall, atau monetisasi data.
+            <strong>Pemberitahuan Estimasi Analisis Maritim:</strong> Aktivitas kapal yang ditampilkan merupakan estimasi atau hasil analisis berdasarkan sumber data, bukan bukti final pelanggaran. Seluruh fitur berbasis data GFW disediakan secara gratis tanpa paket langganan komersial, paywall, atau monetisasi data.
         </div>
     </div>
 

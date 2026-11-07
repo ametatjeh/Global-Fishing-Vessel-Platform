@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header_title', 'Investigations — Berkas Kasus Intelijen Maritim (Private Research)')
+@section('header_title', 'Investigations — Berkas Kasus Analisis Maritim (Private Research)')
 
 @section('content')
 <div class="space-y-6">
@@ -14,7 +14,7 @@
                 </span>
             </div>
             <p class="text-xs text-slate-400 mt-1">
-                Penyusunan berkas bukti intelijen maritim: pergantian identitas kapal, kepemilikan korporasi, kepatuhan batas ZEE, dan status IUU fishing.
+                Penyusunan berkas bukti analisis maritim: pergantian identitas kapal, kepemilikan korporasi, kepatuhan batas ZEE, dan status IUU fishing.
             </p>
         </div>
 

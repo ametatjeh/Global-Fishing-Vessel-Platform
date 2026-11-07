@@ -52,7 +52,7 @@ class DeprecatedAboutPageAndSingleLineFooterTest extends TestCase
 
         // Required text elements
         $response->assertSee('GFVIP', false);
-        $response->assertSee('Global Fishing Vessel Intelligence Platform', false);
+        $response->assertSee('Global Fishing Vessel Monitoring Platform', false);
         $response->assertSee('Research Platform', false);
         $response->assertSee('2026', false);
 

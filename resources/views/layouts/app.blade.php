@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ $title ?? config('app.name', 'Global Fishing Vessel Tracking') }}</title>
+    <title>{{ $title ?? config('app.name', 'Global Fishing Vessel Monitoring Platform') }}</title>
 
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -37,11 +37,11 @@
 
         <!-- Brand Header -->
         <div class="h-16 px-4 flex items-center justify-between border-b border-slate-800 bg-slate-900/90 backdrop-blur shrink-0 sidebar-brand-header">
-            <a href="{{ route('dashboard') }}" class="flex items-center gap-2.5 min-w-0" title="GFVT OPS - Global Fishing Vessel Tracking">
+            <a href="{{ route('dashboard') }}" class="flex items-center gap-2.5 min-w-0" title="GFVM OPS - Global Fishing Vessel Monitoring Platform">
                 <span class="text-2xl shrink-0">🛰️</span>
                 <div class="leading-tight sidebar-brand-text truncate">
-                    <div class="text-xs font-bold text-teal-400 tracking-wider uppercase font-mono">GFVT OPS</div>
-                    <div class="text-[13px] font-bold text-white tracking-tight truncate max-w-[130px]">Vessel Tracking</div>
+                    <div class="text-xs font-bold text-teal-400 tracking-wider uppercase font-mono">GFVM OPS</div>
+                    <div class="text-[13px] font-bold text-white tracking-tight truncate max-w-[130px]">Vessel Monitoring</div>
                 </div>
             </a>
 
@@ -85,7 +85,7 @@
             </a>
 
             <div class="sidebar-section-title pt-4 px-2 pb-1 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                Intelijen &amp; Registry
+                Monitoring &amp; Registry
             </div>
 
             <a href="{{ route('vessels.index') }}" data-tooltip="Vessel Registry"
@@ -208,7 +208,7 @@
                 </button>
 
                 <h1 class="text-xs sm:text-sm font-bold text-white tracking-wide uppercase truncate flex items-center gap-2">
-                    @yield('header_title', 'Maritime Intelligence Platform')
+                    @yield('header_title', 'Maritime Monitoring Platform')
                 </h1>
             </div>
 
@@ -265,7 +265,7 @@
         <!-- Single-Line Compact Footer -->
         <footer class="h-9 min-h-[36px] max-h-[40px] px-4 sm:px-6 border-t border-slate-800/80 bg-slate-950/80 text-[11px] max-sm:text-[10px] text-slate-400 flex items-center justify-between gap-3 mt-auto shrink-0 select-none">
             <div class="truncate text-slate-400 font-normal">
-                <span class="font-bold text-slate-300">GFVIP</span> &middot; <span>Global Fishing Vessel Intelligence Platform</span>
+                <span class="font-bold text-slate-300">GFVIP</span> &middot; <span>Global Fishing Vessel Monitoring Platform</span>
             </div>
             <div class="shrink-0 text-slate-400 text-right whitespace-nowrap">
                 <span>Research Platform</span> &middot; <span>&copy; {{ date('Y') }}</span>

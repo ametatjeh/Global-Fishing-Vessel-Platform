@@ -360,8 +360,8 @@
         @endif
     </div>
 
-    <!-- SECTION 5: Automatic GFW Intelligence & Events Suite -->
-    <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-5" id="gfw-intelligence-panel">
+    <!-- SECTION 5: Automatic GFW Monitoring & Events Suite -->
+    <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-5" id="gfw-monitoring-panel">
         @php
             $gfwStatus = $vessel->gfw_sync_status;
             $gfwCandidate = $enrichment['raw_gfw_candidate'] ?? null;
@@ -376,14 +376,14 @@
                 <div class="flex items-center gap-2 flex-wrap">
                     <span class="text-lg">🛰️</span>
                     <h3 class="text-sm font-bold uppercase tracking-wider text-amber-400 font-mono">
-                        5. GLOBAL FISHING WATCH INTELLIGENCE / GFW API v3
+                        5. GLOBAL FISHING WATCH MONITORING & EVENTS / GFW API v3
                     </h3>
                     <span class="text-[9px] px-2 py-0.5 rounded font-mono font-bold uppercase bg-teal-500/20 text-teal-300 border border-teal-500/40">
                         NON-COMMERCIAL RESEARCH
                     </span>
                 </div>
                 <p class="text-xs text-slate-400 mt-1">
-                    Automatic multi-source intelligence synchronization via official GFW API v3 (<span class="font-mono text-slate-300">public-global-vessel-identity:latest</span>).
+                    Automatic multi-source data synchronization via official GFW API v3 (<span class="font-mono text-slate-300">public-global-vessel-identity:latest</span>).
                 </p>
             </div>
 
@@ -501,7 +501,7 @@
 
         <!-- 7 Tabs Navigation -->
         <div class="border-b border-slate-800">
-            <nav class="flex space-x-1 overflow-x-auto responsive-table-container text-xs" aria-label="GFW Intelligence Tabs">
+            <nav class="flex space-x-1 overflow-x-auto responsive-table-container text-xs" aria-label="GFW Monitoring Tabs">
                 <button type="button" data-gfw-tab="identity" class="px-3.5 py-2.5 font-medium border-b-2 text-teal-300 border-teal-400 bg-slate-800/60 rounded-t-lg transition flex items-center gap-1.5 whitespace-nowrap">
                     <span>🪪</span>
                     <span>1. Identitas & Registrasi</span>
@@ -693,7 +693,7 @@
             @elseif($gfwStatus === 'syncing')
             <div class="py-10 text-center text-slate-400 space-y-2">
                 <span class="text-3xl block animate-spin">⏳</span>
-                <div class="text-xs font-semibold text-white">Sinkronisasi Intelijen GFW Sedang Berlangsung</div>
+                <div class="text-xs font-semibold text-white">Sinkronisasi Data Pemantauan GFW Sedang Berlangsung</div>
                 <div class="text-[11px] text-slate-400 max-w-md mx-auto">
                     Sistem sedang memverifikasi identitas kapal melalui endpoint GET /v3/vessels/search pada gateway Global Fishing Watch di latar belakang. Silakan segarkan halaman beberapa saat lagi.
                 </div>
@@ -1055,7 +1055,7 @@
                 </div>
                 <div class="text-[10px] text-amber-300/90 leading-relaxed pt-2 border-t border-slate-800/80 space-y-1">
                     <div>
-                        <strong>PEMBERITAHUAN HUKUM & ANALISIS:</strong> Data intelijen maritim yang ditampilkan pada profil ini merupakan hasil inferensi model komputasi, algoritma machine learning, dan integrasi multi-sumber dari sinyal transmisi AIS. Hasil analisis tidak boleh dianggap sebagai kesimpulan sepihak atas pelanggaran hukum perikanan (IUU Fishing) atau bukti hukum final tanpa verifikasi fisik, penegakan hukum resmi, atau inspeksi otoritas berwenang di pelabuhan.
+                        <strong>PEMBERITAHUAN HUKUM & ANALISIS:</strong> Data pemantauan maritim yang ditampilkan pada profil ini merupakan hasil inferensi model komputasi, algoritma machine learning, dan integrasi multi-sumber dari sinyal transmisi AIS. Hasil analisis tidak boleh dianggap sebagai kesimpulan sepihak atas pelanggaran hukum perikanan (IUU Fishing) atau bukti hukum final tanpa verifikasi fisik, penegakan hukum resmi, atau inspeksi otoritas berwenang di pelabuhan.
                     </div>
                     <div>
                         Pemberitahuan: Aktivitas kapal yang ditampilkan merupakan estimasi atau hasil analisis berdasarkan sumber data, bukan bukti final pelanggaran.

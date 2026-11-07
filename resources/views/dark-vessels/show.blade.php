@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header_title', 'SAR Evidence Inspector & Multi-Source Intelligence — ' . $detection->detection_identifier)
+@section('header_title', 'SAR Evidence Inspector & Multi-Source Monitoring — ' . $detection->detection_identifier)
 
 @section('content')
 <div class="space-y-6">
@@ -39,7 +39,7 @@
                         Tahap 8 Evidence-Based Inspector
                     </span>
                     <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase">
-                        Tahap 9 Multi-Source Intelligence
+                        Tahap 9 Multi-Source Monitoring
                     </span>
                     <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 uppercase">
                         Sentinel-1 SAR C-Band
@@ -177,12 +177,12 @@
         </div>
     </div>
 
-    <!-- MULTI-SOURCE INTELLIGENCE EVIDENCE MATRIX (Tahap 9 - Requirement 6) -->
+    <!-- MULTI-SOURCE MARITIME MONITORING EVIDENCE MATRIX (Tahap 9 - Requirement 6) -->
     <div class="glass-panel p-5 rounded-2xl border border-slate-800 shadow-xl space-y-3">
         <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
             <h3 class="font-bold uppercase tracking-wider text-teal-300 text-xs flex items-center gap-2">
                 <span>🧬</span>
-                <span>Multi-Source Maritime Intelligence Evidence Matrix</span>
+                <span>Multi-Source Maritime Monitoring Evidence Matrix</span>
             </h3>
             <span class="text-[10px] font-mono text-slate-400">Version 2.0-GFVIP</span>
         </div>
@@ -561,7 +561,7 @@
                         <span>Mode Akses Terbatas (Read-Only):</span>
                     </div>
                     <p>
-                        Akun Anda tidak memiliki hak otorisasi peninjauan. Hanya Analis Intelijen Maritim (<em class="text-teal-300">analyst</em>) dan Administrator (<em class="text-teal-300">super_admin</em>) yang memiliki wewenang mencatat atau mengubah keputusan peninjauan.
+                        Akun Anda tidak memiliki hak otorisasi peninjauan. Hanya Analis Maritim (<em class="text-teal-300">analyst</em>) dan Administrator (<em class="text-teal-300">super_admin</em>) yang memiliki wewenang mencatat atau mengubah keputusan peninjauan.
                     </p>
                 </div>
                 @endif

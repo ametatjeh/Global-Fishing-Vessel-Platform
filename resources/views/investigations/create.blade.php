@@ -11,7 +11,7 @@
                 <div class="flex items-center gap-2">
                     <h2 class="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
                         <span>📁</span>
-                        <span>Inisiasi Kasus Investigasi Intelijen Maritim</span>
+                        <span>Inisiasi Kasus Investigasi &amp; Pemantauan Maritim</span>
                     </h2>
                     <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
                         RESTRICTED — RESEARCH ONLY

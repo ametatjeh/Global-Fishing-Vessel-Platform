@@ -1,15 +1,15 @@
-# Global Fishing Vessel Tracking (GFVT)
+# Global Fishing Vessel Monitoring Platform (GFVM)
 
-Platform intelijen maritim global berbasis Laravel 13, PostgreSQL/PostGIS, dan MapLibre GL JS untuk pemantauan armada perikanan dunia dengan tiga pilar utama:
+Platform pemantauan maritim global (Global Fishing Vessel Monitoring Platform) berbasis Laravel 13, PostgreSQL/PostGIS, dan MapLibre GL JS untuk pemantauan armada perikanan dunia, analisis spasial, dan observasi aktivitas maritim dengan tiga pilar utama:
 
-1. **Live Vessel Tracking** (Pelacakan telemetri posisi AIS kapal secara waktu nyata).
-2. **Fishing Compliance** (Mesin audit kepatuhan berbasis aturan hukum maritim internasional, izin kapal, dan zona tangkap).
-3. **Dark Vessel Detection** (Deteksi kapal tanpa transponder aktif melalui korelasi citra satelit SAR Sentinel-1 dan celah transmisi AIS).
+1. **Live Vessel Monitoring** (Pemantauan telemetri posisi AIS kapal secara waktu nyata).
+2. **Maritime Compliance Monitoring** (Mesin audit kepatuhan berbasis aturan hukum maritim internasional, izin kapal, dan zona tangkap).
+3. **Unusual Vessel Activity** (Analisis anomali kapal tanpa transponder aktif melalui korelasi citra satelit SAR Sentinel-1 dan celah transmisi AIS).
 
 Platform ini dilengkapi layer geospasial resmi:
 
 - **ASEAN Exclusive Economic Zones (EEZ)** (Garis batas Zona Ekonomi Eksklusif resmi regional ASEAN dari Flanders Marine Institute Marine Regions).
-- **Vessel Encounter Detection** (Deteksi pertemuan dan kedekatan spasio-temporal antar kapal di laut lepas).
+- **Vessel Encounter Analysis** (Deteksi dan analisis pertemuan serta kedekatan spasio-temporal antar kapal di laut lepas).
 
 ---
 
@@ -128,7 +128,7 @@ php artisan migrate --seed
 ### Akun Bawaan Sistem (Default Credentials)
 
 - **Super Administrator**: `admin@gfw.nagakecil.site` (Kata Sandi: `Password123!`)
-- **Senior Intelligence Analyst**: `analyst@gfw.nagakecil.site` (Kata Sandi: `Password123!`)
+- **Senior Maritime Analyst**: `analyst@gfw.nagakecil.site` (Kata Sandi: `Password123!`)
 
 ---
 
@@ -314,7 +314,7 @@ php artisan view:clear
 
 ---
 
-## 12. Disclaimer Hukum & Metodologi Intelijen
+## 12. Disclaimer Hukum & Metodologi Pemantauan Maritim
 
 1. **ASEAN Exclusive Economic Zones (EEZ)**: Batas Zona Ekonomi Eksklusif (EEZ) 200 mil laut merupakan yurisdiksi hukum maritim negara pantai berdasarkan UNCLOS 1982, bukan secara otomatis merupakan zona terlarang untuk pelayaran atau penangkapan ikan tanpa verifikasi izin dan regulasi terkait.
 2. **Vessel Encounters**: Peristiwa kedekatan spasio-temporal dua kapal merupakan anomali observasional yang memerlukan telaah analis (*Needs Review*) dan tidak dapat serta-merta disimpulkan sebagai tindak transshipment ilegal tanpa verifikasi bukti pendukung.

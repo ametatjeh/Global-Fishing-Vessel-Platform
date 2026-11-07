@@ -195,7 +195,7 @@ class AutomaticGfwIntelligenceSyncTest extends TestCase
         $response->assertStatus(200);
 
         // Header and Badge
-        $response->assertSee('GLOBAL FISHING WATCH INTELLIGENCE / GFW API v3');
+        $response->assertSee('GLOBAL FISHING WATCH MONITORING & EVENTS / GFW API v3', false);
         $response->assertSee('Synced');
         $response->assertSee('gfw-vessel-abc123');
 

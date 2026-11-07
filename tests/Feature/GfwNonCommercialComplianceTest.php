@@ -104,7 +104,7 @@ class GfwNonCommercialComplianceTest extends TestCase
         $response->assertStatus(200);
 
         $response->assertSee('GFVIP', false);
-        $response->assertSee('Global Fishing Vessel Intelligence Platform', false);
+        $response->assertSee('Global Fishing Vessel Monitoring Platform', false);
         $response->assertSee('Research Platform', false);
         $response->assertSee('2026', false);
         $response->assertDontSee('/about', false);

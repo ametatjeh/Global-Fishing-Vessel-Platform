@@ -37,7 +37,7 @@
     <div class="p-4 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-2.5">
         <span class="text-base shrink-0">⚠️</span>
         <div>
-            <div class="font-bold text-amber-300">Pemberitahuan Disposisi Intelijen:</div>
+            <div class="font-bold text-amber-300">Pemberitahuan Disposisi Analis Maritim:</div>
             <div class="text-[11px] text-slate-300 leading-relaxed mt-0.5">
                 {{ $encounter->disclaimer }}
             </div>
@@ -158,7 +158,7 @@
                 </div>
 
                 <div>
-                    <label for="analyst_notes" class="block font-semibold text-slate-300 mb-1">Catatan Analis Intelijen:</label>
+                    <label for="analyst_notes" class="block font-semibold text-slate-300 mb-1">Catatan Analis Maritim:</label>
                     <textarea name="analyst_notes" id="analyst_notes" rows="3" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-teal-400 text-xs">{{ old('analyst_notes', $encounter->analyst_notes) }}</textarea>
                 </div>
 
