@@ -39,76 +39,74 @@
 
     <!-- Multi-Dimensional Filter Bar (Compact Mode) -->
     <div class="glass-panel p-4 rounded-2xl border border-slate-800 shadow-xl">
-        <form action="{{ route('vessels.index') }}" method="GET" id="vesselsFilterForm" class="space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+        <form action="{{ route('vessels.index') }}" method="GET" id="vesselsFilterForm" class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end text-xs">
 
-                <!-- 1. Search Query -->
-                <div class="space-y-1">
-                    <label class="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                        Pencarian Kapal / Entitas
-                    </label>
-                    <div class="relative">
-                        <input type="text" name="search" value="{{ request('search') }}" placeholder="Nama, MMSI, IMO, Callsign, Owner, Operator..."
-                            class="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-teal-400 font-sans transition">
-                        <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-500">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </div>
+            <!-- 1. Search Query -->
+            <div class="md:col-span-4 space-y-1">
+                <label class="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+                    Pencarian Kapal / Entitas
+                </label>
+                <div class="relative">
+                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Nama, MMSI, IMO, Callsign, Owner, Operator..."
+                        class="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-teal-400 font-sans transition">
+                    <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-500">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
                     </div>
-                </div>
-
-                <!-- 2. Flag Country Filter -->
-                <div class="space-y-1">
-                    <label for="flag_country" class="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                        Flag Country (Negara Bendera)
-                    </label>
-                    <select id="flag_country" name="flag_country" onchange="this.form.submit()"
-                        class="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-400 font-sans cursor-pointer transition">
-                        <option value="">All Countries (Semua Bendera)</option>
-                        @foreach($availableFlagCountries as $country)
-                        <option value="{{ $country['code'] }}" {{ (request('flag_country') == $country['code'] || request('flag_state') == $country['code']) ? 'selected' : '' }}>
-                            {{ $country['flag_emoji'] }} {{ $country['name'] }} ({{ $country['code'] }})
-                        </option>
-                        @endforeach
-                        <option value="unknown" {{ (request('flag_country') === 'unknown' || request('flag_state') === 'unknown') ? 'selected' : '' }}>
-                            🌐 Unknown (Negara Tidak Diketahui)
-                        </option>
-                    </select>
-                </div>
-
-                <!-- 3. Vessel Type Filter -->
-                <div class="space-y-1">
-                    <label for="vessel_type" class="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                        Vessel Type (Tipe Armada)
-                    </label>
-                    <select id="vessel_type" name="vessel_type" onchange="this.form.submit()"
-                        class="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-400 font-sans cursor-pointer transition">
-                        <option value="">All Types (Semua Tipe)</option>
-                        <option value="fishing" {{ request('vessel_type') === 'fishing' ? 'selected' : '' }}>Fishing (Penangkap Ikan)</option>
-                        <option value="carrier" {{ request('vessel_type') === 'carrier' ? 'selected' : '' }}>Carrier (Pengangkut/Reefer)</option>
-                        <option value="support" {{ request('vessel_type') === 'support' ? 'selected' : '' }}>Support (Pendukung/Bunker)</option>
-                        <option value="passenger" {{ request('vessel_type') === 'passenger' ? 'selected' : '' }}>Passenger (Penumpang/Yacht)</option>
-                        <option value="patrol" {{ request('vessel_type') === 'patrol' ? 'selected' : '' }}>Patrol (Pengawas/SAR)</option>
-                        <option value="tug" {{ request('vessel_type') === 'tug' ? 'selected' : '' }}>Tug (Kapal Tunda)</option>
-                        <option value="pleasure" {{ request('vessel_type') === 'pleasure' ? 'selected' : '' }}>Pleasure (Rekreasi/Layar)</option>
-                        <option value="research" {{ request('vessel_type') === 'research' ? 'selected' : '' }}>Research (Riset Ilmiah)</option>
-                        <option value="cargo" {{ request('vessel_type') === 'cargo' ? 'selected' : '' }}>Cargo (Kargo Barang)</option>
-                        <option value="tanker" {{ request('vessel_type') === 'tanker' ? 'selected' : '' }}>Tanker (Minyak/Gas)</option>
-                        <option value="other" {{ request('vessel_type') === 'other' ? 'selected' : '' }}>Other (Lainnya)</option>
-                        <option value="unknown" {{ request('vessel_type') === 'unknown' ? 'selected' : '' }}>Unknown (Belum Diketahui)</option>
-                    </select>
                 </div>
             </div>
 
-            <!-- Filter Actions -->
-            <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800/80 text-xs">
+            <!-- 2. Flag Country Filter -->
+            <div class="md:col-span-3 space-y-1">
+                <label for="flag_country" class="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+                    Flag Country (Negara Bendera)
+                </label>
+                <select id="flag_country" name="flag_country" onchange="this.form.submit()"
+                    class="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-400 font-sans cursor-pointer transition">
+                    <option value="">All Countries (Semua Bendera)</option>
+                    @foreach($availableFlagCountries as $country)
+                    <option value="{{ $country['code'] }}" {{ (request('flag_country') == $country['code'] || request('flag_state') == $country['code']) ? 'selected' : '' }}>
+                        {{ $country['flag_emoji'] }} {{ $country['name'] }} ({{ $country['code'] }})
+                    </option>
+                    @endforeach
+                    <option value="unknown" {{ (request('flag_country') === 'unknown' || request('flag_state') === 'unknown') ? 'selected' : '' }}>
+                        🌐 Unknown (Negara Tidak Diketahui)
+                    </option>
+                </select>
+            </div>
+
+            <!-- 3. Vessel Type Filter -->
+            <div class="md:col-span-3 space-y-1">
+                <label for="vessel_type" class="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+                    Vessel Type (Tipe Armada)
+                </label>
+                <select id="vessel_type" name="vessel_type" onchange="this.form.submit()"
+                    class="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-400 font-sans cursor-pointer transition">
+                    <option value="">All Types (Semua Tipe)</option>
+                    <option value="fishing" {{ request('vessel_type') === 'fishing' ? 'selected' : '' }}>Fishing (Penangkap Ikan)</option>
+                    <option value="carrier" {{ request('vessel_type') === 'carrier' ? 'selected' : '' }}>Carrier (Pengangkut/Reefer)</option>
+                    <option value="support" {{ request('vessel_type') === 'support' ? 'selected' : '' }}>Support (Pendukung/Bunker)</option>
+                    <option value="passenger" {{ request('vessel_type') === 'passenger' ? 'selected' : '' }}>Passenger (Penumpang/Yacht)</option>
+                    <option value="patrol" {{ request('vessel_type') === 'patrol' ? 'selected' : '' }}>Patrol (Pengawas/SAR)</option>
+                    <option value="tug" {{ request('vessel_type') === 'tug' ? 'selected' : '' }}>Tug (Kapal Tunda)</option>
+                    <option value="pleasure" {{ request('vessel_type') === 'pleasure' ? 'selected' : '' }}>Pleasure (Rekreasi/Layar)</option>
+                    <option value="research" {{ request('vessel_type') === 'research' ? 'selected' : '' }}>Research (Riset Ilmiah)</option>
+                    <option value="cargo" {{ request('vessel_type') === 'cargo' ? 'selected' : '' }}>Cargo (Kargo Barang)</option>
+                    <option value="tanker" {{ request('vessel_type') === 'tanker' ? 'selected' : '' }}>Tanker (Minyak/Gas)</option>
+                    <option value="other" {{ request('vessel_type') === 'other' ? 'selected' : '' }}>Other (Lainnya)</option>
+                    <option value="unknown" {{ request('vessel_type') === 'unknown' ? 'selected' : '' }}>Unknown (Belum Diketahui)</option>
+                </select>
+            </div>
+
+            <!-- 4. Filter Action Buttons (Sejajar dengan Filter) -->
+            <div class="md:col-span-2 flex items-center gap-2">
                 @if($activeFiltersCount > 0)
-                <a href="{{ route('vessels.index') }}" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold transition">
-                    Reset Filters
+                <a href="{{ route('vessels.index') }}" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold transition shrink-0 whitespace-nowrap text-center" title="Reset Filters">
+                    Reset Filter
                 </a>
                 @endif
-                <button type="submit" class="px-5 py-1.5 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold transition shadow-md shadow-teal-500/20">
+                <button type="submit" class="w-full py-2 px-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold transition shadow-md shadow-teal-500/20 whitespace-nowrap text-center">
                     Terapkan Filter
                 </button>
             </div>
