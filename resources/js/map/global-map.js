@@ -49,10 +49,13 @@ export class GlobalMapController {
         this.hashDebounceTimer = null;
         this.currentPopup = null;
         this.basemapErrorNotified = false;
+        this.isStyleLoaded = false;
+        this.styleRetryCount = 0;
+        this.degradationCheckTimer = null;
         this.livePollingInterval = null;
         this.selectedVesselId = null;
         this.selectedMmsi = null;
-        this.currentBasemapKey = options.basemap || 'openfreemap-liberty';
+        this.currentBasemapKey = this.resolveInitialBasemapKey(options.basemap);
         this.onVesselSelected = options.onVesselSelected || null;
 
         // Controlled Advanced Filters State
@@ -168,6 +171,47 @@ export class GlobalMapController {
         }
     }
 
+    resolveInitialBasemapKey(passedKey) {
+        const VALID_KEYS = [
+            'openfreemap-positron',
+            'openfreemap-dark',
+            'openfreemap-liberty',
+            'openfreemap-bright'
+        ];
+        const ALIASES = {
+            'esri-dark': 'openfreemap-dark',
+            'dark-ocean': 'openfreemap-dark',
+            'positron': 'openfreemap-positron',
+            'liberty': 'openfreemap-liberty',
+            'bright': 'openfreemap-bright'
+        };
+
+        if (passedKey) {
+            const normalized = ALIASES[passedKey] || passedKey;
+            if (VALID_KEYS.includes(normalized)) {
+                return normalized;
+            }
+        }
+
+        // Check localStorage for previously saved valid user preference
+        try {
+            if (typeof window !== 'undefined' && window.localStorage) {
+                const saved = window.localStorage.getItem('gfvip_map_basemap');
+                if (saved) {
+                    const normalized = ALIASES[saved] || saved;
+                    if (VALID_KEYS.includes(normalized)) {
+                        return normalized;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('[GlobalMapController] Could not read basemap preference from localStorage:', e);
+        }
+
+        // Default basemap when no valid preference exists: Positron High Contrast Clean
+        return 'openfreemap-positron';
+    }
+
     createMap() {
         const urlLoc = this.parseUrlLocation();
         const initialCenter = urlLoc && isFinite(urlLoc.lng) && isFinite(urlLoc.lat)
@@ -187,59 +231,51 @@ export class GlobalMapController {
             attributionControl: false // Handled cleanly via custom or bottom attribution
         });
 
-        // Immediately enforce English-only country labels whenever a basemap style finishes loading
+        // Immediately track style load & enforce English-only country labels
         this.map.on('style.load', () => {
+            this.isStyleLoaded = true;
+            this.clearBasemapDegradationBanner();
             this.enforceEnglishCountryLabels();
         });
     }
 
     getBasemapStyle(key = this.currentBasemapKey) {
-        if (key === 'openfreemap-liberty') {
-            return 'https://tiles.openfreemap.org/styles/liberty';
-        }
-        if (key === 'openfreemap-positron') {
+        if (key === 'openfreemap-positron' || key === 'positron') {
             return 'https://tiles.openfreemap.org/styles/positron';
         }
-        if (key === 'openfreemap-bright') {
+        if (key === 'openfreemap-dark' || key === 'dark-ocean' || key === 'esri-dark') {
+            return 'https://tiles.openfreemap.org/styles/dark';
+        }
+        if (key === 'openfreemap-liberty' || key === 'liberty') {
+            return 'https://tiles.openfreemap.org/styles/liberty';
+        }
+        if (key === 'openfreemap-bright' || key === 'bright') {
             return 'https://tiles.openfreemap.org/styles/bright';
         }
-        return this.getEsriDarkBasemapStyle();
+        return 'https://tiles.openfreemap.org/styles/positron';
     }
 
-    getEsriDarkBasemapStyle() {
-        // ESRI World Dark Gray Canvas (Watermark-Free, Production Stable, No API Key Required)
+    getOfflineCanvasStyle() {
+        // Fallback canvas style when all vector basemap endpoints are unreachable
         return {
             version: 8,
+            name: 'Offline-Safe Canvas',
             glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
             sources: {
-                'esri-dark-base': {
+                'offline-canvas-base': {
                     type: 'raster',
                     tiles: [
                         'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
                     ],
                     tileSize: 256,
                     attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, USGS, FAO, NOAA'
-                },
-                'esri-dark-reference': {
-                    type: 'raster',
-                    tiles: [
-                        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}'
-                    ],
-                    tileSize: 256
                 }
             },
             layers: [
                 {
-                    id: 'esri-dark-base-layer',
+                    id: 'offline-canvas-base-layer',
                     type: 'raster',
-                    source: 'esri-dark-base',
-                    minzoom: 0,
-                    maxzoom: 19
-                },
-                {
-                    id: 'esri-dark-reference-layer',
-                    type: 'raster',
-                    source: 'esri-dark-reference',
+                    source: 'offline-canvas-base',
                     minzoom: 0,
                     maxzoom: 19
                 }
@@ -247,26 +283,96 @@ export class GlobalMapController {
         };
     }
 
+    getEsriDarkBasemapStyle() {
+        return this.getOfflineCanvasStyle();
+    }
+
     setBasemapStyle(styleKey) {
         if (!this.map) return;
-        this.currentBasemapKey = styleKey;
-        const style = this.getBasemapStyle(styleKey);
+        const normalizedKey = (styleKey === 'esri-dark' || styleKey === 'dark-ocean') ? 'openfreemap-dark' : styleKey;
+        this.currentBasemapKey = normalizedKey;
+
+        // Persist valid preference to localStorage
+        try {
+            if (typeof window !== 'undefined' && window.localStorage) {
+                window.localStorage.setItem('gfvip_map_basemap', normalizedKey);
+            }
+        } catch (e) {
+            console.warn('[GlobalMapController] Could not save basemap preference:', e);
+        }
+
+        this.isStyleLoaded = false;
+        this.styleRetryCount = 0;
+        this.clearBasemapDegradationBanner();
+
+        const style = this.getBasemapStyle(normalizedKey);
         this.map.setStyle(style);
+
         this.map.once('style.load', () => {
+            this.isStyleLoaded = true;
+            this.clearBasemapDegradationBanner();
             this.enforceEnglishCountryLabels();
             this.registerVesselIcons();
             this.setupSourcesAndLayers();
+            this.restoreCachedLayerData();
             this.refreshAllActiveLayers();
         });
+
         const labelEl = document.getElementById('currentBasemapLabel');
         if (labelEl) {
             const names = {
-                'openfreemap-liberty': 'OpenFreeMap Liberty',
-                'openfreemap-positron': 'OpenFreeMap Positron',
-                'openfreemap-bright': 'OpenFreeMap Bright',
-                'esri-dark': 'ESRI Dark Gray'
+                'openfreemap-positron': 'Positron High Contrast Clean',
+                'openfreemap-dark': 'Dark Ocean Marine Style',
+                'openfreemap-liberty': 'Nautical Standard Vector',
+                'openfreemap-bright': 'Topographic Bright Canvas',
+                'esri-dark': 'Dark Ocean Marine Style'
             };
-            labelEl.textContent = names[styleKey] || styleKey;
+            labelEl.textContent = names[normalizedKey] || normalizedKey;
+        }
+
+        // Synchronize radio button in Settings popover
+        const matchingRadio = document.querySelector(`input[name="basemap_choice"][value="${normalizedKey}"]`)
+            || (normalizedKey === 'openfreemap-dark' ? document.querySelector('input[name="basemap_choice"][value="esri-dark"]') : null);
+        if (matchingRadio && !matchingRadio.checked) {
+            matchingRadio.checked = true;
+        }
+    }
+
+    restoreCachedLayerData() {
+        if (!this.map) return;
+        try {
+            if (this.layerData.aseanEez && this.map.getSource('asean-eez-source')) {
+                this.map.getSource('asean-eez-source').setData(this.layerData.aseanEez);
+            }
+            if (this.layerData.vessels && this.map.getSource('vessels-source')) {
+                this.map.getSource('vessels-source').setData(this.layerData.vessels);
+            }
+            if (this.layerData.darkVessels && this.map.getSource('dark-vessels-source')) {
+                this.map.getSource('dark-vessels-source').setData(this.layerData.darkVessels);
+            }
+            if (this.layerData.encounters && this.map.getSource('encounters-source')) {
+                this.map.getSource('encounters-source').setData(this.layerData.encounters);
+            }
+            if (this.layerData.sarScenes && this.map.getSource('sar-scenes-source')) {
+                this.map.getSource('sar-scenes-source').setData(this.layerData.sarScenes);
+            }
+            if (this.currentTrackGeoJson && this.map.getSource('vessel-track-source')) {
+                this.map.getSource('vessel-track-source').setData(this.currentTrackGeoJson);
+            }
+        } catch (err) {
+            console.warn('[GlobalMapController] Error restoring cached layer data on style change:', err);
+        }
+    }
+
+    clearBasemapDegradationBanner() {
+        const banner = document.getElementById(`basemap-fallback-${this.containerId}`);
+        if (banner) {
+            banner.remove();
+        }
+        this.basemapErrorNotified = false;
+        if (this.degradationCheckTimer) {
+            clearTimeout(this.degradationCheckTimer);
+            this.degradationCheckTimer = null;
         }
     }
 
@@ -316,17 +422,60 @@ export class GlobalMapController {
     setupErrorHandling() {
         this.map.on('error', (e) => {
             const err = e.error || e;
-            const msg = err?.message || String(err);
-            console.warn('[MapLibre Event Warning]:', msg);
+            const msg = (err?.message || String(err || '')).toLowerCase();
 
-            // Check if basemap tile loading failed
-            if (msg.includes('tile') || msg.includes('404') || msg.includes('Failed to fetch') || msg.includes('openfreemap')) {
-                this.handleBasemapDegradation();
+            // Ignore non-fatal / aborted tile requests during rapid panning or zooming
+            const isAborted = msg.includes('abort') || msg.includes('canceled');
+            // Ignore optional icons, sprites, or glyph sub-range 404s
+            const isOptionalAsset = msg.includes('image') || msg.includes('sprite') || msg.includes('glyph');
+            // Ignore single tile 404/500 if the vector style itself is already loaded and functioning
+            const isTileGlitch = (msg.includes('tile') || msg.includes('404')) && this.isStyleLoaded;
+
+            if (isAborted || isOptionalAsset || isTileGlitch) {
+                return;
+            }
+
+            console.warn('[MapLibre Event Warning]:', err?.message || String(err));
+
+            // Only consider degradation if the root style JSON itself failed to fetch, or repeated network drops before style load
+            const isFatalStyleFailure = !this.isStyleLoaded && (
+                msg.includes('failed to fetch') ||
+                msg.includes('networkerror') ||
+                msg.includes('style') ||
+                msg.includes('openfreemap')
+            );
+
+            if (isFatalStyleFailure) {
+                this.scheduleBasemapRetryOrDegradation(err?.message || 'Style network error');
             }
         });
     }
 
-    handleBasemapDegradation() {
+    scheduleBasemapRetryOrDegradation(reason) {
+        if (this.degradationCheckTimer) return;
+
+        const maxRetries = 2;
+        if (this.styleRetryCount < maxRetries) {
+            this.styleRetryCount++;
+            console.warn(`[GlobalMapController] Vector basemap style load failed (${reason}). Retrying ${this.styleRetryCount}/${maxRetries}...`);
+            this.degradationCheckTimer = setTimeout(() => {
+                this.degradationCheckTimer = null;
+                if (!this.isStyleLoaded && this.map) {
+                    try {
+                        const styleUrl = this.getBasemapStyle(this.currentBasemapKey);
+                        this.map.setStyle(styleUrl);
+                    } catch (err) {
+                        console.error('[GlobalMapController] Retry failed:', err);
+                        this.handleBasemapDegradation(reason);
+                    }
+                }
+            }, 1800);
+        } else {
+            this.handleBasemapDegradation(reason);
+        }
+    }
+
+    handleBasemapDegradation(reason = 'Vector basemap unreachable') {
         if (this.basemapErrorNotified) return;
         this.basemapErrorNotified = true;
 
@@ -336,10 +485,17 @@ export class GlobalMapController {
         // Ensure container background stays dark maritime slate so vector data is still visible
         container.style.backgroundColor = '#0b1120';
 
-        // Auto fallback to local ESRI raster style if vector style failed
-        if (this.currentBasemapKey !== 'esri-dark' && this.map) {
+        // Auto fallback to offline-safe canvas raster style
+        if (this.map) {
             try {
-                this.setBasemapStyle('esri-dark');
+                const fallbackStyle = this.getOfflineCanvasStyle();
+                this.map.setStyle(fallbackStyle);
+                this.map.once('style.load', () => {
+                    this.registerVesselIcons();
+                    this.setupSourcesAndLayers();
+                    this.restoreCachedLayerData();
+                    this.refreshAllActiveLayers();
+                });
             } catch (err) {
                 console.warn('[GlobalMapController] Could not apply fallback style:', err);
             }
@@ -349,14 +505,26 @@ export class GlobalMapController {
         if (!existingBanner) {
             const banner = document.createElement('div');
             banner.id = `basemap-fallback-${this.containerId}`;
-            banner.className = 'absolute top-2 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 rounded-xl bg-amber-950/80 border border-amber-600/60 text-amber-200 text-[11px] font-mono shadow-xl backdrop-blur flex items-center gap-2 pointer-events-auto';
+            banner.className = 'absolute top-3 left-1/2 -translate-x-1/2 z-20 px-3.5 py-2 rounded-xl bg-amber-950/90 border border-amber-500/60 text-amber-200 text-xs font-mono shadow-2xl backdrop-blur-md flex items-center gap-3 pointer-events-auto transition-all';
             banner.innerHTML = `
-                <span>⚠️</span>
+                <span class="text-amber-400 text-sm">⚠️</span>
                 <span>Vector basemap unavailable. Falling back to offline-safe canvas. Operational layers remain active.</span>
-                <button type="button" onclick="this.parentElement.remove()" class="text-amber-400 hover:text-white font-bold ml-2">&times;</button>
+                <button type="button" id="btn-retry-basemap-${this.containerId}" class="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 hover:text-white border border-amber-500/40 text-[11px] font-sans font-medium transition-colors">
+                    Coba Lagi
+                </button>
+                <button type="button" onclick="this.parentElement.remove()" class="text-amber-400 hover:text-white font-bold ml-1 text-base leading-none">&times;</button>
             `;
             container.style.position = 'relative';
             container.appendChild(banner);
+
+            const retryBtn = document.getElementById(`btn-retry-basemap-${this.containerId}`);
+            if (retryBtn) {
+                retryBtn.addEventListener('click', () => {
+                    this.clearBasemapDegradationBanner();
+                    this.styleRetryCount = 0;
+                    this.setBasemapStyle(this.currentBasemapKey);
+                });
+            }
         }
     }
 

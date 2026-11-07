@@ -535,35 +535,38 @@
 
         <div class="space-y-3">
             <div class="space-y-1.5">
-                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Gaya Tampilan Basemap</div>
+                <div class="flex items-center justify-between">
+                    <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Gaya Tampilan Basemap</div>
+                    <span id="currentBasemapLabel" class="text-[10px] text-teal-400 font-mono">Positron High Contrast Clean</span>
+                </div>
                 <div class="space-y-1" id="basemapRadioGroup">
                     <label class="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-teal-500/50 cursor-pointer transition">
                         <div class="flex items-center gap-2">
-                            <input type="radio" name="basemap_choice" value="openfreemap-liberty" checked class="text-teal-400 focus:ring-teal-400 bg-slate-950 border-slate-700">
-                            <span class="text-slate-200 font-medium">Nautical Standard Vector</span>
+                            <input type="radio" name="basemap_choice" value="openfreemap-positron" checked class="text-teal-400 focus:ring-teal-400 bg-slate-950 border-slate-700">
+                            <span class="text-slate-200 font-medium">Positron High Contrast Clean</span>
                         </div>
                         <span class="text-[9px] px-1.5 py-0.2 rounded bg-teal-950 text-teal-300 border border-teal-700 font-bold">Default</span>
                     </label>
                     <label class="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-teal-500/50 cursor-pointer transition">
                         <div class="flex items-center gap-2">
-                            <input type="radio" name="basemap_choice" value="openfreemap-positron" class="text-teal-400 focus:ring-teal-400 bg-slate-950 border-slate-700">
-                            <span class="text-slate-200 font-medium">Positron High Contrast</span>
+                            <input type="radio" name="basemap_choice" value="openfreemap-dark" class="text-teal-400 focus:ring-teal-400 bg-slate-950 border-slate-700">
+                            <span class="text-slate-200 font-medium">Dark Ocean Marine Style</span>
                         </div>
-                        <span class="text-[9px] text-slate-500 font-mono">Clean</span>
+                        <span class="text-[9px] text-slate-400 font-mono">Vector</span>
+                    </label>
+                    <label class="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-teal-500/50 cursor-pointer transition">
+                        <div class="flex items-center gap-2">
+                            <input type="radio" name="basemap_choice" value="openfreemap-liberty" class="text-teal-400 focus:ring-teal-400 bg-slate-950 border-slate-700">
+                            <span class="text-slate-200 font-medium">Nautical Standard Vector</span>
+                        </div>
+                        <span class="text-[9px] text-slate-400 font-mono">Detail</span>
                     </label>
                     <label class="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-teal-500/50 cursor-pointer transition">
                         <div class="flex items-center gap-2">
                             <input type="radio" name="basemap_choice" value="openfreemap-bright" class="text-teal-400 focus:ring-teal-400 bg-slate-950 border-slate-700">
                             <span class="text-slate-200 font-medium">Topographic Bright Canvas</span>
                         </div>
-                        <span class="text-[9px] text-slate-500 font-mono">Detail</span>
-                    </label>
-                    <label class="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-teal-500/50 cursor-pointer transition">
-                        <div class="flex items-center gap-2">
-                            <input type="radio" name="basemap_choice" value="esri-dark" class="text-teal-400 focus:ring-teal-400 bg-slate-950 border-slate-700">
-                            <span class="text-slate-200 font-medium">Dark Ocean Marine Style</span>
-                        </div>
-                        <span class="text-[9px] text-slate-500 font-mono">Night</span>
+                        <span class="text-[9px] text-slate-400 font-mono">Terrain</span>
                     </label>
                 </div>
             </div>
@@ -922,6 +925,25 @@
                 }
             });
         });
+
+        // Synchronize Settings basemap radio and status label with mapController.currentBasemapKey
+        const activeBasemapKey = mapController.currentBasemapKey || 'openfreemap-positron';
+        const activeRadio = document.querySelector(`input[name="basemap_choice"][value="${activeBasemapKey}"]`)
+            || (activeBasemapKey === 'openfreemap-dark' ? document.querySelector('input[name="basemap_choice"][value="esri-dark"]') : null);
+        if (activeRadio) {
+            activeRadio.checked = true;
+        }
+        const activeLabelEl = document.getElementById('currentBasemapLabel');
+        if (activeLabelEl) {
+            const basemapNames = {
+                'openfreemap-positron': 'Positron High Contrast Clean',
+                'openfreemap-dark': 'Dark Ocean Marine Style',
+                'openfreemap-liberty': 'Nautical Standard Vector',
+                'openfreemap-bright': 'Topographic Bright Canvas',
+                'esri-dark': 'Dark Ocean Marine Style'
+            };
+            activeLabelEl.textContent = basemapNames[activeBasemapKey] || activeBasemapKey;
+        }
 
         // Settings to Metadata Modal trigger
         document.getElementById('btnSettingsOpenMetadata')?.addEventListener('click', () => {
