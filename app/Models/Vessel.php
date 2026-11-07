@@ -24,6 +24,8 @@ class Vessel extends Model
         'first_seen_at' => 'datetime',
         'last_seen_at' => 'datetime',
         'last_enriched_at' => 'datetime',
+        'classified_at' => 'datetime',
+        'ais_ship_type_code' => 'integer',
         'metadata' => 'array',
     ];
 
@@ -227,12 +229,224 @@ class Vessel extends Model
     }
 
     /**
+     * Five historical unverified vessels protected from classification change and retention purge
+     */
+    public const HISTORICAL_PROTECTED_MMSIS = [
+        '211233660', // WESERLOTSE
+        '563051800', // MAERSK MONTE VERDE
+        '311002359', // XIN TAI YUAN
+        '211443110', // FRANKEN
+        '232056936', // HANS
+    ];
+
+    /**
      * Determine if vessel identity has been manually verified by an analyst
      */
     public function isManuallyVerified(): bool
     {
         return $this->verification_status === 'verified';
     }
+
+    /**
+     * Determine if vessel is Verified Fishing with legitimate evidence (AIS ShipType 30 or manual analyst verification).
+     * Strictly enforces non-conflict rule: if AIS telemetry provides a non-fishing code (e.g. 70 Cargo, 80 Tanker),
+     * manual verification CANNOT override objective AIS evidence.
+     */
+    public function isVerifiedFishing(): bool
+    {
+        if (strtolower((string) $this->vessel_type) !== 'fishing') {
+            return false;
+        }
+
+        // 1. Conflict check: if AIS ShipType is known and is NOT 30, it CANNOT be verified fishing
+        if ($this->ais_ship_type_code !== null && (int) $this->ais_ship_type_code !== 30) {
+            return false;
+        }
+
+        // 2. Legitimate AIS ShipType 30 (Fishing)
+        if ((int) $this->ais_ship_type_code === 30) {
+            return true;
+        }
+
+        // 3. Manual analyst verification is accepted ONLY when ShipType is null (no conflicting AIS evidence)
+        return $this->verification_status === 'verified';
+    }
+
+    /**
+     * Determine if there is an active conflict between vessel label/verification and objective AIS telemetry.
+     * E.g. vessel_type is 'fishing' and/or verification_status is 'verified', BUT ais_ship_type_code is a non-fishing code (e.g. 70, 80).
+     */
+    public function isClassificationDisputed(): bool
+    {
+        $isClaimedFishing = strtolower((string) $this->vessel_type) === 'fishing';
+
+        $hasNonFishingAisCode = $this->ais_ship_type_code !== null
+            && (int) $this->ais_ship_type_code > 0
+            && (int) $this->ais_ship_type_code !== 30;
+
+        return $isClaimedFishing && $hasNonFishingAisCode;
+    }
+
+    /**
+     * Determine if vessel is Unverified Fishing (classified as fishing but lacks AIS code 30 or analyst verification).
+     */
+    public function isUnverifiedFishing(): bool
+    {
+        return strtolower((string) $this->vessel_type) === 'fishing' && !$this->isVerifiedFishing();
+    }
+
+    /**
+     * Determine if vessel is one of the 5 historical protected vessels.
+     */
+    public function isHistoricalProtected(): bool
+    {
+        return in_array((string) $this->mmsi, self::HISTORICAL_PROTECTED_MMSIS, true)
+            || $this->verification_status === 'unverified_historical';
+    }
+
+    /**
+     * Determine if vessel is under Protective Hold:
+     * - The 5 historical unverified vessels
+     * - Unverified fishing vessels (lacking code 30 & analyst verification)
+     * - Disputed vessels with conflicting manual vs AIS evidence
+     * - Vessels with verification_status in ('under_review', 'unverified', 'unverified_historical', 'disputed')
+     */
+    public function isUnderProtectiveHold(): bool
+    {
+        return $this->isHistoricalProtected()
+            || $this->isClassificationDisputed()
+            || $this->isUnverifiedFishing()
+            || in_array($this->verification_status, ['under_review', 'unverified', 'unverified_historical', 'disputed'], true);
+    }
+
+    /**
+     * Determine if vessel is Verified Non-Fishing:
+     * - vessel_type is not 'fishing' and not 'unknown'
+     * - Disputed fishing vessels are strictly excluded (they must NOT automatically become verified non-fishing)
+     * - AND either verification_status is 'verified' or has legitimate non-fishing AIS code
+     */
+    public function isVerifiedNonFishing(): bool
+    {
+        $raw = strtolower((string) $this->vessel_type);
+        if ($raw === 'fishing' || $raw === 'unknown' || empty($raw)) {
+            return false;
+        }
+
+        if ($this->isClassificationDisputed()) {
+            return false;
+        }
+
+        if ($this->verification_status === 'verified') {
+            return true;
+        }
+
+        return $this->ais_ship_type_code !== null && (int) $this->ais_ship_type_code > 0 && (int) $this->ais_ship_type_code !== 30;
+    }
+
+    /**
+     * Scope query to vessels that meet the Verified Fishing criteria.
+     * Centralized to ensure identical logic between Model helper and Retention Service query.
+     */
+    public function scopeVerifiedFishing($query)
+    {
+        return $query->where('vessel_type', 'fishing')
+            ->where(function ($q) {
+                // Legitimate AIS ShipType 30
+                $q->where('ais_ship_type_code', 30)
+                  // Or manual verification ONLY when ShipType is null or 30 (no conflicting AIS code)
+                  ->orWhere(function ($sub) {
+                      $sub->where('verification_status', 'verified')
+                          ->where(function ($codeQ) {
+                              $codeQ->whereNull('ais_ship_type_code')
+                                    ->orWhere('ais_ship_type_code', 30);
+                          });
+                  });
+            });
+    }
+
+    /**
+     * Scope query to vessels under Protective Hold (unverified fishing, historical 5, disputed, or under review).
+     */
+    public function scopeUnderProtectiveHold($query)
+    {
+        return $query->where(function ($q) {
+            // 1. The 5 historical vessels
+            $q->whereIn('mmsi', self::HISTORICAL_PROTECTED_MMSIS)
+            // 2. Explicit protective hold or disputed statuses
+              ->orWhereIn('verification_status', ['unverified_historical', 'under_review', 'disputed'])
+            // 3. Unverified fishing
+              ->orWhere(function ($fQ) {
+                  $fQ->where('vessel_type', 'fishing')
+                     ->where('verification_status', '!=', 'verified')
+                     ->where(function ($cQ) {
+                         $cQ->whereNull('ais_ship_type_code')
+                            ->orWhere('ais_ship_type_code', '!=', 30);
+                     });
+              })
+            // 4. Conflicting classification: fishing + verified BUT carrying non-fishing AIS code (!= 30)
+              ->orWhere(function ($cQ) {
+                  $cQ->where('vessel_type', 'fishing')
+                     ->where('verification_status', 'verified')
+                     ->whereNotNull('ais_ship_type_code')
+                     ->where('ais_ship_type_code', '!=', 30);
+              });
+        });
+    }
+
+    /**
+     * Scope query to vessels with active classification dispute.
+     * Claimed as fishing, but AIS ship type code is non-fishing (> 0 and != 30).
+     */
+    public function scopeDisputedClassification($query)
+    {
+        return $query->where('vessel_type', 'fishing')
+            ->whereNotNull('ais_ship_type_code')
+            ->where('ais_ship_type_code', '>', 0)
+            ->where('ais_ship_type_code', '!=', 30);
+    }
+
+    /**
+     * Classification audit logs relation
+     */
+    public function auditLogs(): HasMany
+    {
+        return $this->hasMany(AuditLog::class, 'entity_id')
+            ->where(function ($q) {
+                $q->where('entity_type', 'vessel')
+                  ->orWhere('entity_type', self::class);
+            })
+            ->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * Get conflict status label for UI.
+     */
+    public function getConflictStatusAttribute(): string
+    {
+        if ($this->isClassificationDisputed()) {
+            return 'Disputed (Fishing vs AIS ' . $this->ais_ship_type_code . ')';
+        }
+
+        if ($this->isHistoricalProtected()) {
+            return 'Historical Protected';
+        }
+
+        return 'Normal';
+    }
+
+    /**
+     * Get classification change history from metadata.
+     */
+    public function getClassificationHistoryAttribute(): array
+    {
+        $metaHistory = $this->metadata['classification_history'] ?? [];
+        if (!is_array($metaHistory)) {
+            $metaHistory = [];
+        }
+
+        return $metaHistory;
+    }
+
 
     /**
      * Get alternative names recorded in metadata / identifiers

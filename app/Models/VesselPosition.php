@@ -43,4 +43,12 @@ class VesselPosition extends Model
     {
         return $this->observed_at && $this->observed_at->gt(now()->subHours(2));
     }
+
+    /**
+     * Determine if this position record represents an AIS gap / dark vessel event indicator.
+     */
+    public function isDarkVesselIndicator(): bool
+    {
+        return (bool) $this->is_gap_indicator;
+    }
 }

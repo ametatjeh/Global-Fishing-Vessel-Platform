@@ -29,28 +29,41 @@ class PruneAisTelemetryCommand extends Command
 
             $this->newLine();
             $this->info("Total Posisi AIS Tersimpan: {$simulation['total_positions']}");
-            $this->info("Posisi Fishing Terlindungi Permanen: {$simulation['fishing_positions_protected']} (0 dihapus / 100% aman)");
-            $this->info("Kapal Bukti Operasional Terlindungi (SAR / Encounter / Investigasi): {$simulation['protected_evidence_vessels']}");
+            $this->info("Posisi Fishing Terverifikasi (Permanent): {$simulation['verified_fishing_positions']} (0 dihapus / 100% aman)");
+            $this->info("Posisi Fishing Belum Terverifikasi (Protective Hold): {$simulation['unverified_fishing_positions']} (0 dihapus / ditahan)");
+            $this->info("Lima Kapal Historis Terlindungi: {$simulation['historical_vessels_protected']} kapal ({$simulation['historical_vessel_positions_protected']} posisi aman)");
+            $this->info("Kapal Bukti Operasional Terlindungi (SAR / Encounter / Dark Vessel / Investigasi): {$simulation['protected_evidence_vessels']}");
+            $this->info("Posisi Terkait Dark Vessel Gap Indicator Terlindungi: {$simulation['dark_vessel_positions_protected']}");
             $this->newLine();
 
             $tableRows = [];
             foreach ($simulation['breakdown'] as $type => $data) {
+                $statusColor = match ($data['status']) {
+                    'PROTECTED_PERMANENT' => '<fg=green>PERMANEN (FISHING)</>',
+                    'PROTECTIVE_HOLD' => '<fg=cyan>PROTECTIVE HOLD</>',
+                    'ELIGIBLE_FOR_PURGE' => '<fg=yellow>Kandidat Retensi</>',
+                    'POLICY_DISABLED' => '<fg=gray>Kebijakan Nonaktif</>',
+                    default => '<fg=white>Tidak Ada Data</>',
+                };
+
                 $tableRows[] = [
                     $data['label'],
-                    $data['retention_days'] ? "{$data['retention_days']} Hari" : 'Permanen (Protected)',
-                    $data['cutoff_date'] ?: '— (Tidak Ada Cutoff)',
+                    $data['retention_days'] ? "{$data['retention_days']} Hari" : 'Permanen',
+                    $data['cutoff_date'] ?: '—',
                     $data['candidates'],
-                    $data['status'] === 'PROTECTED_PERMANENT' ? '<fg=green>TERLINDUNGI PERMANEN</>' : '<fg=yellow>Kandidat Retensi</>',
+                    $data['held'] ?? 0,
+                    $statusColor,
                 ];
             }
 
             $this->table(
-                ['Tipe Kapal', 'Kebijakan Retensi', 'Batas Waktu (Cutoff)', 'Kandidat Posisi Dihapus', 'Status Keamanan'],
+                ['Tipe Kapal', 'Kebijakan', 'Batas Waktu (Cutoff)', 'Kandidat Purge', 'Ditahan (Hold)', 'Status Keamanan'],
                 $tableRows
             );
 
             $this->newLine();
             $this->info("Total Posisi Memenuhi Syarat Purge: {$simulation['total_candidate_positions']}");
+            $this->info("Total Posisi Ditahan (Protective Hold & Evidence): {$simulation['held_positions_count']}");
             $this->info("Estimasi Kapasitas Disk Dibebaskan: {$simulation['estimated_freed_size']}");
             $this->newLine();
             $this->line('<fg=cyan>Simulasi selesai. Tidak ada data yang dihapus dari database.</>');

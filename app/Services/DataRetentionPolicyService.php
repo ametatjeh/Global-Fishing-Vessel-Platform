@@ -281,6 +281,7 @@ class DataRetentionPolicyService
 
     /**
      * Retrieve all vessel IDs that have operational evidence and must NEVER be deleted.
+     * Includes: Encounters, SAR Detections, Dark Vessel / AIS Gap events, Investigations, Compliance Events, Audit Logs.
      */
     public function getProtectedOperationalVesselIds(): array
     {
@@ -298,7 +299,7 @@ class DataRetentionPolicyService
             $ids = array_merge($ids, $ev);
         }
 
-        // 2. SAR Satellite Detections
+        // 2. SAR Satellite Detections & Dark Vessel Correlated Events
         if (Schema::hasTable('satellite_detections')) {
             $sar = DB::table('satellite_detections')->whereNotNull('correlated_vessel_id')->pluck('correlated_vessel_id')->toArray();
             $ids = array_merge($ids, $sar);
@@ -316,32 +317,131 @@ class DataRetentionPolicyService
             $ids = array_merge($ids, $comp);
         }
 
+        // 5. Audit Logs for Vessel Entities
+        if (Schema::hasTable('audit_logs')) {
+            $audit = DB::table('audit_logs')
+                ->where('entity_type', 'vessel')
+                ->whereNotNull('entity_id')
+                ->pluck('entity_id')
+                ->toArray();
+            $ids = array_merge($ids, $audit);
+        }
+
+        // 6. Dark Vessel / Gap Indicator Positions
+        if (Schema::hasTable('vessel_positions')) {
+            $gapVessels = DB::table('vessel_positions')
+                ->where('is_gap_indicator', true)
+                ->pluck('vessel_id')
+                ->toArray();
+            $ids = array_merge($ids, $gapVessels);
+        }
+
         return array_values(array_unique(array_filter($ids)));
     }
 
     /**
+     * Retrieve all vessel IDs under Protective Hold:
+     * - The 5 historical unverified vessels
+     * - Unverified fishing vessels (lacking legitimate AIS code 30 and analyst verification)
+     * - Disputed vessels with conflicting manual vs AIS evidence
+     * - Vessels with verification_status in ('under_review', 'unverified', 'unverified_historical', 'disputed')
+     */
+    public function getProtectiveHoldVesselIds(): array
+    {
+        return Vessel::underProtectiveHold()->pluck('id')->toArray();
+    }
+
+    /**
+     * Retrieve all vessel IDs that are Verified Fishing:
+     * Strictly synchronizes with Vessel::isVerifiedFishing() via Vessel::verifiedFishing() scope.
+     * Enforces non-conflict rule: AIS non-fishing codes (e.g. 70, 80) strictly disqualify from Verified Fishing.
+     */
+    public function getVerifiedFishingVesselIds(): array
+    {
+        return Vessel::verifiedFishing()->pluck('id')->toArray();
+    }
+
+    /**
+     * Retrieve all vessel IDs that must be completely excluded from retention purge.
+     */
+    public function getAllProtectedVesselIds(): array
+    {
+        $evidence = $this->getProtectedOperationalVesselIds();
+        $protectiveHold = $this->getProtectiveHoldVesselIds();
+        $verifiedFishing = $this->getVerifiedFishingVesselIds();
+        $allFishing = DB::table('vessels')->where('vessel_type', 'fishing')->pluck('id')->toArray();
+
+        return array_values(array_unique(array_filter(array_merge(
+            $evidence,
+            $protectiveHold,
+            $verifiedFishing,
+            $allFishing
+        ))));
+    }
+
+    /**
      * Query candidate positions eligible for purge based on retention policy.
-     * Fishing positions and operational evidence are strictly excluded.
+     * Fishing positions (both verified permanent and unverified hold), protective holds, and operational evidence are strictly excluded.
      */
     public function getCandidatePositionsQuery(): array
     {
-        $protectedVesselIds = $this->getProtectedOperationalVesselIds();
+        $allProtectedVesselIds = $this->getAllProtectedVesselIds();
+        $operationalEvidenceIds = $this->getProtectedOperationalVesselIds();
+        $protectiveHoldIds = $this->getProtectiveHoldVesselIds();
+        $verifiedFishingIds = $this->getVerifiedFishingVesselIds();
+
         $policies = $this->getPolicies()->keyBy('vessel_type');
 
         $candidatesByType = [];
         $totalCandidates = 0;
+        $totalHeld = 0;
         $standardTypes = ['cargo', 'tanker', 'passenger', 'tug', 'pleasure', 'unknown'];
 
         foreach ($policies as $type => $policy) {
-            // CRITICAL: Fishing is always excluded
-            if ($type === 'fishing' || $policy->is_immutable || !$policy->is_enabled || empty($policy->retention_days)) {
+            // CRITICAL: Fishing is always permanently protected (verified) or in protective hold (unverified)
+            if ($type === 'fishing') {
+                $verifiedCount = DB::table('vessel_positions')
+                    ->whereIn('vessel_id', $verifiedFishingIds)
+                    ->count();
+
+                $unverifiedCount = DB::table('vessel_positions')
+                    ->join('vessels', 'vessel_positions.vessel_id', '=', 'vessels.id')
+                    ->where('vessels.vessel_type', 'fishing')
+                    ->whereNotIn('vessel_positions.vessel_id', $verifiedFishingIds)
+                    ->count();
+
+                $candidatesByType[$type] = [
+                    'type' => $type,
+                    'label' => $policy->label,
+                    'retention_days' => null,
+                    'cutoff_date' => null,
+                    'candidates' => 0,
+                    'held' => $unverifiedCount,
+                    'verified_permanent' => $verifiedCount,
+                    'hold_reasons' => [
+                        'Fishing Permanently Protected (Verified with AIS Code 30 or Analyst Sign-off)',
+                        'Protective Hold (Unverified Fishing awaiting verification)',
+                    ],
+                    'oldest_affected_date' => null,
+                    'newest_affected_date' => null,
+                    'status' => 'PROTECTED_PERMANENT',
+                ];
+                $totalHeld += $unverifiedCount;
+                continue;
+            }
+
+            if (!$policy->is_enabled || empty($policy->retention_days)) {
                 $candidatesByType[$type] = [
                     'type' => $type,
                     'label' => $policy->label,
                     'retention_days' => $policy->retention_days,
                     'cutoff_date' => null,
                     'candidates' => 0,
-                    'status' => 'PROTECTED_PERMANENT',
+                    'held' => 0,
+                    'hold_reasons' => ['Policy is disabled or set to indefinite retention'],
+                    'oldest_affected_date' => null,
+                    'newest_affected_date' => null,
+                    'status' => 'POLICY_DISABLED',
                 ];
                 continue;
             }
@@ -349,14 +449,15 @@ class DataRetentionPolicyService
             $retentionDays = (int) $policy->retention_days;
             $cutoffDate = now()->subDays($retentionDays);
 
+            // Candidate Query: must strictly exclude all protected vessels and gap indicator positions
             $query = DB::table('vessel_positions')
                 ->join('vessels', 'vessel_positions.vessel_id', '=', 'vessels.id')
                 ->where('vessels.vessel_type', '!=', 'fishing')
-                ->where('vessel_positions.observed_at', '<', $cutoffDate);
+                ->where('vessel_positions.observed_at', '<', $cutoffDate)
+                ->where('vessel_positions.is_gap_indicator', false);
 
-            // Exclude operational evidence vessels
-            if (!empty($protectedVesselIds)) {
-                $query->whereNotIn('vessel_positions.vessel_id', $protectedVesselIds);
+            if (!empty($allProtectedVesselIds)) {
+                $query->whereNotIn('vessel_positions.vessel_id', $allProtectedVesselIds);
             }
 
             if ($type === 'unknown') {
@@ -365,29 +466,69 @@ class DataRetentionPolicyService
                       ->orWhereNull('vessels.vessel_type');
                 });
             } elseif ($type === 'other') {
-                // Any vessel type other than the standard types and fishing
                 $query->whereNotIn('vessels.vessel_type', array_merge($standardTypes, ['fishing']));
             } else {
                 $query->where('vessels.vessel_type', $type);
             }
 
-            $count = $query->count();
+            $candidateCount = $query->count();
+            $dateRange = (clone $query)->selectRaw('min(vessel_positions.observed_at) as oldest, max(vessel_positions.observed_at) as newest')->first();
+
+            // Held query: positions of this type that are past cutoff but held due to safeguards
+            $heldQuery = DB::table('vessel_positions')
+                ->join('vessels', 'vessel_positions.vessel_id', '=', 'vessels.id')
+                ->where('vessels.vessel_type', '!=', 'fishing')
+                ->where('vessel_positions.observed_at', '<', $cutoffDate)
+                ->where(function ($q) use ($allProtectedVesselIds) {
+                    $q->whereIn('vessel_positions.vessel_id', $allProtectedVesselIds)
+                      ->orWhere('vessel_positions.is_gap_indicator', true);
+                });
+
+            if ($type === 'unknown') {
+                $heldQuery->where(function ($q) {
+                    $q->where('vessels.vessel_type', 'unknown')
+                      ->orWhereNull('vessels.vessel_type');
+                });
+            } elseif ($type === 'other') {
+                $heldQuery->whereNotIn('vessels.vessel_type', array_merge($standardTypes, ['fishing']));
+            } else {
+                $heldQuery->where('vessels.vessel_type', $type);
+            }
+
+            $heldCount = $heldQuery->count();
+            $totalHeld += $heldCount;
+
+            $holdReasons = [];
+            if ($heldCount > 0) {
+                $holdReasons[] = 'Protected by Operational References (SAR, Encounters, Dark Vessel, Investigations, Audit Logs) or Protective Hold';
+            }
+
+            $status = $candidateCount > 0 ? 'ELIGIBLE_FOR_PURGE' : ($heldCount > 0 ? 'PROTECTIVE_HOLD' : 'NO_CANDIDATES');
+
             $candidatesByType[$type] = [
                 'type' => $type,
                 'label' => $policy->label,
                 'retention_days' => $retentionDays,
                 'cutoff_date' => $cutoffDate->toDateTimeString(),
-                'candidates' => $count,
-                'status' => 'ELIGIBLE_FOR_PURGE',
+                'candidates' => $candidateCount,
+                'held' => $heldCount,
+                'hold_reasons' => $holdReasons,
+                'oldest_affected_date' => $dateRange->oldest ?? null,
+                'newest_affected_date' => $dateRange->newest ?? null,
+                'status' => $status,
             ];
 
-            $totalCandidates += $count;
+            $totalCandidates += $candidateCount;
         }
 
         return [
             'count' => $totalCandidates,
+            'total_held' => $totalHeld,
             'by_type' => $candidatesByType,
-            'protected_vessel_count' => count($protectedVesselIds),
+            'protected_vessel_count' => count($allProtectedVesselIds),
+            'operational_evidence_count' => count($operationalEvidenceIds),
+            'protective_hold_count' => count($protectiveHoldIds),
+            'verified_fishing_count' => count($verifiedFishingIds),
         ];
     }
 
@@ -399,13 +540,33 @@ class DataRetentionPolicyService
         $stats = $this->getStorageStatistics();
         $candidateData = $this->getCandidatePositionsQuery();
 
+        // Count historical vessel positions
+        $historicalVesselPositions = DB::table('vessel_positions')
+            ->join('vessels', 'vessel_positions.vessel_id', '=', 'vessels.id')
+            ->whereIn('vessels.mmsi', Vessel::HISTORICAL_PROTECTED_MMSIS)
+            ->count();
+
+        // Dark vessel indicator positions
+        $darkVesselPositions = DB::table('vessel_positions')
+            ->where('is_gap_indicator', true)
+            ->count();
+
         return [
             'simulated_at' => now()->toIso8601String(),
             'is_dry_run' => true,
             'total_positions' => $stats['total_positions'],
             'fishing_positions_protected' => $stats['fishing_positions'],
-            'protected_evidence_vessels' => $candidateData['protected_vessel_count'],
+            'verified_fishing_positions' => $candidateData['by_type']['fishing']['verified_permanent'] ?? 0,
+            'unverified_fishing_positions' => $candidateData['by_type']['fishing']['held'] ?? 0,
+            'historical_vessels_protected' => count(Vessel::HISTORICAL_PROTECTED_MMSIS),
+            'historical_vessel_positions_protected' => $historicalVesselPositions,
+            'dark_vessel_positions_protected' => $darkVesselPositions,
+            'protected_evidence_vessels' => $candidateData['operational_evidence_count'],
+            'protective_hold_vessels' => $candidateData['protective_hold_count'],
             'total_candidate_positions' => $candidateData['count'],
+            'eligible_positions_count' => $candidateData['count'],
+            'held_positions_count' => $candidateData['total_held'],
+            'unknown_positions' => $stats['unknown_positions'],
             'estimated_freed_bytes' => $candidateData['count'] * $stats['avg_row_bytes'],
             'estimated_freed_size' => $this->formatBytes($candidateData['count'] * $stats['avg_row_bytes']),
             'breakdown' => $candidateData['by_type'],
@@ -414,7 +575,7 @@ class DataRetentionPolicyService
 
     /**
      * Execute retention purge in batches.
-     * Strictly protects Fishing vessels and operational evidence vessels.
+     * Strictly protects Fishing vessels (verified permanent & unverified hold) and operational evidence vessels.
      */
     public function executeRetentionPurge(bool $force = false, ?int $userId = null): array
     {
@@ -428,7 +589,7 @@ class DataRetentionPolicyService
             ];
         }
 
-        $protectedVesselIds = $this->getProtectedOperationalVesselIds();
+        $allProtectedVesselIds = $this->getAllProtectedVesselIds();
         $policies = $this->getPolicies()->keyBy('vessel_type');
         $standardTypes = ['cargo', 'tanker', 'passenger', 'tug', 'pleasure', 'unknown'];
 
@@ -448,14 +609,15 @@ class DataRetentionPolicyService
             $typePurged = 0;
 
             do {
-                // Subquery to find candidate IDs in batches
+                // Find candidate IDs in batches
                 $idQuery = DB::table('vessel_positions')
                     ->join('vessels', 'vessel_positions.vessel_id', '=', 'vessels.id')
                     ->where('vessels.vessel_type', '!=', 'fishing')
-                    ->where('vessel_positions.observed_at', '<', $cutoffDate);
+                    ->where('vessel_positions.observed_at', '<', $cutoffDate)
+                    ->where('vessel_positions.is_gap_indicator', false);
 
-                if (!empty($protectedVesselIds)) {
-                    $idQuery->whereNotIn('vessel_positions.vessel_id', $protectedVesselIds);
+                if (!empty($allProtectedVesselIds)) {
+                    $idQuery->whereNotIn('vessel_positions.vessel_id', $allProtectedVesselIds);
                 }
 
                 if ($type === 'unknown') {
@@ -475,9 +637,34 @@ class DataRetentionPolicyService
                     break;
                 }
 
-                $deleted = DB::table('vessel_positions')->whereIn('id', $batchIds)->delete();
-                $typePurged += $deleted;
-                $totalPurged += $deleted;
+                // Delete within transaction with pre-flight safeguard
+                DB::beginTransaction();
+                try {
+                    // Pre-flight safeguard: verify none of the batch belongs to a protected vessel or is a gap indicator
+                    $violation = DB::table('vessel_positions')
+                        ->join('vessels', 'vessel_positions.vessel_id', '=', 'vessels.id')
+                        ->whereIn('vessel_positions.id', $batchIds)
+                        ->where(function ($q) use ($allProtectedVesselIds) {
+                            $q->whereIn('vessel_positions.vessel_id', $allProtectedVesselIds)
+                              ->orWhere('vessels.vessel_type', 'fishing')
+                              ->orWhere('vessel_positions.is_gap_indicator', true);
+                        })
+                        ->exists();
+
+                    if ($violation) {
+                        throw new \RuntimeException('Integrity safeguard violation: Attempted to delete protected position in purge batch.');
+                    }
+
+                    $deleted = DB::table('vessel_positions')->whereIn('id', $batchIds)->delete();
+                    DB::commit();
+
+                    $typePurged += $deleted;
+                    $totalPurged += $deleted;
+                } catch (\Throwable $e) {
+                    DB::rollBack();
+                    Log::error("Retention purge transaction failed: {$e->getMessage()}");
+                    throw $e;
+                }
 
             } while (count($batchIds) === $batchSize);
 
@@ -489,7 +676,7 @@ class DataRetentionPolicyService
             'executed_at' => now()->toIso8601String(),
             'total_purged' => $totalPurged,
             'purged_by_type' => $purgedByType,
-            'protected_evidence_vessels' => count($protectedVesselIds),
+            'protected_evidence_vessels' => count($allProtectedVesselIds),
             'fishing_preserved' => true,
         ];
 
@@ -509,7 +696,7 @@ class DataRetentionPolicyService
             userId: $userId
         );
 
-        Log::info("AIS Data Retention Purge executed. Total positions purged: {$totalPurged}. Fishing data 100% protected.");
+        Log::info("AIS Data Retention Purge executed. Total positions purged: {$totalPurged}. Fishing and protected data 100% preserved.");
 
         return [
             'success' => true,
