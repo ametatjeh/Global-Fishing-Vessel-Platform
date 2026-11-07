@@ -22,6 +22,7 @@ export class GlobalMapController {
         this.map = null;
         this.activeLayers = Object.assign({
             aseanEez: true,
+            australiaEez: true,
             encounters: true,
             vessels: true,
             darkVessels: true,
@@ -30,6 +31,7 @@ export class GlobalMapController {
 
         this.loadingState = {
             aseanEez: false,
+            australiaEez: false,
             encounters: false,
             vessels: false,
             darkVessels: false,
@@ -39,6 +41,7 @@ export class GlobalMapController {
         // Internal layer GeoJSON cache for reliable bounds fitting and UI interaction
         this.layerData = {
             aseanEez: null,
+            australiaEez: null,
             encounters: null,
             vessels: null,
             darkVessels: null,
@@ -292,6 +295,16 @@ export class GlobalMapController {
         const normalizedKey = (styleKey === 'esri-dark' || styleKey === 'dark-ocean') ? 'openfreemap-dark' : styleKey;
         this.currentBasemapKey = normalizedKey;
 
+        // If switching to Dark Ocean Marine Style, ensure both ASEAN EEZ and Australia EEZ are activated
+        if (normalizedKey === 'openfreemap-dark') {
+            this.activeLayers.aseanEez = true;
+            this.activeLayers.australiaEez = true;
+            const aseanCheckbox = document.getElementById('toggle-layer-asean-eez');
+            if (aseanCheckbox) aseanCheckbox.checked = true;
+            const ausCheckbox = document.getElementById('toggle-layer-australia-eez');
+            if (ausCheckbox) ausCheckbox.checked = true;
+        }
+
         // Persist valid preference to localStorage
         try {
             if (typeof window !== 'undefined' && window.localStorage) {
@@ -343,6 +356,9 @@ export class GlobalMapController {
         try {
             if (this.layerData.aseanEez && this.map.getSource('asean-eez-source')) {
                 this.map.getSource('asean-eez-source').setData(this.layerData.aseanEez);
+            }
+            if (this.layerData.australiaEez && this.map.getSource('australia-eez-source')) {
+                this.map.getSource('australia-eez-source').setData(this.layerData.australiaEez);
             }
             if (this.layerData.vessels && this.map.getSource('vessels-source')) {
                 this.map.getSource('vessels-source').setData(this.layerData.vessels);
@@ -579,6 +595,7 @@ export class GlobalMapController {
 
     setupSourcesAndLayers() {
         this.addAseanEezLayer();
+        this.addAustraliaEezLayer();
         this.addSarSceneLayer();
         this.addGfwLayer();
         this.addSarDetectionLayer();
@@ -760,6 +777,125 @@ export class GlobalMapController {
                 'line-opacity': 0.80,
                 'line-dasharray': [1, 2],
                 'line-width': 1.2
+            }
+        });
+    }
+
+    addAustraliaEezLayer() {
+        if (this.map.getSource('australia-eez-source')) return;
+
+        this.map.addSource('australia-eez-source', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] }
+        });
+
+        // 1. Polygon Fill for Australia EEZ (internal geometry, zero opacity)
+        this.map.addLayer({
+            id: 'australia-eez-fill-layer',
+            type: 'fill',
+            source: 'australia-eez-source',
+            filter: ['==', ['get', 'feature_type'], 'zone'],
+            layout: { visibility: this.activeLayers.australiaEez ? 'visible' : 'none' },
+            paint: {
+                'fill-color': '#0284c7',
+                'fill-opacity': 0.0
+            }
+        });
+
+        // 2. Subtle Zone Outline
+        this.map.addLayer({
+            id: 'australia-eez-polygon-outline-layer',
+            type: 'line',
+            source: 'australia-eez-source',
+            filter: ['==', ['get', 'feature_type'], 'zone'],
+            layout: { visibility: this.activeLayers.australiaEez ? 'visible' : 'none' },
+            paint: {
+                'line-color': '#38bdf8',
+                'line-width': 1.0,
+                'line-opacity': 0.25
+            }
+        });
+
+        // 3a. Bilateral Maritime Treaty Boundaries (Solid Sky-Blue / Azure Line)
+        this.map.addLayer({
+            id: 'australia-eez-line-treaty',
+            type: 'line',
+            source: 'australia-eez-source',
+            filter: [
+                'all',
+                ['==', ['get', 'feature_type'], 'boundary_line'],
+                ['==', ['get', 'delimitation_status'], 'AGREED']
+            ],
+            layout: {
+                'visibility': this.activeLayers.australiaEez ? 'visible' : 'none',
+                'line-cap': 'round',
+                'line-join': 'round'
+            },
+            paint: {
+                'line-color': '#38bdf8',
+                'line-opacity': 0.95,
+                'line-width': [
+                    'interpolate', ['linear'], ['zoom'],
+                    2, 1.4,
+                    6, 2.2,
+                    10, 3.0
+                ]
+            }
+        });
+
+        // 3b. Outer 200 NM EEZ Limit Lines (Dashed Cyan / Azure Line)
+        this.map.addLayer({
+            id: 'australia-eez-line-200nm',
+            type: 'line',
+            source: 'australia-eez-source',
+            filter: [
+                'all',
+                ['==', ['get', 'feature_type'], 'boundary_line'],
+                ['==', ['get', 'delimitation_status'], '200NM_LIMIT']
+            ],
+            layout: {
+                'visibility': this.activeLayers.australiaEez ? 'visible' : 'none',
+                'line-cap': 'round',
+                'line-join': 'round'
+            },
+            paint: {
+                'line-color': '#0ea5e9',
+                'line-opacity': 0.90,
+                'line-dasharray': [4, 2],
+                'line-width': [
+                    'interpolate', ['linear'], ['zoom'],
+                    2, 1.3,
+                    6, 2.0,
+                    10, 2.8
+                ]
+            }
+        });
+
+        // 3c. Median Lines / Equidistant Boundaries (Dashed Amber Line)
+        this.map.addLayer({
+            id: 'australia-eez-line-median',
+            type: 'line',
+            source: 'australia-eez-source',
+            filter: [
+                'all',
+                ['==', ['get', 'feature_type'], 'boundary_line'],
+                ['==', ['get', 'delimitation_status'], 'UNDELIMITED']
+            ],
+            layout: {
+                'visibility': this.activeLayers.australiaEez ? 'visible' : 'none',
+                'line-cap': 'round',
+                'line-join': 'round'
+            },
+            paint: {
+                'line-color': '#f59e0b',
+                'line-opacity': 0.90,
+                'line-dasharray': [3, 2],
+                'line-width': [
+                    'interpolate', ['linear'], ['zoom'],
+                    2, 1.2,
+                    6, 1.8,
+                    10, 2.6
+                ]
             }
         });
     }
@@ -1283,10 +1419,12 @@ export class GlobalMapController {
         const orderedLayers = [
             // 2. Polygons & Fills
             'asean-eez-fill-layer',
+            'australia-eez-fill-layer',
             'sar-scenes-fill-layer',
 
             // 2b. Context outlines
             'asean-eez-polygon-outline-layer',
+            'australia-eez-polygon-outline-layer',
 
             // 3. ASEAN EEZ Boundaries line layers (Status-classified)
             'asean-eez-line-agreed',
@@ -1294,6 +1432,11 @@ export class GlobalMapController {
             'asean-eez-line-disputed',
             'asean-eez-line-joint',
             'asean-eez-line-unknown',
+
+            // 3b. Australia EEZ Boundaries line layers
+            'australia-eez-line-treaty',
+            'australia-eez-line-200nm',
+            'australia-eez-line-median',
 
             // 4. Analysis & Detection layers
             'sar-scenes-line-layer',
@@ -1963,6 +2106,13 @@ export class GlobalMapController {
                 'asean-eez-line-joint',
                 'asean-eez-line-unknown'
             ],
+            australiaEez: [
+                'australia-eez-fill-layer',
+                'australia-eez-polygon-outline-layer',
+                'australia-eez-line-treaty',
+                'australia-eez-line-200nm',
+                'australia-eez-line-median'
+            ],
             encounters: ['encounters-circle-layer'],
             vessels: [
                 'vessels-oriented-layer',
@@ -1999,6 +2149,7 @@ export class GlobalMapController {
         const bbox = this.getViewportBBoxString();
         const urls = {
             aseanEez: `/api/layers/asean-eez?bbox=${bbox || ''}`,
+            australiaEez: `/api/layers/australia-eez?bbox=${bbox || ''}`,
             encounters: `/api/layers/encounters?bbox=${bbox || ''}`,
             vessels: `/api/layers/vessels?bbox=${bbox || ''}`,
             darkVessels: `/api/layers/dark-vessels?bbox=${bbox || ''}`,
@@ -2007,6 +2158,7 @@ export class GlobalMapController {
 
         const sources = {
             aseanEez: 'asean-eez-source',
+            australiaEez: 'australia-eez-source',
             encounters: 'encounters-source',
             vessels: 'vessels-source',
             darkVessels: 'dark-vessels-source',
@@ -2172,6 +2324,9 @@ export class GlobalMapController {
         } else if (type === 'asean-eez' || type === 'aseanEez' || type === 'eez' || type === 'eez-boundaries' || type === 'boundaries') {
             sourceId = 'asean-eez-source';
             layerKey = 'aseanEez';
+        } else if (type === 'australia-eez' || type === 'australiaEez') {
+            sourceId = 'australia-eez-source';
+            layerKey = 'australiaEez';
         }
 
         const source = this.map.getSource(sourceId);

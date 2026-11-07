@@ -325,7 +325,7 @@
 
             <!-- 2. Maritime Boundaries -->
             <div class="space-y-1.5 pt-1 border-t border-slate-800">
-                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">2. Batas Maritim Regional</div>
+                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">2. Batas Maritim Regional (EEZ)</div>
 
                 <label class="flex items-start justify-between p-2 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-emerald-500/50 transition cursor-pointer">
                     <div class="flex items-start gap-2.5">
@@ -341,6 +341,23 @@
                     <div class="text-right shrink-0">
                         <span id="loading-aseanEez" class="text-[10px] text-emerald-400 animate-spin" style="display: none;">⏳</span>
                         <span id="count-aseanEez" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300 border border-emerald-900">0</span>
+                    </div>
+                </label>
+
+                <label class="flex items-start justify-between p-2 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-sky-500/50 transition cursor-pointer">
+                    <div class="flex items-start gap-2.5">
+                        <input type="checkbox" id="toggle-layer-australia-eez" checked class="mt-0.5 rounded bg-slate-800 border-slate-700 text-sky-500 focus:ring-sky-400">
+                        <div>
+                            <div class="font-bold text-slate-200 flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-sm bg-sky-500/20 border border-sky-400"></span>
+                                <span>Australia Exclusive Economic Zone (EEZ)</span>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Garis Batas ZEE &amp; Batas Maritim Resmi Australia (AMSIS / AMB / v12)</p>
+                        </div>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <span id="loading-australiaEez" class="text-[10px] text-sky-400 animate-spin" style="display: none;">⏳</span>
+                        <span id="count-australiaEez" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-sky-300 border border-sky-900">0</span>
                     </div>
                 </label>
             </div>
@@ -478,39 +495,66 @@
                 </div>
             </div>
 
-            <!-- 3. Layer Analisis & Batas Maritim ASEAN -->
-            <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2 text-[10px] font-mono">
-                <div class="text-[9px] uppercase font-bold text-emerald-400 tracking-wider flex items-center justify-between">
-                    <span>3. Layer Analisis &amp; Status Batas Maritim ASEAN</span>
-                    <span class="text-slate-400 text-[9px]">Marine Regions v12</span>
+            <!-- 3. Batas Maritim Regional (EEZ) & Overlays -->
+            <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2.5 text-[10px] font-mono">
+                <!-- ASEAN EEZ -->
+                <div class="space-y-1.5">
+                    <div class="text-[9px] uppercase font-bold text-emerald-400 tracking-wider flex items-center justify-between">
+                        <span>Status Batas Maritim ASEAN &bull; ASEAN EEZ (Marine Regions v12)</span>
+                        <span class="text-emerald-500 text-[9px] font-bold">ASEAN</span>
+                    </div>
+                    <div class="space-y-1 text-slate-300">
+                        <div class="flex items-center gap-2">
+                            <span class="w-4 h-0.5 bg-emerald-500 shrink-0"></span>
+                            <span class="truncate">Agreed / Delimitated (Traktat Resmi)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-4 h-0.5 bg-amber-500 border-b border-dashed border-amber-400 shrink-0"></span>
+                            <span class="truncate">Undelimited / Unresolved (Median Line)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-4 h-0.5 bg-rose-500 border-b border-dashed border-rose-400 shrink-0"></span>
+                            <span class="truncate">Disputed / Overlapping Claim</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-4 h-0.5 bg-purple-500 border-b border-dashed border-purple-400 shrink-0"></span>
+                            <span class="truncate">Joint Regime Area (Zona Bersama)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-4 h-0.5 bg-emerald-500/80 shrink-0"></span>
+                            <span class="truncate">Garis Batas Luar ZEE (200 NM)</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="space-y-1.5 text-slate-300">
-                    <div class="flex items-center gap-2">
-                        <span class="w-4 h-0.5 bg-emerald-500 shrink-0"></span>
-                        <span class="truncate">Agreed / Delimitated (Traktat Resmi)</span>
+
+                <!-- Australia EEZ -->
+                <div class="pt-2 border-t border-slate-800 space-y-1.5">
+                    <div class="text-[9px] uppercase font-bold text-sky-400 tracking-wider flex items-center justify-between">
+                        <span>Australia EEZ (AMSIS / AMB / v12)</span>
+                        <span class="text-sky-400 text-[9px] font-bold">Australia</span>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span class="w-4 h-0.5 bg-amber-500 border-b border-dashed border-amber-400 shrink-0"></span>
-                        <span class="truncate">Undelimited / Unresolved (Median Line)</span>
+                    <div class="space-y-1 text-slate-300">
+                        <div class="flex items-center gap-2">
+                            <span class="w-4 h-0.5 bg-sky-400 shrink-0"></span>
+                            <span class="truncate">Agreed Bilateral Maritime Treaty</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-4 h-0.5 border-b-2 border-dashed border-sky-500 shrink-0"></span>
+                            <span class="truncate">Australia 200 NM Outer Limit (ZEE)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-4 h-0.5 bg-amber-500 border-b border-dashed border-amber-400 shrink-0"></span>
+                            <span class="truncate">Median / Equidistant Line</span>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span class="w-4 h-0.5 bg-rose-500 border-b border-dashed border-rose-400 shrink-0"></span>
-                        <span class="truncate">Disputed / Overlapping Claim</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="w-4 h-0.5 bg-purple-500 border-b border-dashed border-purple-400 shrink-0"></span>
-                        <span class="truncate">Joint Regime Area (Zona Bersama)</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="w-4 h-0.5 bg-emerald-500/80 shrink-0"></span>
-                        <span class="truncate">Garis Batas Luar ZEE (200 NM)</span>
-                    </div>
-                    <div class="pt-1 border-t border-slate-800/80 grid grid-cols-2 gap-1.5">
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-0.5 bg-amber-400"></span> AIS Track</div>
-                        <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span> Dark Vessel</div>
-                        <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Encounter Event</div>
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2 bg-purple-500/30 border border-purple-400"></span> SAR Footprint</div>
-                    </div>
+                </div>
+
+                <!-- Operational Layers Legend -->
+                <div class="pt-1.5 border-t border-slate-800/80 grid grid-cols-2 gap-1.5">
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-0.5 bg-amber-400"></span> AIS Track</div>
+                    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span> Dark Vessel</div>
+                    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Encounter Event</div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2 bg-purple-500/30 border border-purple-400"></span> SAR Footprint</div>
                 </div>
             </div>
 
@@ -856,6 +900,7 @@
         // Checkbox Layer Toggles
         const layerToggles = [
             { id: 'toggle-layer-asean-eez', key: 'aseanEez' },
+            { id: 'toggle-layer-australia-eez', key: 'australiaEez' },
             { id: 'toggle-layer-encounters', key: 'encounters' },
             { id: 'toggle-layer-vessels', key: 'vessels' },
             { id: 'toggle-layer-dark-vessels', key: 'darkVessels' },

@@ -110,6 +110,19 @@ class MapLayerApiController extends Controller
                     'disclaimer' => 'Batas yurisdiksi hak ekonomi maritim regional ASEAN berdasarkan Marine Regions v12. Bukan penetapan batas hukum final.',
                 ],
                 [
+                    'id' => 'layer-australia-eez',
+                    'name' => 'Australia Exclusive Economic Zone (EEZ)',
+                    'type' => 'mixed',
+                    'color' => '#0ea5e9', // sky-500 / azure
+                    'provider_status' => 'connected',
+                    'version' => 'v12 (aligned with Australian Maritime Boundaries / AMSIS Geoscience Australia)',
+                    'license' => 'Creative Commons Attribution 4.0 International (CC BY 4.0)',
+                    'source_url' => 'https://www.marineregions.org/downloads.php',
+                    'attribution' => 'Flanders Marine Institute (VLIZ) Marine Regions (DOI: 10.14284/632) & Geoscience Australia (AMB)',
+                    'description' => 'Zona Ekonomi Eksklusif dan garis batas maritim resmi Australia (200 NM outer limits dan perjanjian traktat maritim bilateral).',
+                    'disclaimer' => 'Batas yurisdiksi hak ekonomi maritim Australia berdasarkan UNCLOS 1982 dan traktat bilateral resmi.',
+                ],
+                [
                     'id' => 'layer-dark-vessels',
                     'name' => 'Dark Vessel Candidates (SAR)',
                     'type' => 'circle',
@@ -180,6 +193,20 @@ class MapLayerApiController extends Controller
         $type = (string) $request->query('type', 'all');
 
         $data = $this->spatial->getAseanEezFeatureCollection($bbox, $search, $type);
+
+        return response()->json($data);
+    }
+
+    /**
+     * Get Australia Exclusive Economic Zone (EEZ) & Maritime Boundaries GeoJSON
+     */
+    public function australiaEez(Request $request): JsonResponse
+    {
+        $bbox = $this->parseBBox($request->query('bbox'));
+        $search = $request->query('q');
+        $type = (string) $request->query('type', 'all');
+
+        $data = $this->spatial->getAustraliaEezFeatureCollection($bbox, $search, $type);
 
         return response()->json($data);
     }

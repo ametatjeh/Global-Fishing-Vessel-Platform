@@ -486,6 +486,187 @@ class SpatialQueryService
     }
 
     /**
+     * Get Australia Exclusive Economic Zone (EEZ) and Maritime Boundaries as GeoJSON FeatureCollection
+     *
+     * @param array|null $bbox
+     * @param string|null $search
+     * @param string $type 'all'|'polygons'|'boundaries'
+     * @return array
+     */
+    public function getAustraliaEezFeatureCollection(?array $bbox = null, ?string $search = null, string $type = 'all'): array
+    {
+        $features = [];
+        $polygonCount = 0;
+        $boundaryCount = 0;
+        $normalizedBBox = $this->normalizeBBox($bbox);
+
+        // 1. Fetch Australia EEZ Zones (Polygons)
+        if ($type === 'all' || $type === 'polygons') {
+            $zoneQuery = EezZone::query()->where(function ($q) {
+                $q->where('sovereign_iso3', 'AUS')
+                  ->orWhere('sovereign_state', 'like', '%Australia%')
+                  ->orWhere('territory1', 'like', '%Australia%');
+            });
+
+            if ($search) {
+                $zoneQuery->where(function ($q) use ($search) {
+                    $q->where('geoname', 'like', "%{$search}%")
+                      ->orWhere('sovereign_state', 'like', "%{$search}%")
+                      ->orWhere('territory1', 'like', "%{$search}%");
+                });
+            }
+
+            if ($normalizedBBox) {
+                $zoneQuery->inBoundingBox($normalizedBBox[0], $normalizedBBox[1], $normalizedBBox[2], $normalizedBBox[3]);
+            }
+
+            $zones = $zoneQuery->get();
+
+            foreach ($zones as $zone) {
+                $geom = is_array($zone->geometry_geojson) 
+                    ? $zone->geometry_geojson 
+                    : json_decode($zone->geometry_geojson, true);
+                if (!$geom) continue;
+
+                $features[] = [
+                    'type' => 'Feature',
+                    'id' => 'aus-zone-' . $zone->id,
+                    'geometry' => $geom,
+                    'properties' => [
+                        'id' => $zone->id,
+                        'feature_type' => 'zone',
+                        'geom_type' => $geom['type'] ?? 'Polygon',
+                        'name' => $zone->geoname,
+                        'country' => 'Australia',
+                        'sovereign_iso3' => 'AUS',
+                        'territory' => $zone->territory1,
+                        'zone_type' => $zone->pol_type,
+                        'delimitation_status' => 'AGREED',
+                        'status_label' => 'Australian Exclusive Economic Zone (200 NM)',
+                        'color' => '#0284c7', // Azure
+                        'area_sqkm' => $zone->area_sqkm,
+                        'sovereign1' => $zone->sovereign_state,
+                        'sovereign2' => $zone->sovereign2,
+                        'bordering_parties' => $zone->sovereign_state,
+                        'treaty_name' => 'UNCLOS 1982 Australian Exclusive Economic Zone (200NM)',
+                        'source_dataset' => 'Maritime Boundaries Geodatabase v12 (Marine Regions) & Australian Maritime Boundaries (AMSIS / Geoscience Australia)',
+                        'version' => 'v12',
+                        'doi' => '10.14284/632',
+                        'license' => 'CC BY 4.0 International',
+                        'doc_date' => $zone->import_date ? (string) $zone->import_date : '2023-10-01',
+                        'disclaimer' => 'Batas yurisdiksi maritim resmi Zona Ekonomi Eksklusif Australia berdasarkan UNCLOS 1982 dan traktat bilateral internasional.',
+                    ]
+                ];
+                $polygonCount++;
+            }
+        }
+
+        // 2. Fetch Australia EEZ Maritime Boundaries (Lines)
+        if ($type === 'all' || $type === 'boundaries') {
+            $boundaryQuery = EezBoundary::query()->where(function ($q) {
+                $q->where('sovereign1', 'like', '%Australia%')
+                  ->orWhere('sovereign2', 'like', '%Australia%')
+                  ->orWhere('eez1', 'like', '%Australia%')
+                  ->orWhere('eez2', 'like', '%Australia%');
+            })->whereIn('line_type', ['200 NM', 'Treaty', 'Median line']);
+
+            if ($search) {
+                $boundaryQuery->where(function ($q) use ($search) {
+                    $q->where('line_name', 'like', "%{$search}%")
+                      ->orWhere('sovereign1', 'like', "%{$search}%")
+                      ->orWhere('sovereign2', 'like', "%{$search}%")
+                      ->orWhere('line_type', 'like', "%{$search}%");
+                });
+            }
+
+            if ($normalizedBBox) {
+                $boundaryQuery->inBoundingBox($normalizedBBox[0], $normalizedBBox[1], $normalizedBBox[2], $normalizedBBox[3]);
+            }
+
+            $boundaries = $boundaryQuery->get();
+
+            foreach ($boundaries as $b) {
+                $geom = is_array($b->geometry_geojson) 
+                    ? $b->geometry_geojson 
+                    : json_decode($b->geometry_geojson, true);
+                if (!$geom) continue;
+
+                $lineType = (string) $b->line_type;
+                if ($lineType === '200 NM') {
+                    $status = '200NM_LIMIT';
+                    $statusLabel = 'Australia 200 NM Outer EEZ Limit';
+                    $color = '#0284c7'; // Azure
+                    $dasharray = [4, 2];
+                } elseif ($lineType === 'Treaty') {
+                    $status = 'AGREED';
+                    $statusLabel = 'Agreed Bilateral Maritime Treaty';
+                    $color = '#38bdf8'; // Sky blue / cyan
+                    $dasharray = null;
+                } else {
+                    $status = 'UNDELIMITED';
+                    $statusLabel = 'Median Line / Equidistant Boundary';
+                    $color = '#f59e0b'; // Amber
+                    $dasharray = [3, 2];
+                }
+
+                $parties = array_filter([$b->sovereign1, $b->sovereign2]);
+                $borderingStr = count($parties) > 1 ? implode(' & ', $parties) : ($parties[0] ?? $b->line_name);
+
+                $features[] = [
+                    'type' => 'Feature',
+                    'id' => 'aus-line-' . $b->id,
+                    'geometry' => $geom,
+                    'properties' => [
+                        'id' => $b->id,
+                        'feature_type' => 'boundary_line',
+                        'geom_type' => $geom['type'] ?? 'LineString',
+                        'line_id' => $b->line_id,
+                        'name' => $b->line_name,
+                        'country' => 'Australia',
+                        'sovereign1' => $b->sovereign1,
+                        'sovereign2' => $b->sovereign2,
+                        'territory1' => $b->territory1,
+                        'territory2' => $b->territory2,
+                        'bordering_parties' => $borderingStr,
+                        'line_type' => $b->line_type,
+                        'delimitation_status' => $status,
+                        'status_label' => $statusLabel,
+                        'color' => $color,
+                        'dasharray' => $dasharray,
+                        'treaty_name' => $b->source1 ?: $b->line_name,
+                        'url' => $b->url1,
+                        'doc_date' => $b->doc_date,
+                        'length_km' => $b->length_km,
+                        'source_dataset' => 'Maritime Boundaries Geodatabase v12 (eez_boundaries_v12) & Australian Maritime Boundaries (AMSIS / AMB)',
+                        'version' => 'v12',
+                        'doi' => '10.14284/632',
+                        'license' => 'CC BY 4.0 International',
+                        'disclaimer' => 'Batas maritim resmi Zona Ekonomi Eksklusif Australia berdasarkan UNCLOS 1982 dan traktat maritim bilateral internasional.',
+                    ]
+                ];
+                $boundaryCount++;
+            }
+        }
+
+        return [
+            'type' => 'FeatureCollection',
+            'features' => $features,
+            'metadata' => [
+                'title' => 'Australia Exclusive Economic Zone (EEZ) & Maritime Boundaries',
+                'scope' => 'Commonwealth of Australia & External Territories (Mainland Australia, Christmas Island, Cocos (Keeling) Islands, Norfolk Island, Macquarie Island, Heard and McDonald Islands)',
+                'source' => 'Australian Marine Spatial Information System (AMSIS / AMB) & Marine Regions v12 (VLIZ)',
+                'count' => count($features),
+                'polygon_count' => $polygonCount,
+                'boundary_line_count' => $boundaryCount,
+                'doi' => '10.14284/632',
+                'publisher' => 'Flanders Marine Institute (VLIZ) Marine Regions & Geoscience Australia',
+                'license' => 'CC BY 4.0 International',
+                'dataset' => 'Maritime Boundaries Geodatabase v12 (October 2023)',
+            ]
+        ];
+    }
+
+    /**
      * Get FAO Regional Fishery Bodies (RFBs / RFMOs) Competence Areas as GeoJSON FeatureCollection
      */
     public function getFisheriesManagementAreasFeatureCollection(?array $bbox = null, ?string $search = null): array
