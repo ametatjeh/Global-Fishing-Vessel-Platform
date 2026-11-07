@@ -945,10 +945,10 @@ export class GlobalMapController {
                     ctx.lineTo(7, 29);
                     ctx.bezierCurveTo(6, 20, 7, 9, 16, 1);
                     ctx.closePath();
-                    ctx.fillStyle = '#00262e';
+                    ctx.fillStyle = '#451a03';
                     ctx.fill();
                     ctx.lineWidth = 3.5;
-                    ctx.strokeStyle = '#001a20';
+                    ctx.strokeStyle = '#1c1917';
                     ctx.stroke();
                 }
 
@@ -962,16 +962,16 @@ export class GlobalMapController {
                 ctx.fillStyle = fillColor;
                 ctx.fill();
                 ctx.lineWidth = isFishing ? 2.0 : 2.0;
-                ctx.strokeStyle = isFishing ? '#00333d' : strokeColor;
+                ctx.strokeStyle = isFishing ? '#78350f' : strokeColor;
                 ctx.stroke();
 
                 // Mast/wheelhouse center dot
                 ctx.beginPath();
                 ctx.arc(16, 15, isFishing ? 3.0 : 2.5, 0, Math.PI * 2);
-                ctx.fillStyle = isFishing ? '#00262e' : '#ffffff';
+                ctx.fillStyle = isFishing ? '#451a03' : '#ffffff';
                 ctx.fill();
                 ctx.lineWidth = 1.0;
-                ctx.strokeStyle = isFishing ? '#00E5FF' : strokeColor;
+                ctx.strokeStyle = isFishing ? '#F59E0B' : strokeColor;
                 ctx.stroke();
 
                 return ctx.getImageData(0, 0, size, size);
@@ -994,10 +994,10 @@ export class GlobalMapController {
                     ctx.lineTo(11, 27);
                     ctx.lineTo(4, 27);
                     ctx.closePath();
-                    ctx.fillStyle = '#00262e';
+                    ctx.fillStyle = '#451a03';
                     ctx.fill();
                     ctx.lineWidth = 3.5;
-                    ctx.strokeStyle = '#001a20';
+                    ctx.strokeStyle = '#1c1917';
                     ctx.stroke();
                 }
 
@@ -1013,14 +1013,14 @@ export class GlobalMapController {
                 ctx.fillStyle = isFishing ? fillColor : strokeColor;
                 ctx.fill();
                 ctx.lineWidth = 2.0;
-                ctx.strokeStyle = isFishing ? '#00333d' : fillColor;
+                ctx.strokeStyle = isFishing ? '#78350f' : fillColor;
                 ctx.stroke();
 
                 // Central course trajectory ray
                 ctx.beginPath();
                 ctx.moveTo(16, 8);
                 ctx.lineTo(16, 16);
-                ctx.strokeStyle = isFishing ? '#00262e' : '#ffffff';
+                ctx.strokeStyle = isFishing ? '#451a03' : '#ffffff';
                 ctx.lineWidth = 2.0;
                 ctx.lineCap = 'round';
                 ctx.stroke();
@@ -1028,9 +1028,9 @@ export class GlobalMapController {
                 return ctx.getImageData(0, 0, size, size);
             };
 
-            // Register category-specific live icons: Fishing is vibrant Electric Cyan (#00E5FF)
+            // Register category-specific live icons: Fishing is vibrant Amber/Orange (#F59E0B)
             const categories = [
-                { id: 'fishing', fill: '#00E5FF', stroke: '#00333d', isFishing: true },
+                { id: 'fishing', fill: '#F59E0B', stroke: '#78350f', isFishing: true },
                 { id: 'passenger', fill: '#0284c7', stroke: '#0369a1', isFishing: false },
                 { id: 'patrol', fill: '#f43f5e', stroke: '#be123c', isFishing: false },
                 { id: 'military', fill: '#ef4444', stroke: '#b91c1c', isFishing: false },
@@ -1110,12 +1110,12 @@ export class GlobalMapController {
                 ],
                 'circle-color': [
                     'case',
-                    ['==', ['get', 'vessel_type'], 'fishing'], 'rgba(0, 229, 255, 0.30)',
+                    ['==', ['get', 'vessel_type'], 'fishing'], 'rgba(245, 158, 11, 0.30)',
                     'rgba(6, 182, 212, 0.20)'
                 ],
                 'circle-stroke-color': [
                     'case',
-                    ['==', ['get', 'vessel_type'], 'fishing'], '#00E5FF',
+                    ['==', ['get', 'vessel_type'], 'fishing'], '#F59E0B',
                     '#06b6d4'
                 ],
                 'circle-stroke-width': [
@@ -1229,7 +1229,7 @@ export class GlobalMapController {
                     [
                         'match',
                         ['get', 'vessel_type'],
-                        'fishing', '#00E5FF', // Electric Cyan
+                        'fishing', '#F59E0B', // Amber/Orange
                         'passenger', '#0284c7',
                         'patrol', '#f43f5e',
                         'military', '#ef4444',
@@ -1245,7 +1245,7 @@ export class GlobalMapController {
                 ],
                 'circle-stroke-color': [
                     'case',
-                    ['==', ['get', 'vessel_type'], 'fishing'], '#00262e',
+                    ['==', ['get', 'vessel_type'], 'fishing'], '#451a03',
                     '#ffffff'
                 ]
             }
@@ -1595,12 +1595,12 @@ export class GlobalMapController {
             }
 
             const badgeHtml = isFishing
-                ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/60 shadow-[0_0_8px_rgba(0,229,255,0.4)]">🎣 Fishing</span>`
+                ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/60 shadow-[0_0_8px_rgba(245,158,11,0.4)]">🎣 Fishing</span>`
                 : `<span class="px-1.5 py-0.2 rounded text-[9px] font-semibold uppercase bg-slate-800 text-slate-300 border border-slate-700">${vType}</span>`;
 
             const html = `
-                <div class="px-2.5 py-1.5 rounded-xl bg-slate-950/95 border ${isFishing ? 'border-[#00E5FF]/60 shadow-[0_0_14px_rgba(0,229,255,0.35)]' : 'border-slate-700/80 shadow-xl'} text-xs font-mono backdrop-blur-md space-y-1 pointer-events-none min-w-[160px]">
-                    <div class="flex items-center gap-1.5 font-bold ${isFishing ? 'text-[#00E5FF]' : 'text-white'}">
+                <div class="px-2.5 py-1.5 rounded-xl bg-slate-950/95 border ${isFishing ? 'border-[#F59E0B]/60 shadow-[0_0_14px_rgba(245,158,11,0.35)]' : 'border-slate-700/80 shadow-xl'} text-xs font-mono backdrop-blur-md space-y-1 pointer-events-none min-w-[160px]">
+                    <div class="flex items-center gap-1.5 font-bold ${isFishing ? 'text-[#F59E0B]' : 'text-white'}">
                         <span>${flagEmoji}</span>
                         <span class="truncate max-w-[150px] font-sans">${name}</span>
                     </div>
@@ -1609,7 +1609,7 @@ export class GlobalMapController {
                         <span class="text-slate-400">MMSI: <strong class="text-white">${mmsi}</strong></span>
                     </div>
                     ${sog ? `<div class="text-[10px] text-slate-400 flex items-center justify-between border-t border-slate-800/80 pt-0.5">
-                        <span>SOG: <strong class="${isFishing ? 'text-[#00E5FF]' : 'text-sky-300'} font-bold">${sog}</strong></span>
+                        <span>SOG: <strong class="${isFishing ? 'text-[#F59E0B]' : 'text-sky-300'} font-bold">${sog}</strong></span>
                         ${cog ? `<span>COG: <strong class="text-slate-300">${cog}</strong></span>` : ''}
                     </div>` : ''}
                 </div>
@@ -1766,7 +1766,7 @@ export class GlobalMapController {
         if (typeBadgeEl) {
             typeBadgeEl.textContent = vType;
             if (vType === 'fishing') {
-                typeBadgeEl.className = 'px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/60 shadow-[0_0_10px_rgba(0,229,255,0.35)]';
+                typeBadgeEl.className = 'px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/60 shadow-[0_0_10px_rgba(245,158,11,0.35)]';
             } else if (vType === 'passenger') {
                 typeBadgeEl.className = 'px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-sky-950 text-sky-300 border border-sky-700';
             } else if (vType === 'military' || vType === 'patrol') {
@@ -2039,8 +2039,8 @@ export class GlobalMapController {
                     <div><span class="text-slate-400">MMSI:</span> <strong class="text-white">${props.mmsi || '-'}</strong></div>
                     <div><span class="text-slate-400">IMO:</span> <strong class="text-white">${props.imo || '-'}</strong></div>
                     <div><span class="text-slate-400">Callsign:</span> <strong class="text-white">${props.callsign || '-'}</strong></div>
-                    <div><span class="text-slate-400">Tipe:</span> ${props.vessel_type === 'fishing' ? '<span class="text-[#00E5FF] font-bold uppercase">🎣 Fishing</span>' : `<span class="text-slate-300 capitalize">${props.vessel_type || 'vessel'}</span>`}</div>
-                    <div><span class="text-slate-400">SOG (Kecepatan):</span> <strong class="${props.vessel_type === 'fishing' ? 'text-[#00E5FF]' : 'text-sky-300'}">${sogDisplay}</strong></div>
+                    <div><span class="text-slate-400">Tipe:</span> ${props.vessel_type === 'fishing' ? '<span class="text-[#F59E0B] font-bold uppercase">🎣 Fishing</span>' : `<span class="text-slate-300 capitalize">${props.vessel_type || 'vessel'}</span>`}</div>
+                    <div><span class="text-slate-400">SOG (Kecepatan):</span> <strong class="${props.vessel_type === 'fishing' ? 'text-[#F59E0B]' : 'text-sky-300'}">${sogDisplay}</strong></div>
                     <div><span class="text-slate-400">COG (Arah Gerak):</span> <strong class="text-sky-300">${cogDisplay}</strong></div>
                     <div><span class="text-slate-400">Heading (Haluan):</span> <strong class="text-emerald-300">${headingDisplay}</strong></div>
                     <div><span class="text-slate-400">Status Nav:</span> <span class="text-slate-300 capitalize">${props.nav_status || 'under_way'}</span></div>

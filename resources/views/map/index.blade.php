@@ -435,7 +435,7 @@
             <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2 text-[10px] font-mono">
                 <div class="text-[9px] uppercase font-bold text-slate-400 tracking-wider">1. Klasifikasi Armada Kapal</div>
                 <div class="grid grid-cols-2 gap-2 text-slate-300">
-                    <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-[#00E5FF] border border-[#00262e] shadow-[0_0_8px_rgba(0,229,255,0.7)] shrink-0"></span> <strong class="text-[#00E5FF]">Fishing</strong> <span class="text-slate-400">(Perikanan)</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-[#F59E0B] border border-[#451a03] shadow-[0_0_8px_rgba(245,158,11,0.7)] shrink-0"></span> <strong class="text-[#F59E0B]">Fishing</strong> <span class="text-slate-400">(Perikanan)</span></div>
                     <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-400 shrink-0"></span> Passenger (Penumpang)</div>
                     <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-indigo-400"></span> Cargo / Tanker</div>
                     <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span> Patrol / Military</div>
@@ -712,7 +712,7 @@
                 </div>
                 <div class="flex items-center gap-2 mt-1 text-[11px] font-mono">
                     <span id="panelVesselFlagName" class="text-slate-400 truncate">Indonesia</span>
-                    <span id="panelVesselTypeBadge" class="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/60 shadow-[0_0_8px_rgba(0,229,255,0.3)]">Fishing</span>
+                    <span id="panelVesselTypeBadge" class="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/60 shadow-[0_0_8px_rgba(245,158,11,0.3)]">Fishing</span>
                 </div>
             </div>
             <div class="flex items-center gap-1.5 shrink-0">
@@ -1110,10 +1110,10 @@
                                 ${vessels.map(v => {
                                     const isFishing = (v.vessel_type || '').toLowerCase() === 'fishing' || (v.badge || '').toLowerCase().includes('fishing') || (v.subtitle || '').toLowerCase().includes('fishing');
                                     const badgeStyle = isFishing
-                                        ? 'bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/60 shadow-[0_0_8px_rgba(0,229,255,0.3)] font-bold'
+                                        ? 'bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/60 shadow-[0_0_8px_rgba(245,158,11,0.3)] font-bold'
                                         : 'bg-sky-950 text-sky-300 border border-sky-800 font-bold';
-                                    const titleClass = isFishing ? 'text-[#00E5FF] font-extrabold' : 'text-white font-bold';
-                                    const borderHover = isFishing ? 'hover:border-[#00E5FF]/50 hover:bg-[#00E5FF]/5' : 'hover:border-slate-700 hover:bg-slate-800/80';
+                                    const titleClass = isFishing ? 'text-[#F59E0B] font-extrabold' : 'text-white font-bold';
+                                    const borderHover = isFishing ? 'hover:border-[#F59E0B]/50 hover:bg-[#F59E0B]/5' : 'hover:border-slate-700 hover:bg-slate-800/80';
                                     return `
                                         <div class="search-result-item p-2 rounded-lg cursor-pointer transition flex items-center justify-between border border-transparent ${borderHover}"
                                              data-type="vessel" data-id="${v.id}" data-lat="${v.lat}" data-lng="${v.lng}" data-title="${escapeHtml(v.title)}">
@@ -1121,10 +1121,10 @@
                                                 <div class="${titleClass} flex items-center gap-1.5 truncate">
                                                     <span>${v.flag_emoji || '🌐'}</span>
                                                     <span class="truncate">${escapeHtml(v.title)}</span>
-                                                    ${isFishing ? '<span class="text-[9px] px-1 py-0.2 rounded bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/40">🎣</span>' : ''}
+                                                    ${isFishing ? '<span class="text-[9px] px-1 py-0.2 rounded bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/40">🎣</span>' : ''}
                                                 </div>
                                                 <div class="text-[10px] font-mono text-slate-400 truncate">${v.subtitle}</div>
-                                                ${v.sog ? `<div class="text-[9px] font-mono ${isFishing ? 'text-[#00E5FF]' : 'text-sky-300'}">${v.sog} &bull; ${v.cog || '0°'}</div>` : ''}
+                                                ${v.sog ? `<div class="text-[9px] font-mono ${isFishing ? 'text-[#F59E0B]' : 'text-sky-300'}">${v.sog} &bull; ${v.cog || '0°'}</div>` : ''}
                                             </div>
                                             <div class="text-right shrink-0">
                                                 <span class="px-1.5 py-0.5 rounded text-[9px] font-mono ${badgeStyle}">${v.badge}</span>

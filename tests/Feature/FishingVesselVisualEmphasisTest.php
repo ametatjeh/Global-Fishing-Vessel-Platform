@@ -23,21 +23,21 @@ class FishingVesselVisualEmphasisTest extends TestCase
     }
 
     /**
-     * Test that the map page renders with Electric Cyan (#00E5FF) for Fishing in the scientific legend.
+     * Test that the map page renders with Amber/Orange (#F59E0B) for Fishing in the scientific legend.
      */
-    public function test_map_page_renders_electric_cyan_for_fishing_in_legend(): void
+    public function test_map_page_renders_amber_orange_for_fishing_in_legend(): void
     {
         $response = $this->actingAs($this->analyst)->get('/map');
 
         $response->assertOk();
-        $response->assertSee('bg-[#00E5FF]', false);
-        $response->assertSee('text-[#00E5FF]', false);
+        $response->assertSee('bg-[#F59E0B]', false);
+        $response->assertSee('text-[#F59E0B]', false);
         $response->assertSee('Fishing');
         $response->assertSee('(Perikanan)');
     }
 
     /**
-     * Test that global-map.js implements Electric Cyan (#00E5FF) and dark outline contrast for Fishing.
+     * Test that global-map.js implements Amber/Orange (#F59E0B) and dark outline contrast for Fishing.
      */
     public function test_global_map_script_implements_fishing_visual_emphasis(): void
     {
@@ -45,23 +45,23 @@ class FishingVesselVisualEmphasisTest extends TestCase
         $this->assertFileExists($scriptPath);
         $content = file_get_contents($scriptPath);
 
-        // 1. Electric Cyan (#00E5FF) used for fishing category
-        $this->assertStringContainsString("id: 'fishing', fill: '#00E5FF'", $content);
+        // 1. Amber/Orange (#F59E0B) used for fishing category
+        $this->assertStringContainsString("id: 'fishing', fill: '#F59E0B'", $content);
 
-        // 2. Dark outline contrast implemented for fishing
-        $this->assertStringContainsString("#00262e", $content);
-        $this->assertStringContainsString("#00333d", $content);
+        // 2. Dark outline contrast implemented for fishing (#451a03, #78350f, #1c1917)
+        $this->assertStringContainsString("#451a03", $content);
+        $this->assertStringContainsString("#78350f", $content);
 
-        // 3. Neutral circle layer uses #00E5FF for fishing
-        $this->assertStringContainsString("'fishing', '#00E5FF'", $content);
+        // 3. Neutral circle layer uses #F59E0B for fishing
+        $this->assertStringContainsString("'fishing', '#F59E0B'", $content);
 
         // 4. Prominent scaling for fishing vessels on oriented and circle layers
         $this->assertStringContainsString("['==', ['get', 'vessel_type'], 'fishing'], 0.60, 0.50", $content);
         $this->assertStringContainsString("['==', ['get', 'vessel_type'], 'fishing'], 4.5, 3.5", $content);
 
-        // 5. Selected vessel highlight ring has glowing cyan ring for fishing
-        $this->assertStringContainsString("['==', ['get', 'vessel_type'], 'fishing'], 'rgba(0, 229, 255, 0.30)'", $content);
-        $this->assertStringContainsString("['==', ['get', 'vessel_type'], 'fishing'], '#00E5FF'", $content);
+        // 5. Selected vessel highlight ring has glowing amber ring for fishing
+        $this->assertStringContainsString("['==', ['get', 'vessel_type'], 'fishing'], 'rgba(245, 158, 11, 0.30)'", $content);
+        $this->assertStringContainsString("['==', ['get', 'vessel_type'], 'fishing'], '#F59E0B'", $content);
         $this->assertStringContainsString("['==', ['get', 'vessel_type'], 'fishing'], 20", $content);
 
         // 6. Hover tooltip logic is registered for vessel layers
@@ -69,7 +69,7 @@ class FishingVesselVisualEmphasisTest extends TestCase
         $this->assertStringContainsString("hideVesselHoverTooltip", $content);
         $this->assertStringContainsString("vessel-hover-tooltip", $content);
 
-        // 7. Other vessel categories remain distinct
+        // 7. Other vessel categories remain distinct and untouched
         $this->assertStringContainsString("id: 'passenger', fill: '#0284c7'", $content);
         $this->assertStringContainsString("id: 'patrol', fill: '#f43f5e'", $content);
         $this->assertStringContainsString("id: 'military', fill: '#ef4444'", $content);
