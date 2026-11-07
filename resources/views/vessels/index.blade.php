@@ -101,25 +101,16 @@
                 </div>
             </div>
 
-            <!-- Filter Controls and Quick Country Search -->
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 border-t border-slate-800/80 text-xs">
-                <div class="flex items-center gap-2">
-                    <input type="text" id="quickCountryFilter" placeholder="Cari nama bendera negara..."
-                        class="w-full sm:w-64 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700/80 text-slate-300 placeholder-slate-500 focus:outline-none focus:border-teal-400 text-[11px]"
-                        title="Ketik untuk memfilter daftar opsi bendera negara pada dropdown">
-                    <span class="text-[10px] text-slate-500 hidden sm:inline">(Live filter bendera)</span>
-                </div>
-
-                <div class="flex items-center gap-2 justify-end">
-                    @if($activeFiltersCount > 0)
-                    <a href="{{ route('vessels.index') }}" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold transition">
-                        Reset Filters
-                    </a>
-                    @endif
-                    <button type="submit" class="px-5 py-1.5 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold transition shadow-md shadow-teal-500/20">
-                        Terapkan Filter
-                    </button>
-                </div>
+            <!-- Filter Actions -->
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800/80 text-xs">
+                @if($activeFiltersCount > 0)
+                <a href="{{ route('vessels.index') }}" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold transition">
+                    Reset Filters
+                </a>
+                @endif
+                <button type="submit" class="px-5 py-1.5 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold transition shadow-md shadow-teal-500/20">
+                    Terapkan Filter
+                </button>
             </div>
         </form>
     </div>
@@ -275,54 +266,4 @@
     </div>
 
 </div>
-
-<!-- Client-side Interactive Search Script for Country Dropdowns -->
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const searchInput = document.getElementById('quickCountryFilter');
-    if (!searchInput) return;
-
-    const dropdownIds = ['flag_country'];
-    const dropdowns = dropdownIds.map(id => document.getElementById(id)).filter(Boolean);
-
-    // Store original options for filtering
-    const originalOptions = dropdowns.map(dd => {
-        return Array.from(dd.options).map(opt => ({
-            value: opt.value,
-            text: opt.text,
-            selected: opt.selected
-        }));
-    });
-
-    searchInput.addEventListener('input', function (e) {
-        const query = e.target.value.toLowerCase().trim();
-
-        dropdowns.forEach((dd, idx) => {
-            const list = originalOptions[idx];
-            const currentValue = dd.value;
-
-            // Clear current options
-            dd.innerHTML = '';
-
-            list.forEach(item => {
-                // Always keep default empty option and unknown option visible, or matching items
-                const isMatch = item.value === '' ||
-                                item.value === 'unknown' ||
-                                item.text.toLowerCase().includes(query) ||
-                                item.value.toLowerCase().includes(query);
-
-                if (isMatch) {
-                    const opt = document.createElement('option');
-                    opt.value = item.value;
-                    opt.text = item.text;
-                    if (item.value === currentValue) {
-                        opt.selected = true;
-                    }
-                    dd.appendChild(opt);
-                }
-            });
-        });
-    });
-});
-</script>
 @endsection
