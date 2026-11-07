@@ -534,7 +534,7 @@ class GlobalFishingWatchAdapter implements ProviderAdapterInterface
         if (in_array($rawType, ['cargo', 'tanker'])) {
             $vesselType = 'unknown';
         } else {
-            $vesselType = !empty($vData['vesselType']) ? $vData['vesselType'] : 'fishing';
+            $vesselType = !empty($vData['vesselType']) ? AisStreamAdapter::normalizeVesselType($vData['vesselType']) : 'unknown';
         }
 
         return Vessel::firstOrCreate(

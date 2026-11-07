@@ -585,7 +585,13 @@ class GfwVesselEnrichmentService
             ];
         } elseif (!empty($gfwShiptype)) {
             $normalizedType = AisStreamAdapter::normalizeVesselType($gfwShiptype);
-            if ($vessel->vessel_type === 'unknown' || empty($vessel->vessel_type)) {
+            // Strict rule: Jangan menggunakan GFW sebagai sumber klasifikasi cargo/tanker.
+            if (in_array($normalizedType, ['cargo', 'tanker'])) {
+                $preserved['vessel_type'] = [
+                    'value' => $vessel->vessel_type,
+                    'reason' => 'GFW cargo/tanker classification prohibited by policy. Classification exclusively reserved for local AIS.',
+                ];
+            } elseif ($vessel->vessel_type === 'unknown' || empty($vessel->vessel_type)) {
                 if ($normalizedType !== 'unknown') {
                     $updates['vessel_type'] = [
                         'current' => $vessel->vessel_type,

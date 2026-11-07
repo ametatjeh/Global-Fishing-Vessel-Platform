@@ -10,17 +10,31 @@ use Illuminate\Support\Facades\Log;
 class VesselClassificationService
 {
     public const TAXONOMY = [
-        'fishing'   => 'Fishing',
-        'cargo'     => 'Cargo',
-        'tanker'    => 'Tanker',
-        'passenger' => 'Passenger',
-        'support'   => 'Support',
-        'tug'       => 'Tug',
-        'patrol'    => 'Patrol',
-        'pleasure'  => 'Pleasure',
-        'research'  => 'Research',
-        'other'     => 'Other',
-        'unknown'   => 'Unknown',
+        'fishing'           => 'Fishing',
+        'towing'            => 'Towing',
+        'dredging'          => 'Dredging',
+        'diving'            => 'Diving',
+        'military'          => 'Military',
+        'sailing'           => 'Sailing',
+        'pleasure'          => 'Pleasure Craft',
+        'high_speed_craft'  => 'High Speed Craft',
+        'pilot'             => 'Pilot',
+        'sar'               => 'Search and Rescue',
+        'tug'               => 'Tug',
+        'port_tender'       => 'Port Tender',
+        'anti_pollution'    => 'Anti-pollution',
+        'law_enforcement'   => 'Law Enforcement',
+        'medical'           => 'Medical',
+        'non_combatant'     => 'Non-combatant',
+        'passenger'         => 'Passenger',
+        'cargo'             => 'Cargo',
+        'tanker'            => 'Tanker',
+        'other'             => 'Other',
+        'carrier'           => 'Carrier',
+        'support'           => 'Support',
+        'patrol'            => 'Patrol',
+        'research'          => 'Research',
+        'unknown'           => 'Unknown',
     ];
 
     protected GfwApiService $gfwApi;
@@ -32,6 +46,27 @@ class VesselClassificationService
 
     /**
      * Map AIS ShipType integer code to standard taxonomy.
+     * Strictly adheres to ITU-R M.1371 / IMO standard taxonomy:
+     * - 30: Fishing
+     * - 31–32: Towing
+     * - 33: Dredging
+     * - 34: Diving
+     * - 35: Military
+     * - 36: Sailing
+     * - 37: Pleasure Craft
+     * - 40–49: High Speed Craft
+     * - 50: Pilot
+     * - 51: Search and Rescue
+     * - 52: Tug
+     * - 53: Port Tender
+     * - 54: Anti-pollution
+     * - 55: Law Enforcement
+     * - 58: Medical
+     * - 59: Non-combatant
+     * - 60–69: Passenger
+     * - 70–79: Cargo
+     * - 80–89: Tanker
+     * - 90–99: Other
      */
     public static function mapAisCodeToTaxonomy($code): string
     {
@@ -44,20 +79,50 @@ class VesselClassificationService
         if ($code === 30) {
             return 'fishing';
         }
-        if ($code === 31 || $code === 32 || $code === 52) {
-            return 'tug';
+        if ($code === 31 || $code === 32) {
+            return 'towing';
         }
-        if ($code === 33 || $code === 34 || $code === 50 || $code === 53 || $code === 54 || $code === 58) {
-            return 'support';
+        if ($code === 33) {
+            return 'dredging';
         }
-        if ($code === 35 || $code === 51 || $code === 55) {
-            return 'patrol';
+        if ($code === 34) {
+            return 'diving';
         }
-        if ($code === 36 || $code === 37) {
+        if ($code === 35) {
+            return 'military';
+        }
+        if ($code === 36) {
+            return 'sailing';
+        }
+        if ($code === 37) {
             return 'pleasure';
         }
         if ($code >= 40 && $code <= 49) {
-            return 'other'; // High Speed Craft
+            return 'high_speed_craft';
+        }
+        if ($code === 50) {
+            return 'pilot';
+        }
+        if ($code === 51) {
+            return 'sar';
+        }
+        if ($code === 52) {
+            return 'tug';
+        }
+        if ($code === 53) {
+            return 'port_tender';
+        }
+        if ($code === 54) {
+            return 'anti_pollution';
+        }
+        if ($code === 55) {
+            return 'patrol';
+        }
+        if ($code === 58) {
+            return 'medical';
+        }
+        if ($code === 59) {
+            return 'unknown';
         }
         if ($code >= 60 && $code <= 69) {
             return 'passenger';
@@ -68,7 +133,7 @@ class VesselClassificationService
         if ($code >= 80 && $code <= 89) {
             return 'tanker';
         }
-        if ($code >= 90 && $code <= 99) {
+        if ($code >= 90 && $code <= 98) {
             return 'other';
         }
 
@@ -81,18 +146,22 @@ class VesselClassificationService
     public static function normalize(string $type): string
     {
         $clean = strtolower(trim($type));
+        $clean = str_replace(['-', ' '], '_', $clean);
         if (array_key_exists($clean, self::TAXONOMY)) {
             return $clean;
         }
 
         // Common synonym aliases
         return match ($clean) {
-            'tug', 'towing' => 'tug',
-            'pilot', 'pilot vessel', 'port tender', 'anti-pollution', 'dredger', 'supply', 'tender' => 'support',
-            'military', 'sar', 'law enforcement', 'patrol vessel' => 'patrol',
-            'sailing', 'yacht', 'pleasure craft' => 'pleasure',
-            'hsc', 'high speed craft' => 'other',
-            'carrier', 'bunker' => 'support',
+            'search_and_rescue' => 'sar',
+            'pleasure_craft' => 'pleasure',
+            'high_speed_craft', 'hsc' => 'high_speed_craft',
+            'pilot_vessel' => 'pilot',
+            'dredger' => 'dredging',
+            'supply' => 'support',
+            'tender' => 'port_tender',
+            'patrol_vessel' => 'patrol',
+            'carrier', 'bunker' => 'carrier',
             default => 'unknown',
         };
     }
@@ -150,7 +219,8 @@ class VesselClassificationService
 
         // Priority 3: GFW API v3 Identity & Classification
         $gfwType = $this->extractGfwClassification($vessel, $queryGfwIfMissing);
-        if ($gfwType && $gfwType !== 'unknown') {
+        // Rule: Jangan menggunakan GFW sebagai sumber klasifikasi cargo/tanker.
+        if ($gfwType && $gfwType !== 'unknown' && !in_array($gfwType, ['cargo', 'tanker'])) {
             $hasConflict = $currentNormalized !== 'unknown' && $currentNormalized !== $gfwType;
             return [
                 'vessel_id' => $vessel->id,

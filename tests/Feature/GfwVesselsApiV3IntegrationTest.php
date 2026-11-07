@@ -178,7 +178,8 @@ class GfwVesselsApiV3IntegrationTest extends TestCase
         $result = $this->enrichmentService->enrichVessel($cargoVessel, dryRun: false);
         $cargoVessel->refresh();
 
-        $this->assertEquals('cargo', $cargoVessel->vessel_type);
+        // Policy rule: GFW cannot be used to classify a vessel as cargo or tanker
+        $this->assertEquals('unknown', $cargoVessel->vessel_type);
         $this->assertEquals('enriched', $cargoVessel->enrichment_status);
     }
 

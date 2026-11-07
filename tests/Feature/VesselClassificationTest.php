@@ -31,22 +31,31 @@ class VesselClassificationTest extends TestCase
     public function test_standard_ais_code_taxonomy_mapping(): void
     {
         $this->assertEquals('fishing', VesselClassificationService::mapAisCodeToTaxonomy(30));
-        $this->assertEquals('tug', VesselClassificationService::mapAisCodeToTaxonomy(31));
-        $this->assertEquals('tug', VesselClassificationService::mapAisCodeToTaxonomy(32));
+        $this->assertEquals('towing', VesselClassificationService::mapAisCodeToTaxonomy(31));
+        $this->assertEquals('towing', VesselClassificationService::mapAisCodeToTaxonomy(32));
+        $this->assertEquals('dredging', VesselClassificationService::mapAisCodeToTaxonomy(33));
+        $this->assertEquals('diving', VesselClassificationService::mapAisCodeToTaxonomy(34));
+        $this->assertEquals('military', VesselClassificationService::mapAisCodeToTaxonomy(35));
+        $this->assertEquals('sailing', VesselClassificationService::mapAisCodeToTaxonomy(36));
+        $this->assertEquals('pleasure', VesselClassificationService::mapAisCodeToTaxonomy(37));
+        $this->assertEquals('high_speed_craft', VesselClassificationService::mapAisCodeToTaxonomy(40));
+        $this->assertEquals('high_speed_craft', VesselClassificationService::mapAisCodeToTaxonomy(49));
+        $this->assertEquals('pilot', VesselClassificationService::mapAisCodeToTaxonomy(50));
+        $this->assertEquals('sar', VesselClassificationService::mapAisCodeToTaxonomy(51));
         $this->assertEquals('tug', VesselClassificationService::mapAisCodeToTaxonomy(52));
-        $this->assertEquals('support', VesselClassificationService::mapAisCodeToTaxonomy(50)); // Pilot
-        $this->assertEquals('patrol', VesselClassificationService::mapAisCodeToTaxonomy(51)); // SAR
-        $this->assertEquals('support', VesselClassificationService::mapAisCodeToTaxonomy(53)); // Port tender
-        $this->assertEquals('support', VesselClassificationService::mapAisCodeToTaxonomy(54)); // Anti pollution
-        $this->assertEquals('patrol', VesselClassificationService::mapAisCodeToTaxonomy(55)); // Law enforcement
-        $this->assertEquals('pleasure', VesselClassificationService::mapAisCodeToTaxonomy(36)); // Sailing
-        $this->assertEquals('pleasure', VesselClassificationService::mapAisCodeToTaxonomy(37)); // Pleasure craft
+        $this->assertEquals('port_tender', VesselClassificationService::mapAisCodeToTaxonomy(53));
+        $this->assertEquals('anti_pollution', VesselClassificationService::mapAisCodeToTaxonomy(54));
+        $this->assertEquals('patrol', VesselClassificationService::mapAisCodeToTaxonomy(55));
+        $this->assertEquals('medical', VesselClassificationService::mapAisCodeToTaxonomy(58));
+        $this->assertEquals('unknown', VesselClassificationService::mapAisCodeToTaxonomy(59));
         $this->assertEquals('passenger', VesselClassificationService::mapAisCodeToTaxonomy(60));
         $this->assertEquals('passenger', VesselClassificationService::mapAisCodeToTaxonomy(69));
         $this->assertEquals('cargo', VesselClassificationService::mapAisCodeToTaxonomy(70));
         $this->assertEquals('cargo', VesselClassificationService::mapAisCodeToTaxonomy(79));
         $this->assertEquals('tanker', VesselClassificationService::mapAisCodeToTaxonomy(80));
         $this->assertEquals('tanker', VesselClassificationService::mapAisCodeToTaxonomy(89));
+        $this->assertEquals('other', VesselClassificationService::mapAisCodeToTaxonomy(90));
+        $this->assertEquals('unknown', VesselClassificationService::mapAisCodeToTaxonomy(99));
         $this->assertEquals('unknown', VesselClassificationService::mapAisCodeToTaxonomy(0));
         $this->assertEquals('unknown', VesselClassificationService::mapAisCodeToTaxonomy(null));
         $this->assertEquals('unknown', VesselClassificationService::mapAisCodeToTaxonomy('invalid'));

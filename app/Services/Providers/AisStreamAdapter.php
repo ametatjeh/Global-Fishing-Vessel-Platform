@@ -705,14 +705,41 @@ class AisStreamAdapter implements ProviderAdapterInterface
         if (is_string($type)) {
             $t = strtolower(trim($type));
             $t = str_replace(['-', ' '], '_', $t);
-            if ($t === 'sar') return 'sar';
+            if ($t === 'sar' || $t === 'search_and_rescue') return 'sar';
             if ($t === 'port_tender') return 'port_tender';
             if ($t === 'anti_pollution') return 'anti_pollution';
+            if ($t === 'law_enforcement') return 'law_enforcement';
+            if ($t === 'high_speed_craft' || $t === 'hsc') return 'high_speed_craft';
+            if ($t === 'non_combatant') return 'non_combatant';
+            if ($t === 'pleasure_craft') return 'pleasure';
+
             if (in_array($t, [
-                'fishing', 'military', 'sailing', 'pleasure', 'pilot',
-                'sar', 'tug', 'port_tender', 'anti_pollution', 'patrol',
-                'medical', 'passenger', 'cargo', 'tanker', 'carrier',
-                'bunker', 'support', 'unknown'
+                'fishing',
+                'towing',
+                'dredging',
+                'diving',
+                'military',
+                'sailing',
+                'pleasure',
+                'high_speed_craft',
+                'pilot',
+                'sar',
+                'tug',
+                'port_tender',
+                'anti_pollution',
+                'law_enforcement',
+                'patrol',
+                'medical',
+                'non_combatant',
+                'passenger',
+                'cargo',
+                'tanker',
+                'other',
+                'carrier',
+                'bunker',
+                'support',
+                'research',
+                'unknown'
             ])) {
                 return $t;
             }
@@ -735,6 +762,21 @@ class AisStreamAdapter implements ProviderAdapterInterface
             return 'fishing';
         }
 
+        // 31–32: Towing
+        if ($code === 31 || $code === 32) {
+            return 'towing';
+        }
+
+        // 33: Dredging
+        if ($code === 33) {
+            return 'dredging';
+        }
+
+        // 34: Diving
+        if ($code === 34) {
+            return 'diving';
+        }
+
         // 35: Military operations
         if ($code === 35) {
             return 'military';
@@ -750,12 +792,17 @@ class AisStreamAdapter implements ProviderAdapterInterface
             return 'pleasure';
         }
 
+        // 40–49: High Speed Craft (HSC)
+        if ($code >= 40 && $code <= 49) {
+            return 'high_speed_craft';
+        }
+
         // 50: Pilot vessel
         if ($code === 50) {
             return 'pilot';
         }
 
-        // 51: SAR (Search and Rescue)
+        // 51: Search and Rescue (SAR)
         if ($code === 51) {
             return 'sar';
         }
@@ -810,6 +857,11 @@ class AisStreamAdapter implements ProviderAdapterInterface
             return 'tanker';
         }
 
+        // 90–98: Other types of ship (99 is unknown / no info)
+        if ($code >= 90 && $code <= 98) {
+            return 'other';
+        }
+
         // Default: Strictly 'unknown' rather than guessing
         return 'unknown';
     }
@@ -835,7 +887,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
         $callSign = !empty($message['callsign']) ? strtoupper(trim(trim((string) $message['callsign']), '@')) : null;
         $rawImo = !empty($message['imo']) ? preg_replace('/\D/', '', (string) $message['imo']) : null;
         $cleanImo = ($rawImo && strlen($rawImo) === 7) ? $rawImo : null;
-        
+
         $rawShipType = $message['ship_type'] ?? null;
         $vesselType = null;
         $classificationSource = null;
@@ -912,22 +964,30 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 $updates['imo'] = $cleanImo;
             }
             if ($vesselType && $vesselType !== 'unknown') {
-                if (empty($vessel->vessel_type) || $vessel->vessel_type === 'unknown') {
-                    $updates['vessel_type'] = $vesselType;
-                    if ($classificationSource) {
+                $isOlder = false;
+                if (!empty($vessel->metadata['classified_at'])) {
+                    $existingClassifiedAt = \Carbon\Carbon::parse($vessel->metadata['classified_at']);
+                    if ($observedAt->lt($existingClassifiedAt)) {
+                        $isOlder = true;
+                    }
+                }
+
+                if (!$isOlder) {
+                    if (empty($vessel->vessel_type) || $vessel->vessel_type === 'unknown') {
+                        $updates['vessel_type'] = $vesselType;
+                        $meta = $vessel->metadata ?? [];
+                        $meta['classification_source'] = $classificationSource ?: 'AIS_STATIC_MESSAGE_SHIPTYPE';
+                        $meta['ais_ship_type_code'] = $aisTypeCode;
+                        $meta['classified_at'] = $observedAt->toIso8601String();
+                        $updates['metadata'] = $meta;
+                    } elseif ($classificationSource && in_array($vesselType, ['cargo', 'tanker'])) {
+                        $updates['vessel_type'] = $vesselType;
                         $meta = $vessel->metadata ?? [];
                         $meta['classification_source'] = $classificationSource;
                         $meta['ais_ship_type_code'] = $aisTypeCode;
-                        $meta['classified_at'] = now()->toIso8601String();
+                        $meta['classified_at'] = $observedAt->toIso8601String();
                         $updates['metadata'] = $meta;
                     }
-                } elseif ($classificationSource && in_array($vesselType, ['cargo', 'tanker'])) {
-                    $updates['vessel_type'] = $vesselType;
-                    $meta = $vessel->metadata ?? [];
-                    $meta['classification_source'] = $classificationSource;
-                    $meta['ais_ship_type_code'] = $aisTypeCode;
-                    $meta['classified_at'] = now()->toIso8601String();
-                    $updates['metadata'] = $meta;
                 }
             }
             if ($length && empty($vessel->length_meters)) {

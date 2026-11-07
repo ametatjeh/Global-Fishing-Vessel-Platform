@@ -209,8 +209,8 @@
             <div class="space-y-2.5 text-xs">
                 <div class="flex justify-between py-1 border-b border-slate-800/60">
                     <span class="text-slate-400">Tipe Kapal (Vessel Type):</span>
-                    <span class="font-bold capitalize {{ $vessel->vessel_type === 'unknown' ? 'text-slate-400' : 'text-emerald-300' }}">
-                        {{ $vessel->vessel_type }}
+                    <span class="font-bold {{ $vessel->vessel_type === 'unknown' || empty($vessel->vessel_type) ? 'text-slate-400' : 'text-emerald-300' }}">
+                        {{ $vessel->display_vessel_type }}
                     </span>
                 </div>
                 <div class="flex justify-between py-1 border-b border-slate-800/60">

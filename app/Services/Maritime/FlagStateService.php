@@ -375,23 +375,44 @@ class FlagStateService
         $name = self::$iso2Table[$iso2] ?? null;
 
         // 2. Fallback search in $midTable
+        $entryFound = null;
         if (!$name) {
             foreach (self::$midTable as $entry) {
                 if ($entry['iso2'] === $iso2 || ($entry['iso3'] ?? null) === $clean) {
                     $name = $entry['name'];
+                    $entryFound = $entry;
+                    break;
+                }
+            }
+        } else {
+            // Find iso3 for recognized iso2 if available
+            foreach (self::$midTable as $entry) {
+                if ($entry['iso2'] === $iso2) {
+                    $entryFound = $entry;
                     break;
                 }
             }
         }
 
-        $name = $name ?: $clean;
+        if (!$name) {
+            return [
+                'code' => $clean,
+                'name' => 'Unknown',
+                'iso2' => null,
+                'iso3' => null,
+                'flag_emoji' => '🌐',
+                'is_known' => false,
+                'label' => '🌐 Unknown',
+            ];
+        }
+
         $flagEmoji = self::getFlagEmoji($iso2);
 
         return [
             'code' => $clean,
             'name' => $name,
             'iso2' => $iso2,
-            'iso3' => strlen($clean) === 3 ? $clean : null,
+            'iso3' => strlen($clean) === 3 ? $clean : ($entryFound['iso3'] ?? null),
             'flag_emoji' => $flagEmoji,
             'is_known' => true,
             'label' => "{$flagEmoji} {$name}",
@@ -602,6 +623,12 @@ class FlagStateService
 
         if (isset($iso3Map[$code])) {
             return $iso3Map[$code];
+        }
+
+        foreach (self::$midTable as $entry) {
+            if (($entry['iso3'] ?? null) === $code) {
+                return $entry['iso2'];
+            }
         }
 
         if (strlen($code) === 2 && ctype_alpha($code)) {

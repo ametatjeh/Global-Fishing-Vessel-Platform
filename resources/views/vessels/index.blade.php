@@ -206,18 +206,20 @@
                                 $typeKey = strtolower($vessel->vessel_type ?? 'unknown');
                                 $typeBadgeClass = match($typeKey) {
                                     'fishing' => 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-                                    'carrier', 'support' => 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+                                    'carrier', 'support', 'port_tender' => 'bg-amber-500/15 text-amber-300 border-amber-500/30',
                                     'passenger' => 'bg-sky-500/15 text-sky-300 border-sky-500/30',
-                                    'patrol' => 'bg-rose-500/15 text-rose-300 border-rose-500/30',
-                                    'tug' => 'bg-orange-500/15 text-orange-300 border-orange-500/30',
-                                    'pleasure' => 'bg-violet-500/15 text-violet-300 border-violet-500/30',
+                                    'patrol', 'law_enforcement', 'military' => 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+                                    'tug', 'towing' => 'bg-orange-500/15 text-orange-300 border-orange-500/30',
+                                    'pleasure', 'sailing' => 'bg-violet-500/15 text-violet-300 border-violet-500/30',
                                     'research' => 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
+                                    'sar' => 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+                                    'high_speed_craft' => 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30',
                                     'cargo', 'tanker' => 'bg-red-950 text-red-400 border-red-500/40',
                                     default => 'bg-slate-800 text-slate-400 border-slate-700',
                                 };
                             @endphp
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono capitalize border {{ $typeBadgeClass }}">
-                                {{ $vessel->vessel_type ?: 'Unknown' }}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono border {{ $typeBadgeClass }}">
+                                {{ $vessel->display_vessel_type }}
                             </span>
                         </td>
 

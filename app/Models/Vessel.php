@@ -134,6 +134,20 @@ class Vessel extends Model
     }
 
     /**
+     * Get synchronized human-readable vessel type label based on AIS taxonomy.
+     */
+    public function getDisplayVesselTypeAttribute(): string
+    {
+        $raw = strtolower(trim((string) $this->vessel_type));
+        if (empty($raw) || $raw === 'unknown') {
+            return 'Unknown';
+        }
+
+        return \App\Services\Maritime\VesselClassificationService::TAXONOMY[$raw]
+            ?? ucwords(str_replace('_', ' ', $raw));
+    }
+
+    /**
      * Determine if vessel identity has been manually verified by an analyst
      */
     public function isManuallyVerified(): bool
