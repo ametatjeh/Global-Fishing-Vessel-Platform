@@ -141,10 +141,18 @@
             </a>
 
             <a href="{{ route('settings.index') }}" data-tooltip="System Settings"
-                class="sidebar-item flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('settings.*') ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                class="sidebar-item flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('settings.index') ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
                 <span class="sidebar-icon">⚙️</span>
                 <span class="sidebar-text truncate">System Settings</span>
             </a>
+
+            @if(auth()->user()?->isAdmin())
+            <a href="{{ route('settings.retention.index') }}" data-tooltip="Data Retention Policy"
+                class="sidebar-item flex items-center gap-2.5 px-3 py-2 pl-7 rounded-lg text-xs font-medium transition {{ request()->routeIs('settings.retention.*') ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-xs' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200' }}">
+                <span class="sidebar-icon text-xs">🛡️</span>
+                <span class="sidebar-text truncate">Data Retention</span>
+            </a>
+            @endif
 
             <a href="{{ route('audit-logs.index') }}" data-tooltip="Activity Logs"
                 class="sidebar-item flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('audit-logs.*') ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">

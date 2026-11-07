@@ -67,6 +67,27 @@
     </div>
     @endif
 
+    <!-- Quick Access: AIS Data Retention Policy -->
+    <div class="glass-panel p-5 rounded-2xl border border-teal-500/30 bg-gradient-to-r from-teal-950/30 via-slate-900/60 to-slate-900/60 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-start gap-3">
+            <span class="text-2xl p-2 rounded-xl bg-teal-500/10 border border-teal-500/30">🛡️</span>
+            <div>
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <span>AIS Data Retention Policy</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">FISHING 100% IMMUTABLE</span>
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">
+                    Konfigurasi masa retensi posisi AIS historis, jadwal automatic cleanup, simulasi dry-run, dan perlindungan permanen armada kapal penangkap ikan.
+                </p>
+            </div>
+        </div>
+        <a href="{{ route('settings.retention.index') }}"
+            class="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs transition shrink-0 flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20">
+            <span>Kelola Kebijakan Retensi</span>
+            <span>→</span>
+        </a>
+    </div>
+
     <!-- 2. System Health & Infrastructure Matrix (Tahap A, I, M) -->
     <div class="glass-panel p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4 text-xs">
         <div class="flex items-center justify-between border-b border-slate-800 pb-3">

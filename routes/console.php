@@ -39,3 +39,9 @@ Schedule::command('gfw:vessels:enrich --batch --queue --limit=50')
     ->withoutOverlapping()
     ->description('Automatically enrich eligible unenriched vessels via Global Fishing Watch API v3');
 
+Schedule::command('ais:prune-telemetry')
+    ->dailyAt('03:00')
+    ->withoutOverlapping()
+    ->description('Prune AIS historical telemetry according to vessel type retention policies (Fishing is permanently protected)');
+
+

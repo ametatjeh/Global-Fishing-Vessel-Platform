@@ -101,6 +101,21 @@ Route::middleware(['auth', 'role'])->group(function () {
     Route::post('/settings/offsite-backup', [SystemController::class, 'updateOffsiteBackupGate'])
         ->middleware('role:super_admin')
         ->name('settings.offsite-backup');
+
+    // AIS Data Retention Policy Management
+    Route::get('/settings/retention', [\App\Http\Controllers\DataRetentionController::class, 'index'])
+        ->middleware('role:super_admin,admin')
+        ->name('settings.retention.index');
+    Route::post('/settings/retention', [\App\Http\Controllers\DataRetentionController::class, 'update'])
+        ->middleware('role:super_admin,admin')
+        ->name('settings.retention.update');
+    Route::post('/settings/retention/simulate', [\App\Http\Controllers\DataRetentionController::class, 'simulate'])
+        ->middleware('role:super_admin,admin')
+        ->name('settings.retention.simulate');
+    Route::post('/settings/retention/purge', [\App\Http\Controllers\DataRetentionController::class, 'executeManualPurge'])
+        ->middleware('role:super_admin')
+        ->name('settings.retention.purge');
+
     Route::get('/audit-logs', [SystemController::class, 'auditLogs'])
         ->middleware('role:super_admin,admin')
         ->name('audit-logs.index');
