@@ -76,10 +76,10 @@ class CopernicusSarAdapter implements ProviderAdapterInterface
             $token = $this->getAccessToken();
             if (!$token) {
                 $latency = round((microtime(true) - $startTime) * 1000, 2);
-                $this->updateProviderStatus('error', 'Gagal memperoleh OAuth2 Bearer token dari Copernicus Keycloak.', $latency);
+                $this->updateProviderStatus('authentication_failed', 'Gagal memperoleh OAuth2 Bearer token dari Copernicus Keycloak.', $latency);
 
                 return [
-                    'status' => 'error',
+                    'status' => 'authentication_failed',
                     'message' => 'Gagal memperoleh OAuth2 Bearer token dari Copernicus Keycloak (periksa client_id dan client_secret).',
                     'latency_ms' => $latency,
                     'timestamp' => now()->toISOString(),
@@ -87,7 +87,13 @@ class CopernicusSarAdapter implements ProviderAdapterInterface
             }
 
             // 2. Query OData catalog with Bearer token
-            $response = Http::withToken($token)->timeout(15)->get("{$this->odataUrl}/Products?\$top=1");
+            $response = Http::withToken($token)
+                ->withHeaders([
+                    'Accept' => 'application/json',
+                    'User-Agent' => 'GFVIP-MaritimePlatform/1.0 (Copernicus CDSE Health Check)',
+                ])
+                ->timeout(15)
+                ->get("{$this->odataUrl}/Products?\$top=1");
             $latency = round((microtime(true) - $startTime) * 1000, 2);
 
             if ($response->successful()) {
@@ -98,18 +104,33 @@ class CopernicusSarAdapter implements ProviderAdapterInterface
 
                 return [
                     'status' => $status,
+                    'sub_status' => 'ready_to_sync',
                     'message' => $message,
                     'latency_ms' => $latency,
                     'timestamp' => now()->toISOString(),
                 ];
             }
 
-            $errorMsg = "Copernicus OData API merespons dengan status {$response->status()}";
-            $this->updateProviderStatus('error', $errorMsg, $latency);
+            $rawBody = $response->body();
+            $refId = null;
+            if (preg_match('/reference ID:\s*(\d+)/i', $rawBody, $m)) {
+                $refId = $m[1];
+            }
+
+            if ($response->status() === 403) {
+                $status = 'catalog_access_failed';
+                $errorMsg = 'Akses katalog OData ditolak oleh security policy CDSE WAF (HTTP 403: Request violation' . ($refId ? ", Ref ID: {$refId}" : '') . '). OAuth2 Keycloak terotentikasi, namun akses katalog diblokir oleh firewall CDSE.';
+            } else {
+                $status = 'error';
+                $errorMsg = "Copernicus OData API merespons dengan status {$response->status()}";
+            }
+
+            $this->updateProviderStatus($status, $errorMsg, $latency);
 
             return [
-                'status' => 'error',
+                'status' => $status,
                 'message' => $errorMsg,
+                'reference_id' => $refId,
                 'latency_ms' => $latency,
                 'timestamp' => now()->toISOString(),
             ];
@@ -128,23 +149,32 @@ class CopernicusSarAdapter implements ProviderAdapterInterface
 
     public function sync(array $options = []): array
     {
+        $dryRun = (bool) ($options['dry_run'] ?? false);
+        $limit = (int) ($options['limit'] ?? 10);
+        $aoiWkt = $options['aoi_polygon'] ?? null;
+
         if (!$this->isConfigured()) {
             return [
                 'status' => 'not_configured',
+                'dry_run' => $dryRun,
                 'fetched' => 0,
                 'inserted' => 0,
                 'skipped' => 0,
+                'planned_insert' => 0,
                 'errors' => ['Copernicus credentials are not configured.'],
             ];
         }
 
         $token = $this->getAccessToken();
         if (!$token) {
+            $this->updateProviderStatus('authentication_failed', 'Gagal memperoleh OAuth2 Bearer token dari Copernicus Keycloak.');
             return [
-                'status' => 'failed',
+                'status' => 'authentication_failed',
+                'dry_run' => $dryRun,
                 'fetched' => 0,
                 'inserted' => 0,
                 'skipped' => 0,
+                'planned_insert' => 0,
                 'errors' => ['Failed to authenticate with Copernicus CDSE OAuth2 Keycloak.'],
             ];
         }
@@ -168,22 +198,35 @@ class CopernicusSarAdapter implements ProviderAdapterInterface
             'run_type' => 'sync_sar',
             'status' => 'running',
             'started_at' => now(),
+            'metadata_json' => json_encode(['dry_run' => $dryRun, 'limit' => $limit]),
         ]);
 
         $fetched = 0;
         $inserted = 0;
         $skipped = 0;
+        $plannedInsert = 0;
+        $newProducts = [];
+        $totalEstimatedBytes = 0;
         $errors = [];
 
         try {
             // Query Sentinel-1 products from Copernicus catalogue API with Bearer token
             $filter = "Collection/Name eq 'SENTINEL-1' and Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'productType' and att/OData.CSC.StringAttribute/Value eq 'GRD')";
+            if ($aoiWkt) {
+                $filter .= " and OData.CSC.Intersects(area=geography'SRID=4326;{$aoiWkt}')";
+            }
 
-            $response = Http::withToken($token)->timeout(30)->get("{$this->odataUrl}/Products", [
-                '$filter' => $filter,
-                '$top' => $options['limit'] ?? 10,
-                '$orderby' => 'ContentDate/Start desc',
-            ]);
+            $response = Http::withToken($token)
+                ->withHeaders([
+                    'Accept' => 'application/json',
+                    'User-Agent' => 'GFVIP-MaritimePlatform/1.0 (Copernicus CDSE Sentinel-1 Sync)',
+                ])
+                ->timeout(30)
+                ->get("{$this->odataUrl}/Products", [
+                    '$filter' => $filter,
+                    '$top' => $limit,
+                    '$orderby' => 'ContentDate/Start desc',
+                ]);
 
             if ($response->successful()) {
                 $products = $response->json('value') ?? [];
@@ -201,6 +244,15 @@ class CopernicusSarAdapter implements ProviderAdapterInterface
                         continue;
                     }
 
+                    $newProducts[] = $sceneId;
+                    $contentLen = $prod['ContentLength'] ?? 0;
+                    $totalEstimatedBytes += $contentLen;
+
+                    if ($dryRun) {
+                        $plannedInsert++;
+                        continue;
+                    }
+
                     $footprint = $prod['GeoFootprint'] ?? [
                         'type' => 'Polygon',
                         'coordinates' => [
@@ -210,7 +262,7 @@ class CopernicusSarAdapter implements ProviderAdapterInterface
                         ]
                     ];
 
-                    $scene = SatelliteScene::create([
+                    SatelliteScene::create([
                         'scene_id' => $sceneId,
                         'platform_name' => 'Sentinel-1A',
                         'instrument' => 'C-SAR',
@@ -224,7 +276,7 @@ class CopernicusSarAdapter implements ProviderAdapterInterface
                         'provider_url' => "https://dataspace.copernicus.eu/browser/?id={$sceneId}",
                         'processing_status' => 'cataloged',
                         'metadata' => [
-                            'content_length' => $prod['ContentLength'] ?? null,
+                            'content_length' => $contentLen,
                             'origin' => 'ESA Copernicus Data Space',
                         ],
                     ]);
@@ -238,14 +290,47 @@ class CopernicusSarAdapter implements ProviderAdapterInterface
                     'items_inserted' => $inserted,
                     'items_skipped' => $skipped,
                     'completed_at' => now(),
+                    'metadata_json' => json_encode([
+                        'dry_run' => $dryRun,
+                        'planned_insert' => $plannedInsert,
+                        'new_products_count' => count($newProducts),
+                        'estimated_download_mb' => round($totalEstimatedBytes / (1024 * 1024), 2),
+                    ]),
                 ]);
 
-                $provider->update([
-                    'last_sync_at' => now(),
-                    'health_status' => 'connected',
-                ]);
+                if (!$dryRun) {
+                    $provider->update([
+                        'last_sync_at' => now(),
+                        'health_status' => 'connected',
+                        'last_error_message' => null,
+                    ]);
+                } else {
+                    $provider->update([
+                        'health_status' => 'ready_to_sync',
+                        'last_error_message' => null,
+                    ]);
+                }
             } else {
-                throw new \Exception('Copernicus Catalog error: ' . $response->body());
+                $rawBody = $response->body();
+                $refId = null;
+                if (preg_match('/reference ID:\s*(\d+)/i', $rawBody, $m)) {
+                    $refId = $m[1];
+                }
+
+                if ($response->status() === 403) {
+                    $providerStatus = 'catalog_access_failed';
+                    $errorMsg = 'Akses katalog OData ditolak oleh security policy CDSE WAF (HTTP 403: Request violation' . ($refId ? ", Ref ID: {$refId}" : '') . '). Kredensial OAuth2 valid, tetapi katalog dibatasi oleh firewall CDSE.';
+                } else {
+                    $providerStatus = 'error';
+                    $errorMsg = "Copernicus Catalog error: HTTP {$response->status()}";
+                }
+
+                $provider->update([
+                    'health_status' => $providerStatus,
+                    'last_error_message' => $errorMsg,
+                ]);
+
+                throw new \Exception($errorMsg);
             }
         } catch (\Throwable $e) {
             $errors[] = $e->getMessage();
@@ -260,9 +345,14 @@ class CopernicusSarAdapter implements ProviderAdapterInterface
 
         return [
             'status' => empty($errors) ? 'completed' : 'failed',
+            'dry_run' => $dryRun,
             'fetched' => $fetched,
             'inserted' => $inserted,
+            'planned_insert' => $plannedInsert,
             'skipped' => $skipped,
+            'new_products' => $newProducts,
+            'estimated_download_mb' => round($totalEstimatedBytes / (1024 * 1024), 2),
+            'database_writes' => $dryRun ? 0 : $inserted,
             'errors' => $errors,
         ];
     }

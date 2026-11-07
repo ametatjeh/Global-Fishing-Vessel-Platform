@@ -267,7 +267,7 @@ class SystemHealthService
             'status' => $freshnessRating === 'LIVE' ? 'ok' : 'stale',
             'freshness_rating' => $freshnessRating,
             'latest_observation' => $latestObservedAt?->toIso8601String(),
-            'age_minutes' => $latestObservedAt ? round(now()->diffInMinutes($latestObservedAt)) : null,
+            'age_minutes' => $latestObservedAt ? max(0, round($latestObservedAt->diffInMinutes(now()))) : null,
             'metrics' => [
                 'live_under_2h' => $liveCount,
                 'stale_2h_to_6h' => $staleCount,
@@ -284,16 +284,45 @@ class SystemHealthService
      */
     public function getCopernicusStatus(): array
     {
-        $clientId = config('maritime.providers.copernicus.client_id');
+        $clientId = config('maritime.providers.copernicus_sar.client_id') ?? config('maritime.providers.copernicus.client_id');
         $isConfigured = !empty($clientId);
 
+        $provider = \App\Models\DataProvider::where('slug', 'copernicus-sentinel-1')->first();
+        $healthStatus = $provider?->health_status;
+
+        $status = 'not_configured';
+        $keycloakStatus = 'not_configured';
+        $catalogStatus = 'inactive';
+
+        if ($isConfigured) {
+            if ($healthStatus === 'catalog_access_failed') {
+                $status = 'catalog_access_failed';
+                $keycloakStatus = 'valid';
+                $catalogStatus = 'access_denied_waf';
+            } elseif (in_array($healthStatus, ['authenticated', 'ready_to_sync', 'connected'])) {
+                $status = 'authenticated';
+                $keycloakStatus = 'valid';
+                $catalogStatus = 'active';
+            } elseif ($healthStatus === 'authentication_failed' || $healthStatus === 'error') {
+                $status = 'error';
+                $keycloakStatus = 'invalid';
+                $catalogStatus = 'inactive';
+            } else {
+                $status = 'authenticated';
+                $keycloakStatus = 'valid';
+                $catalogStatus = 'active';
+            }
+        }
+
         return [
-            'status' => $isConfigured ? 'authenticated' : 'not_configured',
+            'status' => $status,
             'provider' => 'Copernicus Data Space Ecosystem (CDSE)',
-            'oauth2_keycloak' => $isConfigured ? 'valid' : 'not_configured',
-            'odata_catalog' => $isConfigured ? 'active' : 'inactive',
+            'oauth2_keycloak' => $keycloakStatus,
+            'odata_catalog' => $catalogStatus,
             'download_capability' => 'quota_constrained_manual',
             'scientific_data' => 'Sentinel-1 C-SAR GRD Products (SAFE format)',
+            'last_sync_at' => $provider?->last_sync_at?->toIso8601String(),
+            'last_error' => $provider?->last_error_message,
             'notice' => 'OAuth2 authentication does not grant unlimited bandwidth; downloads require quota management.',
         ];
     }

@@ -44,8 +44,17 @@
         <div class="glass-panel p-4 rounded-2xl border border-slate-800 space-y-1 shadow-lg">
             <div class="flex items-center justify-between">
                 <span class="text-slate-400 text-[11px]">Kanal Ingestion AIS:</span>
-                <span class="px-1.5 py-0.2 rounded text-[9px] font-mono uppercase {{ $aisProvider?->health_status === 'connected' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-slate-800 text-slate-400' }}">
-                    {{ $aisProvider?->health_status ?? 'STANDBY' }}
+                @php
+                    $status = $aisProvider?->health_status ?? 'STANDBY';
+                    $badgeClass = match ($status) {
+                        'streaming', 'connected' => 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40',
+                        'awaiting_telemetry' => 'bg-amber-500/20 text-amber-300 border border-amber-500/40',
+                        'stale' => 'bg-amber-500/20 text-amber-300 border border-amber-500/40',
+                        default => 'bg-slate-800 text-slate-400 border border-slate-700',
+                    };
+                @endphp
+                <span class="px-1.5 py-0.2 rounded text-[9px] font-mono uppercase {{ $badgeClass }}">
+                    {{ str_replace('_', ' ', $status) }}
                 </span>
             </div>
             <div class="font-bold text-white text-sm">{{ $aisProvider?->name ?? 'AIS Stream Live Gateway' }}</div>
