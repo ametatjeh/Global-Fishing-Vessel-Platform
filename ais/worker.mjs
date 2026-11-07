@@ -4,7 +4,8 @@
  * 
  * Features:
  * - RFC 6455 WebSocket client connecting to wss://stream.aisstream.io/v0/stream
- * - Global bounding box: [[[-90.0, -180.0], [90.0, 180.0]]]
+ * - Early In-Memory Filtering for Non-Fishing Targets (Cargo, Tanker, Pleasure Craft)
+ * - Configurable bounding box (default or regional priority)
  * - Subscribes to 5 ITU message types: PositionReport, ShipStaticData,
  *   StandardClassBPositionReport, ExtendedClassBPositionReport, StaticDataReport
  * - Bounded message queue with memory-leak protection (FIFO eviction if backend is offline)
@@ -58,6 +59,19 @@ const BATCH_SIZE = parseInt(process.env.AIS_BATCH_SIZE || '50', 10);
 const BATCH_INTERVAL_MS = parseInt(process.env.AIS_BATCH_INTERVAL_MS || '2000', 10);
 const MAX_QUEUE_SIZE = parseInt(process.env.AIS_MAX_QUEUE_SIZE || '1000', 10);
 
+// Parse custom bounding box or default to global
+let boundingBoxes = [[[-90.0, -180.0], [90.0, 180.0]]];
+if (process.env.AIS_BOUNDING_BOXES) {
+    try {
+        const parsed = JSON.parse(process.env.AIS_BOUNDING_BOXES);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+            boundingBoxes = parsed;
+        }
+    } catch {
+        console.warn(' [WARN] Failed to parse AIS_BOUNDING_BOXES from .env, using default.');
+    }
+}
+
 function maskSecret(str) {
     if (!str || str.length <= 8) return '****';
     return `${str.substring(0, 4)}...${str.substring(str.length - 4)}`;
@@ -66,12 +80,13 @@ function maskSecret(str) {
 console.log('='.repeat(65));
 console.log(' [GFVIP] AISStream Live Telemetry Worker (aaPanel / Node.js ESM)');
 console.log('='.repeat(65));
-console.log(` Target Stream:  ${AIS_STREAM_URL}`);
-console.log(` Backend Batch:  ${AIS_BACKEND_URL}`);
-console.log(` Stream Key:     ${maskSecret(AIS_STREAM_API_KEY)}`);
-console.log(` Ingest Token:   ${maskSecret(AIS_INGEST_TOKEN)}`);
-console.log(` Batch Config:   ${BATCH_SIZE} items or ${BATCH_INTERVAL_MS}ms window`);
-console.log(` Queue Capacity: ${MAX_QUEUE_SIZE} (bounded memory leak guard)`);
+console.log(` Target Stream:   ${AIS_STREAM_URL}`);
+console.log(` Backend Batch:   ${AIS_BACKEND_URL}`);
+console.log(` Stream Key:      ${maskSecret(AIS_STREAM_API_KEY)}`);
+console.log(` Ingest Token:    ${maskSecret(AIS_INGEST_TOKEN)}`);
+console.log(` Batch Config:    ${BATCH_SIZE} items or ${BATCH_INTERVAL_MS}ms window`);
+console.log(` Queue Capacity:  ${MAX_QUEUE_SIZE} (bounded memory leak guard)`);
+console.log(` Policy Filter:   Cargo (70-79), Tanker (80-89), Pleasure (37) DROPPED`);
 console.log('='.repeat(65));
 
 if (!AIS_STREAM_API_KEY) {
@@ -107,7 +122,27 @@ let activeWs = null;
 let totalReceived = 0;
 let totalSent = 0;
 let totalDropped = 0;
+let totalFilteredOut = 0;
 let totalFailedBatches = 0;
+
+// Dynamic In-Memory Blocklist for Cargo, Tanker, and Pleasure Craft
+const blockedMmsis = new Set();
+const MAX_BLOCKED_SET_SIZE = 50000;
+
+/**
+ * Check if ITU ship type code represents a prohibited vessel (Cargo, Tanker, Pleasure)
+ */
+function isProhibitedShipType(typeCode) {
+    if (!typeCode || isNaN(typeCode)) return false;
+    const code = parseInt(typeCode, 10);
+    // 37: Pleasure Craft
+    if (code === 37) return true;
+    // 70–79: Cargo Ships
+    if (code >= 70 && code <= 79) return true;
+    // 80–89: Tankers
+    if (code >= 80 && code <= 89) return true;
+    return false;
+}
 
 /**
  * Send batch of collected messages to Laravel backend
@@ -135,7 +170,7 @@ async function flushQueue() {
             const data = await response.json();
             totalSent += batch.length;
             const now = new Date().toISOString();
-            console.log(` [${now}] Batch flushed: ${batch.length} msgs (Ingested: ${data.inserted || 0}, Skipped: ${data.skipped || 0}, Pending in queue: ${messageQueue.length})`);
+            console.log(` [${now}] Batch flushed: ${batch.length} msgs (Ingested: ${data.inserted || 0}, Skipped: ${data.skipped || 0}, Blocked locally: ${totalFilteredOut}, Pending: ${messageQueue.length})`);
         } else {
             totalFailedBatches++;
             const errText = await response.text();
@@ -192,7 +227,7 @@ function connectWebSocket() {
 
         const subscriptionMessage = {
             APIKey: AIS_STREAM_API_KEY,
-            BoundingBoxes: [[[-90.0, -180.0], [90.0, 180.0]]],
+            BoundingBoxes: boundingBoxes,
             FilterMessageTypes: [
                 'PositionReport',
                 'ShipStaticData',
@@ -217,6 +252,48 @@ function connectWebSocket() {
             }
 
             totalReceived++;
+
+            // Extract MMSI and message details
+            const msgType = json.MessageType;
+            const messageObj = json.Message || {};
+            const meta = json.MetaData || {};
+            const mmsi = String(meta.MMSI || messageObj[msgType]?.UserID || '').replace(/\D/g, '');
+
+            // 1. Check if MMSI is already in our blocked set (Cargo, Tanker, Pleasure)
+            if (mmsi && blockedMmsis.has(mmsi)) {
+                totalFilteredOut++;
+                return; // Early drop - 0 bytes sent to backend
+            }
+
+            // 2. Inspect static metadata frames for vessel type classification
+            if (msgType === 'ShipStaticData') {
+                const staticData = messageObj.ShipStaticData || {};
+                const shipType = staticData.Type;
+                if (isProhibitedShipType(shipType)) {
+                    if (mmsi) {
+                        if (blockedMmsis.size >= MAX_BLOCKED_SET_SIZE) {
+                            // Clear a portion to prevent unbounded growth
+                            blockedMmsis.clear();
+                        }
+                        blockedMmsis.add(mmsi);
+                    }
+                    totalFilteredOut++;
+                    return; // Early drop
+                }
+            } else if (msgType === 'StaticDataReport') {
+                const staticReport = messageObj.StaticDataReport || {};
+                const shipType = staticReport.ReportB?.ShipType;
+                if (isProhibitedShipType(shipType)) {
+                    if (mmsi) {
+                        if (blockedMmsis.size >= MAX_BLOCKED_SET_SIZE) {
+                            blockedMmsis.clear();
+                        }
+                        blockedMmsis.add(mmsi);
+                    }
+                    totalFilteredOut++;
+                    return; // Early drop
+                }
+            }
 
             // Push to bounded queue
             if (messageQueue.length >= MAX_QUEUE_SIZE) {
@@ -274,10 +351,11 @@ async function gracefulShutdown(signal) {
 
     console.log('='.repeat(65));
     console.log(' [SUMMARY] AIS Worker Session Closed:');
-    console.log(` Total Received: ${totalReceived}`);
-    console.log(` Total Sent:     ${totalSent}`);
-    console.log(` Total Dropped:  ${totalDropped}`);
-    console.log(` Failed Batches: ${totalFailedBatches}`);
+    console.log(` Total Received:     ${totalReceived}`);
+    console.log(` Total Sent:         ${totalSent}`);
+    console.log(` Filtered Locally:   ${totalFilteredOut} (Cargo/Tanker/Pleasure dropped)`);
+    console.log(` Total Dropped:      ${totalDropped}`);
+    console.log(` Failed Batches:     ${totalFailedBatches}`);
     console.log('='.repeat(65));
     process.exit(0);
 }
@@ -287,4 +365,3 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 // Start worker
 connectWebSocket();
-

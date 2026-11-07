@@ -448,8 +448,8 @@ class AisStreamAdapter implements ProviderAdapterInterface
             'session_messages_received' => $fetched,
             'session_inserted' => $inserted,
             'session_skipped' => $skipped,
-            'total_positions_in_db' => VesselPosition::count(),
-            'total_vessels_in_db' => Vessel::count(),
+            'total_positions_in_db' => \Illuminate\Support\Facades\Cache::remember('vessel_positions_count_metric', 300, fn() => VesselPosition::count()),
+            'total_vessels_in_db' => \Illuminate\Support\Facades\Cache::remember('vessels_count_metric', 300, fn() => Vessel::count()),
         ];
 
         if ($inserted > 0) {
@@ -673,8 +673,8 @@ class AisStreamAdapter implements ProviderAdapterInterface
             'batch_messages_received' => $received,
             'batch_inserted' => $inserted,
             'batch_skipped' => $skipped,
-            'total_positions_in_db' => VesselPosition::count(),
-            'total_vessels_in_db' => Vessel::count(),
+            'total_positions_in_db' => \Illuminate\Support\Facades\Cache::remember('vessel_positions_count_metric', 300, fn() => VesselPosition::count()),
+            'total_vessels_in_db' => \Illuminate\Support\Facades\Cache::remember('vessels_count_metric', 300, fn() => Vessel::count()),
         ];
 
         $provider->update([
@@ -841,12 +841,12 @@ class AisStreamAdapter implements ProviderAdapterInterface
 
         if ($rawShipType !== null && $rawShipType !== '') {
             $normalized = self::normalizeVesselType($rawShipType);
-            // SECTION C: Tolak penyimpanan kapal dengan klasifikasi cargo atau tanker pada pipeline AIS
-            if (in_array($normalized, ['cargo', 'tanker'])) {
+            // SECTION C: Tolak penyimpanan kapal dengan klasifikasi cargo, tanker, atau pleasure pada pipeline AIS
+            if (in_array($normalized, ['cargo', 'tanker', 'pleasure'])) {
                 \App\Models\ProhibitedVessel::firstOrCreate(
                     ['mmsi' => $cleanMmsi],
                     [
-                        'reason' => 'cargo_tanker_policy',
+                        'reason' => 'cargo_tanker_pleasure_policy',
                         'original_name' => $shipName,
                         'original_type' => $normalized,
                     ]
@@ -1052,12 +1052,12 @@ class AisStreamAdapter implements ProviderAdapterInterface
 
         if ($rawShipType !== null && $rawShipType !== '') {
             $normalized = self::normalizeVesselType($rawShipType);
-            // SECTION C: Strictly reject storing cargo or tanker vessels on AIS pipeline
-            if (in_array($normalized, ['cargo', 'tanker'])) {
+            // SECTION C: Strictly reject storing cargo, tanker, or pleasure vessels on AIS pipeline
+            if (in_array($normalized, ['cargo', 'tanker', 'pleasure'])) {
                 \App\Models\ProhibitedVessel::firstOrCreate(
                     ['mmsi' => $cleanMmsi],
                     [
-                        'reason' => 'cargo_tanker_policy',
+                        'reason' => 'cargo_tanker_pleasure_policy',
                         'original_name' => $shipName,
                         'original_type' => $normalized,
                     ]

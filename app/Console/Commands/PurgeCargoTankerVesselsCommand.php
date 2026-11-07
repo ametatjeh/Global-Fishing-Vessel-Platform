@@ -11,12 +11,12 @@ class PurgeCargoTankerVesselsCommand extends Command
                             {--confirm : Konfirmasi eksplisit untuk menjalankan penghapusan aktual}
                             {--dry-run : Paksa mode simulasi pemeriksaan tanpa menghapus data}';
 
-    protected $description = 'Audit dan pembersihan terkontrol data internal kapal cargo dan tanker (GFVIP)';
+    protected $description = 'Audit dan pembersihan terkontrol data internal kapal non-fishing (Cargo, Tanker, Pleasure) (GFVIP)';
 
     public function handle(VesselPurgeService $purgeService): int
     {
         $this->info('====================================================================');
-        $this->info(' GFVIP - AUDIT & PEMBERSIHAN DATA INTERNAL KAPAL CARGO & TANKER');
+        $this->info(' GFVIP - AUDIT & PEMBERSIHAN DATA KAPAL NON-FISHING (CARGO, TANKER, PLEASURE)');
         $this->info('====================================================================');
 
         $isDryRun = !$this->option('confirm') || $this->option('dry-run');
@@ -38,7 +38,7 @@ class PurgeCargoTankerVesselsCommand extends Command
             return self::SUCCESS;
         }
 
-        $this->alert('PERINGATAN: MENJALANKAN PENGHAPUSAN AKTUAL DATA INTERNAL CARGO & TANKER');
+        $this->alert('PERINGATAN: MENJALANKAN PENGHAPUSAN AKTUAL DATA INTERNAL CARGO, TANKER & PLEASURE');
         $this->line('Membuat backup snapshot sebelum pembersihan...');
 
         $result = $purgeService->executePurge(dryRun: false);
@@ -54,10 +54,12 @@ class PurgeCargoTankerVesselsCommand extends Command
                 [
                     ['Kapal Cargo (vessels)', $deleted['cargo_vessels']],
                     ['Kapal Tanker (vessels)', $deleted['tanker_vessels']],
+                    ['Kapal Pleasure (vessels)', $deleted['pleasure_vessels']],
                     ['Total Kapal Dihapus', $deleted['total_vessels']],
-                    ['Posisi Terkait (vessel_positions)', $deleted['positions']],
-                    ['Identifier Terkait (vessel_identifiers)', $deleted['identifiers']],
-                    ['Jalur Track Terkait (vessel_tracks)', $deleted['tracks']],
+                    ['Kapal Dilindungi / Dipertahankan (Encounter/SAR)', $result['protected_vessels_preserved'] ?? 0],
+                    ['Posisi Terkait Dihapus (vessel_positions)', $deleted['positions']],
+                    ['Identifier Terkait Dihapus (vessel_identifiers)', $deleted['identifiers']],
+                    ['Jalur Track Terkait Dihapus (vessel_tracks)', $deleted['tracks']],
                     ['MMSI Didaftarkan ke Prohibited Registry', $result['prohibited_mmsis_registered']],
                 ]
             );
@@ -88,17 +90,21 @@ class PurgeCargoTankerVesselsCommand extends Command
             [
                 ['Cargo', $inspection['cargo']['count'], implode(', ', array_column($inspection['cargo']['vessels'], 'mmsi')) ?: '-'],
                 ['Tanker', $inspection['tanker']['count'], implode(', ', array_column($inspection['tanker']['vessels'], 'mmsi')) ?: '-'],
-                ['Total Target', $inspection['total_target_vessels'], implode(', ', $inspection['target_mmsis']) ?: '-'],
+                ['Pleasure Craft', $inspection['pleasure']['count'], implode(', ', array_column($inspection['pleasure']['vessels'], 'mmsi')) ?: '-'],
+                ['Total Target Teridentifikasi', $inspection['total_target_vessels'], implode(', ', $inspection['target_mmsis']) ?: '-'],
             ]
         );
 
         $this->newLine();
         $this->line('<fg=cyan;options=bold>2. Estimasi Objek Database yang Terdampak:</>');
         $this->table(
-            ['Tabel Operasional', 'Jumlah Record yang Akan Dihapus'],
+            ['Tabel Operasional', 'Status & Jumlah Record'],
             [
-                ['vessels', $inspection['impacted_records']['vessels']],
-                ['vessel_positions', $inspection['impacted_records']['vessel_positions']],
+                ['vessels (Total Ditemukan)', $inspection['impacted_records']['vessels_total']],
+                ['vessels (Dapat Dihapus Aman)', $inspection['impacted_records']['vessels_deletable']],
+                ['vessels (Dilindungi - Terikat Encounter/SAR)', $inspection['impacted_records']['vessels_protected']],
+                ['vessel_positions (Total Ditemukan)', $inspection['impacted_records']['vessel_positions']],
+                ['vessel_positions (Dihapus dari Kapal Bebas)', $inspection['impacted_records']['vessel_positions_deletable']],
                 ['vessel_identifiers', $inspection['impacted_records']['vessel_identifiers']],
                 ['vessel_tracks', $inspection['impacted_records']['vessel_tracks']],
             ]
@@ -110,13 +116,13 @@ class PurgeCargoTankerVesselsCommand extends Command
         $this->table(
             ['Entitas Bukti / Referensi', 'Status Integritas'],
             [
-                ['vessel_encounters (Vessel 1)', $prot['vessel_encounters_v1'] . ' referensi (Dilindungi)'],
-                ['vessel_encounters (Vessel 2)', $prot['vessel_encounters_v2'] . ' referensi (Dilindungi)'],
-                ['encounter_vessels', $prot['encounter_vessels'] . ' referensi (Dilindungi)'],
-                ['investigations', $prot['investigations'] . ' investigasi aktif (Dilindungi)'],
-                ['compliance_events', $prot['compliance_events'] . ' pelanggaran kepatuhan (Dilindungi)'],
+                ['vessel_encounters (Vessel 1)', ($prot['vessel_encounters_v1'] ?? 0) . ' referensi (Dilindungi)'],
+                ['vessel_encounters (Vessel 2)', ($prot['vessel_encounters_v2'] ?? 0) . ' referensi (Dilindungi)'],
+                ['encounter_vessels', ($prot['encounter_vessels'] ?? 0) . ' referensi (Dilindungi)'],
+                ['sar_correlations (satellite_detections)', ($prot['sar_correlations'] ?? 0) . ' korelasi (Dilindungi)'],
+                ['investigations', ($prot['investigations'] ?? 0) . ' investigasi aktif (Dilindungi)'],
+                ['compliance_events', ($prot['compliance_events'] ?? 0) . ' pelanggaran kepatuhan (Dilindungi)'],
                 ['audit_logs', 'Seluruh riwayat audit dipertahankan utuh'],
-                ['sar_candidates / evidence', 'Seluruh deteksi & crop radar SAR tetap utuh'],
             ]
         );
 
@@ -126,4 +132,3 @@ class PurgeCargoTankerVesselsCommand extends Command
         $this->line(sprintf(' - Kapal Lainnya (Patrol, Support, Research): <fg=green;options=bold>%d</>', $inspection['other_vessels_remaining']));
     }
 }
-
