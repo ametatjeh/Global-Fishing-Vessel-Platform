@@ -54,39 +54,11 @@
             <button type="button" id="btnResetView" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition border border-slate-700" title="Pusatkan peta ke tampilan awal">
                 Reset View
             </button>
-
-            <!-- Basemap Switcher Dropdown Button -->
-            <div class="relative">
-                <button type="button" id="btnToggleBasemapMenu" class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold border border-slate-700 flex items-center gap-1.5 transition" title="Ganti penyedia base map">
-                    <span>🗺️</span>
-                    <span class="hidden sm:inline">Base:</span>
-                    <span id="activeBasemapName" class="text-teal-300 font-bold">OpenFreeMap</span>
-                    <span class="text-[9px]">▼</span>
-                </button>
-                <div id="basemapMenuDropdown" class="hidden absolute top-full left-0 mt-1.5 w-60 rounded-xl glass-panel border border-slate-700/90 shadow-2xl p-1.5 z-30 space-y-1 text-xs">
-                    <button type="button" class="btn-select-style w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 flex items-center justify-between text-slate-200 transition" data-style="openfreemap-liberty">
-                        <span class="font-semibold">OpenFreeMap Liberty</span>
-                        <span class="text-[10px] text-teal-400 font-mono">Vector (Default)</span>
-                    </button>
-                    <button type="button" class="btn-select-style w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 flex items-center justify-between text-slate-200 transition" data-style="openfreemap-positron">
-                        <span class="font-semibold">OpenFreeMap Positron</span>
-                        <span class="text-[10px] text-teal-400 font-mono">Vector (Light)</span>
-                    </button>
-                    <button type="button" class="btn-select-style w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 flex items-center justify-between text-slate-200 transition" data-style="openfreemap-bright">
-                        <span class="font-semibold">OpenFreeMap Bright</span>
-                        <span class="text-[10px] text-teal-400 font-mono">Vector (Contrast)</span>
-                    </button>
-                    <button type="button" class="btn-select-style w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 flex items-center justify-between text-slate-200 transition" data-style="esri-dark">
-                        <span class="font-semibold">ESRI Dark Gray</span>
-                        <span class="text-[10px] text-amber-400 font-mono">Canvas Fallback</span>
-                    </button>
-                </div>
-            </div>
         </div>
 
         <!-- Coverage & Metadata Modal Trigger -->
         <div class="pointer-events-auto flex items-center gap-2 p-1.5 rounded-xl glass-panel border border-slate-700/80 shadow-lg text-[11px]">
-            <span class="text-slate-400 font-semibold px-2">Basemap: <strong class="text-teal-300">OpenFreeMap</strong> (ESRI Dark Gray fallback)</span>
+            <span class="text-slate-400 font-semibold px-2">Kawasan: <strong class="text-emerald-400">ASEAN EEZ &amp; AIS Fleet</strong></span>
             <button type="button" id="btnOpenMetadataModal" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700 transition">
                 📜 Provenance & Legal
             </button>
@@ -122,8 +94,8 @@
             <span id="cursorCoordinates">Lat: 0.00000°, Lon: 0.00000° | Zoom: 3.50</span>
         </div>
         <div class="pointer-events-auto hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-panel border border-slate-700/80 shadow-md text-[11px] font-mono text-slate-400">
-            <span>Penyedia Peta:</span>
-            <span id="currentBasemapLabel" class="text-teal-300 font-semibold">OpenFreeMap Liberty</span>
+            <span>Kawasan:</span>
+            <span class="text-emerald-400 font-semibold">ASEAN Exclusive Economic Zones</span>
         </div>
     </div>
 
@@ -553,60 +525,25 @@
                 </label>
             </div>
 
-            <!-- GROUP: MARITIME CONTEXT -->
+            <!-- GROUP: MARITIME CONTEXT (ASEAN REGIONAL) -->
             <div class="space-y-1.5 pt-1 border-t border-slate-800">
-                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Konteks Geospasial Maritim</div>
+                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Konteks Geospasial Maritim Regional</div>
 
-                <!-- EEZ Boundaries (Official Treaty & 200NM Lines) -->
-                <label class="flex items-start justify-between p-2 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-slate-600 transition cursor-pointer">
+                <!-- ASEAN Exclusive Economic Zones (EEZ) -->
+                <label class="flex items-start justify-between p-2 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-emerald-500/50 transition cursor-pointer">
                     <div class="flex items-start gap-2.5">
-                        <input type="checkbox" id="toggle-layer-eez-boundaries" checked class="mt-0.5 rounded bg-slate-800 border-slate-700 text-slate-400 focus:ring-slate-400">
+                        <input type="checkbox" id="toggle-layer-asean-eez" checked class="mt-0.5 rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-emerald-400">
                         <div>
                             <div class="font-bold text-slate-200 flex items-center gap-1.5">
-                                <span class="w-3 h-0.5 bg-slate-400"></span>
-                                <span>EEZ Boundaries</span>
+                                <span class="w-2.5 h-2.5 rounded-sm bg-emerald-500/20 border border-emerald-500"></span>
+                                <span>ASEAN Exclusive Economic Zones (EEZ)</span>
                             </div>
-                            <p class="text-[10px] text-slate-400 mt-0.5">Garis batas maritim resmi (Treaty & 200NM)</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Poligon ZEE &amp; Batas Maritim Resmi ASEAN (v12)</p>
                         </div>
                     </div>
                     <div class="text-right">
-                        <span id="loading-eezBoundaries" class="text-[10px] text-slate-400 animate-spin" style="display: none;">⏳</span>
-                        <span id="count-eezBoundaries" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">0</span>
-                    </div>
-                </label>
-
-                <!-- EEZ Zones (Polygons / Fill) -->
-                <label class="flex items-start justify-between p-2 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-teal-500/50 transition cursor-pointer">
-                    <div class="flex items-start gap-2.5">
-                        <input type="checkbox" id="toggle-layer-eez" checked class="mt-0.5 rounded bg-slate-800 border-slate-700 text-teal-500 focus:ring-teal-400">
-                        <div>
-                            <div class="font-bold text-slate-200 flex items-center gap-1.5">
-                                <span class="w-2.5 h-2.5 rounded-sm bg-teal-500/20 border border-teal-500"></span>
-                                <span>World EEZ Zones (Poligon)</span>
-                            </div>
-                            <p class="text-[10px] text-slate-400 mt-0.5">Maritime Boundaries 200NM (VLIZ v12)</p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <span id="loading-eez" class="text-[10px] text-teal-400 animate-spin" style="display: none;">⏳</span>
-                        <span id="count-eez" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-teal-300 border border-teal-900">0</span>
-                    </div>
-                </label>
-
-                <label class="flex items-start justify-between p-2 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-blue-500/50 transition cursor-pointer">
-                    <div class="flex items-start gap-2.5">
-                        <input type="checkbox" id="toggle-layer-fao" checked class="mt-0.5 rounded bg-slate-800 border-slate-700 text-blue-500 focus:ring-blue-400">
-                        <div>
-                            <div class="font-bold text-slate-200 flex items-center gap-1.5">
-                                <span class="w-2.5 h-2.5 rounded-sm bg-blue-500/40 border border-blue-400 border-dashed"></span>
-                                <span>FAO Major Fishing Areas</span>
-                            </div>
-                            <p class="text-[10px] text-slate-400 mt-0.5">Wilayah Statistik Perikanan Global</p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <span id="loading-fao" class="text-[10px] text-blue-400 animate-spin" style="display: none;">⏳</span>
-                        <span id="count-fao" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-blue-300 border border-blue-900">0</span>
+                        <span id="loading-aseanEez" class="text-[10px] text-emerald-400 animate-spin" style="display: none;">⏳</span>
+                        <span id="count-aseanEez" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300 border border-emerald-900">0</span>
                     </div>
                 </label>
             </div>
@@ -656,12 +593,40 @@
                 </div>
             </div>
 
+            <!-- ASEAN EEZ Delimitation Status Legend -->
+            <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2 text-[10px] font-mono">
+                <div class="text-[9px] uppercase font-bold text-emerald-400 tracking-wider flex items-center justify-between">
+                    <span>Status Batas Maritim ASEAN</span>
+                    <span class="text-slate-400 text-[9px]">Marine Regions v12</span>
+                </div>
+                <div class="space-y-1.5 text-slate-300">
+                    <div class="flex items-center gap-2">
+                        <span class="w-4 h-0.5 bg-emerald-500 shrink-0"></span>
+                        <span class="truncate">Agreed / Delimitated (Traktat Resmi)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-4 h-0.5 bg-amber-500 border-b border-dashed border-amber-400 shrink-0"></span>
+                        <span class="truncate">Undelimited / Unresolved (Median Line)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-4 h-0.5 bg-rose-500 border-b border-dashed border-rose-400 shrink-0"></span>
+                        <span class="truncate">Disputed / Overlapping Claim</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-4 h-0.5 bg-purple-500 border-b border-dashed border-purple-400 shrink-0"></span>
+                        <span class="truncate">Joint Regime Area (Zona Bersama)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-2 bg-emerald-500/10 border border-emerald-500/40 shrink-0 rounded-sm"></span>
+                        <span class="truncate">ASEAN EEZ (Poligon 200 NM)</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="grid grid-cols-2 gap-2 text-slate-300 text-[10px] font-mono">
                 <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Matched AIS</div>
                 <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Possible Vessel</div>
                 <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-cyan-400"></span> Possible Ice/Clutter</div>
-                <div class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-slate-400"></span> EEZ Boundaries</div>
-                <div class="flex items-center gap-1.5"><span class="w-2.5 h-2 bg-teal-500/20 border border-teal-500"></span> EEZ Zones (Fill)</div>
                 <div class="flex items-center gap-1.5"><span class="w-2.5 h-0.5 bg-amber-400"></span> AIS Track</div>
                 <div class="flex items-center gap-1.5 col-span-2"><span class="w-2.5 h-2 bg-purple-500/30 border border-purple-400"></span> SAR Footprint</div>
             </div>
@@ -691,31 +656,17 @@
 
         <div class="space-y-3 max-h-[60vh] overflow-y-auto pr-2 text-slate-300">
             <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <div class="font-bold text-teal-300">1. ESRI World Dark Gray Canvas Basemap</div>
-                <div>Sumber: Esri, DeLorme, NAVTEQ, USGS, FAO, NOAA</div>
-                <div>Lisensi: Esri Master License Agreement / Open Web Map Service</div>
-                <div class="text-[11px] text-slate-400 italic">Peta kanvas abu-abu gelap dengan kontras tinggi khusus visualisasi maritim.</div>
-            </div>
-
-            <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <div class="font-bold text-purple-300">2. Sentinel-1 C-SAR Radar Scenes (Copernicus)</div>
+                <div class="font-bold text-purple-300">1. Sentinel-1 C-SAR Radar Scenes (Copernicus)</div>
                 <div>Sumber: European Space Agency (ESA) &bull; Copernicus Data Space Ecosystem</div>
                 <div>Lisensi: Copernicus Sentinel Data Legal Notice (Open Access)</div>
                 <div class="text-[11px] text-slate-400 italic">Cakupan citra SAR C-band Synthetic Aperture Radar untuk deteksi anomali maritim.</div>
             </div>
 
             <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <div class="font-bold text-indigo-300">3. FAO Major Fishing Areas for Statistical Purposes</div>
-                <div>Sumber: FAO Fisheries and Aquaculture Division &bull; FAO GeoNetwork</div>
-                <div>Lisensi: FAO Open Access Terms / CC-BY-NC-SA 3.0 IGO</div>
-                <div class="text-[11px] text-slate-400 italic">Dataset resmi untuk tujuan agregasi statistik, asesmen stok, dan pelaporan perikanan internasional.</div>
-            </div>
-
-            <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <div class="font-bold text-teal-300">4. Maritime Boundaries and Exclusive Economic Zones (200NM)</div>
+                <div class="font-bold text-emerald-300">2. ASEAN Exclusive Economic Zones (EEZ) &amp; Maritime Boundaries</div>
                 <div>Sumber: Flanders Marine Institute (VLIZ) Marine Regions v12</div>
                 <div>Lisensi: Creative Commons Attribution 4.0 International (CC BY 4.0)</div>
-                <div class="text-[11px] text-slate-400 italic">Batas yurisdiksi maritim negara pantai sesuai konvensi hukum laut UNCLOS 1982.</div>
+                <div class="text-[11px] text-slate-400 italic">Batas yurisdiksi maritim 200 NM dan garis delimitasi resmi negara anggota ASEAN &amp; Timor-Leste (UNCLOS 1982).</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-slate-900 border border-teal-500/30 space-y-1.5">
@@ -763,9 +714,7 @@
 
         // Checkbox Layer Toggles
         const layerToggles = [
-            { id: 'toggle-layer-eez-boundaries', key: 'eezBoundaries' },
-            { id: 'toggle-layer-eez', key: 'eez' },
-            { id: 'toggle-layer-fao', key: 'fao' },
+            { id: 'toggle-layer-asean-eez', key: 'aseanEez' },
             { id: 'toggle-layer-encounters', key: 'encounters' },
             { id: 'toggle-layer-vessels', key: 'vessels' },
             { id: 'toggle-layer-dark-vessels', key: 'darkVessels' },
@@ -1182,42 +1131,6 @@
                 }
             });
         }
-
-        // Basemap Switcher dropdown & styles
-        const btnToggleBasemap = document.getElementById('btnToggleBasemapMenu');
-        const basemapDropdown = document.getElementById('basemapMenuDropdown');
-        if (btnToggleBasemap && basemapDropdown) {
-            btnToggleBasemap.addEventListener('click', (e) => {
-                e.stopPropagation();
-                basemapDropdown.classList.toggle('hidden');
-            });
-            document.addEventListener('click', (e) => {
-                if (!basemapDropdown.contains(e.target) && !btnToggleBasemap.contains(e.target)) {
-                    basemapDropdown.classList.add('hidden');
-                }
-            });
-        }
-        document.querySelectorAll('.btn-select-style').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const style = e.currentTarget.getAttribute('data-style');
-                mapController.setBasemapStyle(style);
-                const activeName = document.getElementById('activeBasemapName');
-                if (activeName) {
-                    activeName.textContent = style === 'esri-dark' ? 'ESRI Dark' : 'OpenFreeMap';
-                }
-                const currentLabel = document.getElementById('currentBasemapLabel');
-                if (currentLabel) {
-                    const labelNames = {
-                        'openfreemap-liberty': 'OpenFreeMap Liberty',
-                        'openfreemap-positron': 'OpenFreeMap Positron',
-                        'openfreemap-bright': 'OpenFreeMap Bright',
-                        'esri-dark': 'ESRI Dark Gray'
-                    };
-                    currentLabel.textContent = labelNames[style] || style;
-                }
-                if (basemapDropdown) basemapDropdown.classList.add('hidden');
-            });
-        });
 
         // Close panels on Escape key
         document.addEventListener('keydown', (e) => {

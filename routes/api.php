@@ -19,6 +19,7 @@ Route::middleware(['web', 'role'])->group(function () {
         Route::get('/fao', [MapLayerApiController::class, 'fao'])->name('api.layers.fao');
         Route::get('/eez', [MapLayerApiController::class, 'eez'])->name('api.layers.eez');
         Route::get('/eez-boundaries', [MapLayerApiController::class, 'eezBoundaries'])->name('api.layers.eez-boundaries');
+        Route::get('/asean-eez', [MapLayerApiController::class, 'aseanEez'])->name('api.layers.asean-eez');
         Route::get('/fma', [MapLayerApiController::class, 'fma'])->name('api.layers.fma');
         Route::get('/vessels', [MapLayerApiController::class, 'vessels'])->name('api.layers.vessels');
         Route::get('/encounters', [MapLayerApiController::class, 'encounters'])->name('api.layers.encounters');

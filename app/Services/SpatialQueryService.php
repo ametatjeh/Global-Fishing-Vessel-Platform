@@ -199,6 +199,293 @@ class SpatialQueryService
     }
 
     /**
+     * ASEAN Member States + Candidate ISO-3 codes
+     */
+    public const ASEAN_ISO3 = ['BRN', 'KHM', 'IDN', 'LAO', 'MYS', 'MMR', 'PHL', 'SGP', 'THA', 'VNM', 'TLS'];
+
+    /**
+     * ASEAN Member States + Candidate Sovereignty Names
+     */
+    public const ASEAN_NAMES = [
+        'Brunei', 'Cambodia', 'Indonesia', 'Malaysia', 'Myanmar',
+        'Philippines', 'Singapore', 'Thailand', 'Vietnam', 'Timor-Leste', 'East Timor'
+    ];
+
+    /**
+     * Classify maritime boundary line delimitation status (4-level classification)
+     * 1. AGREED / DELIMITATED (Treaty, Court ruling)
+     * 2. UNDELIMITED / UNRESOLVED (Median line, Connection line, Unsettled, Baselines)
+     * 3. DISPUTED / OVERLAPPING CLAIM (Disputed, Overlapping claims)
+     * 4. JOINT REGIME (Joint development area / regime)
+     * 5. UNKNOWN / NOT VERIFIED (Fallback)
+     */
+    public static function classifyBoundaryStatus(?string $lineType, ?string $lineName): array
+    {
+        $lt = strtolower((string) $lineType);
+        $ln = strtolower((string) $lineName);
+
+        // 1. Joint Regime
+        if (str_contains($lt, 'joint regime') || str_contains($ln, 'joint regime') || str_contains($ln, 'joint development')) {
+            return [
+                'status' => 'JOINT_REGIME',
+                'status_label' => 'Joint Regime Area',
+                'color' => '#a855f7',
+                'dasharray' => [4, 2],
+            ];
+        }
+
+        // 2. Disputed / Overlapping Claim
+        if (str_contains($lt, 'disputed') || str_contains($ln, 'disputed') || str_contains($lt, 'overlapping') || str_contains($ln, 'overlapping')) {
+            return [
+                'status' => 'DISPUTED',
+                'status_label' => 'Disputed / Overlapping Claim',
+                'color' => '#f43f5e',
+                'dasharray' => [2, 2],
+            ];
+        }
+
+        // 3. Agreed / Delimitated
+        if ($lt === 'treaty' || $lt === 'court ruling' || str_contains($ln, 'treaty') || str_contains($ln, 'court ruling')) {
+            return [
+                'status' => 'AGREED',
+                'status_label' => 'Agreed / Delimitated',
+                'color' => '#10b981',
+                'dasharray' => null, // Solid line
+            ];
+        }
+
+        // 4. Undelimited / Unresolved
+        if (
+            str_contains($lt, 'median line') ||
+            str_contains($lt, 'connection line') ||
+            str_contains($lt, 'unsettled') ||
+            str_contains($lt, '200 nm') ||
+            str_contains($lt, 'baseline') ||
+            str_contains($lt, 'unilateral') ||
+            str_contains($lt, '12 nm')
+        ) {
+            return [
+                'status' => 'UNDELIMITED',
+                'status_label' => 'Undelimited / Unresolved (Median/Interim)',
+                'color' => '#f59e0b',
+                'dasharray' => [3, 2],
+            ];
+        }
+
+        // 5. Unknown / Not Verified
+        return [
+            'status' => 'UNKNOWN',
+            'status_label' => 'Unknown / Not Verified',
+            'color' => '#94a3b8',
+            'dasharray' => [1, 2],
+        ];
+    }
+
+    /**
+     * Get ASEAN Exclusive Economic Zones (EEZ) and Maritime Boundaries as GeoJSON FeatureCollection
+     *
+     * @param array|null $bbox
+     * @param string|null $search
+     * @param string $type 'all'|'polygons'|'boundaries'
+     * @return array
+     */
+    public function getAseanEezFeatureCollection(?array $bbox = null, ?string $search = null, string $type = 'all'): array
+    {
+        $features = [];
+        $polygonCount = 0;
+        $boundaryCount = 0;
+        $normalizedBBox = $this->normalizeBBox($bbox);
+
+        // 1. Fetch ASEAN EEZ Zones (Polygons)
+        if ($type === 'all' || $type === 'polygons') {
+            $zoneQuery = EezZone::query()->where(function ($q) {
+                $q->whereIn('sovereign_iso3', self::ASEAN_ISO3)
+                  ->orWhereIn('iso_ter1', self::ASEAN_ISO3);
+                foreach (self::ASEAN_NAMES as $name) {
+                    $q->orWhere('sovereign_state', 'like', "%{$name}%")
+                      ->orWhere('sovereign2', 'like', "%{$name}%")
+                      ->orWhere('sovereign3', 'like', "%{$name}%")
+                      ->orWhere('territory1', 'like', "%{$name}%")
+                      ->orWhere('geoname', 'like', "%{$name}%");
+                }
+            });
+
+            if ($search) {
+                $zoneQuery->where(function ($q) use ($search) {
+                    $q->where('geoname', 'like', "%{$search}%")
+                      ->orWhere('sovereign_state', 'like', "%{$search}%")
+                      ->orWhere('sovereign_iso3', 'like', "%{$search}%");
+                });
+            }
+
+            if ($normalizedBBox) {
+                $zoneQuery->inBoundingBox($normalizedBBox[0], $normalizedBBox[1], $normalizedBBox[2], $normalizedBBox[3]);
+            }
+
+            $zones = $zoneQuery->get();
+
+            foreach ($zones as $zone) {
+                $geom = is_array($zone->geometry_geojson) 
+                    ? $zone->geometry_geojson 
+                    : json_decode($zone->geometry_geojson, true);
+                if (!$geom) continue;
+
+                $polType = (string) $zone->pol_type;
+                $geoname = (string) $zone->geoname;
+
+                // Determine zone delimitation status
+                if (stripos($polType, 'overlapping') !== false || stripos($geoname, 'overlapping') !== false || stripos($polType, 'disputed') !== false) {
+                    $status = 'DISPUTED';
+                    $statusLabel = 'Disputed / Overlapping Claim';
+                    $color = '#f43f5e';
+                } elseif (stripos($polType, 'joint') !== false || stripos($geoname, 'joint') !== false) {
+                    $status = 'JOINT_REGIME';
+                    $statusLabel = 'Joint Regime Area';
+                    $color = '#a855f7';
+                } else {
+                    $status = 'AGREED';
+                    $statusLabel = 'National Exclusive Economic Zone (200 NM)';
+                    $color = '#10b981';
+                }
+
+                $bordering = array_filter([$zone->sovereign_state, $zone->sovereign2, $zone->sovereign3]);
+
+                $features[] = [
+                    'type' => 'Feature',
+                    'id' => 'zone-' . $zone->id,
+                    'geometry' => $geom,
+                    'properties' => [
+                        'id' => $zone->id,
+                        'feature_type' => 'zone',
+                        'geom_type' => $geom['type'] ?? 'Polygon',
+                        'name' => $zone->geoname,
+                        'country' => $zone->sovereign_state,
+                        'sovereign_iso3' => $zone->sovereign_iso3,
+                        'territory' => $zone->territory1,
+                        'zone_type' => $zone->pol_type,
+                        'delimitation_status' => $status,
+                        'status_label' => $statusLabel,
+                        'color' => $color,
+                        'area_sqkm' => $zone->area_sqkm,
+                        'sovereign1' => $zone->sovereign_state,
+                        'sovereign2' => $zone->sovereign2,
+                        'bordering_parties' => !empty($bordering) ? implode(', ', $bordering) : $zone->sovereign_state,
+                        'treaty_name' => $zone->pol_type === '200NM' ? 'UNCLOS 1982 Exclusive Economic Zone (200NM)' : $zone->geoname,
+                        'source_dataset' => 'Marine Regions Maritime Boundaries Geodatabase v12',
+                        'version' => 'v12',
+                        'doi' => '10.14284/632',
+                        'license' => 'CC BY 4.0 International',
+                        'doc_date' => $zone->import_date ? (string) $zone->import_date : '2023-10-01',
+                        'disclaimer' => 'Batas yurisdiksi hak ekonomi maritim regional ASEAN berdasarkan Marine Regions v12. Bukan penetapan batas hukum final.',
+                    ]
+                ];
+                $polygonCount++;
+            }
+        }
+
+        // 2. Fetch ASEAN EEZ Maritime Boundaries (Lines)
+        if ($type === 'all' || $type === 'boundaries') {
+            $boundaryQuery = EezBoundary::query()->where(function ($q) {
+                foreach (self::ASEAN_NAMES as $name) {
+                    $q->orWhere('sovereign1', 'like', "%{$name}%")
+                      ->orWhere('sovereign2', 'like', "%{$name}%")
+                      ->orWhere('territory1', 'like', "%{$name}%")
+                      ->orWhere('territory2', 'like', "%{$name}%");
+                }
+            });
+
+            if ($search) {
+                $boundaryQuery->where(function ($q) use ($search) {
+                    $q->where('line_name', 'like', "%{$search}%")
+                      ->orWhere('sovereign1', 'like', "%{$search}%")
+                      ->orWhere('sovereign2', 'like', "%{$search}%")
+                      ->orWhere('line_type', 'like', "%{$search}%");
+                });
+            }
+
+            if ($normalizedBBox) {
+                $boundaryQuery->inBoundingBox($normalizedBBox[0], $normalizedBBox[1], $normalizedBBox[2], $normalizedBBox[3]);
+            }
+
+            $boundaries = $boundaryQuery->get();
+
+            foreach ($boundaries as $b) {
+                $geom = is_array($b->geometry_geojson) 
+                    ? $b->geometry_geojson 
+                    : json_decode($b->geometry_geojson, true);
+                if (!$geom) continue;
+
+                $classification = self::classifyBoundaryStatus($b->line_type, $b->line_name);
+
+                $parties = array_filter([$b->sovereign1, $b->sovereign2]);
+                $borderingStr = count($parties) > 1 ? implode(' & ', $parties) : ($parties[0] ?? $b->line_name);
+
+                $features[] = [
+                    'type' => 'Feature',
+                    'id' => 'line-' . $b->id,
+                    'geometry' => $geom,
+                    'properties' => [
+                        'id' => $b->id,
+                        'feature_type' => 'boundary_line',
+                        'geom_type' => $geom['type'] ?? 'LineString',
+                        'line_id' => $b->line_id,
+                        'name' => $b->line_name,
+                        'country' => $b->sovereign1 ?: $b->sovereign2 ?: 'ASEAN Region',
+                        'sovereign1' => $b->sovereign1,
+                        'sovereign2' => $b->sovereign2,
+                        'territory1' => $b->territory1,
+                        'territory2' => $b->territory2,
+                        'bordering_parties' => $borderingStr,
+                        'line_type' => $b->line_type,
+                        'delimitation_status' => $classification['status'],
+                        'status_label' => $classification['status_label'],
+                        'color' => $classification['color'],
+                        'dasharray' => $classification['dasharray'],
+                        'treaty_name' => $b->source1 ?: $b->line_name,
+                        'url' => $b->url1,
+                        'doc_date' => $b->doc_date,
+                        'length_km' => $b->length_km,
+                        'source_dataset' => 'Marine Regions Maritime Boundaries Geodatabase v12 (eez_boundaries_v12)',
+                        'version' => 'v12',
+                        'doi' => '10.14284/632',
+                        'license' => 'CC BY 4.0 International',
+                        'disclaimer' => 'Batas maritim resmi Marine Regions v12. Status delimitasi diklasifikasikan berdasarkan instrumen hukum traktat/kesepakatan resmi.',
+                    ]
+                ];
+                $boundaryCount++;
+            }
+        }
+
+        return [
+            'type' => 'FeatureCollection',
+            'features' => $features,
+            'metadata' => [
+                'title' => 'ASEAN Exclusive Economic Zones (EEZ) & Maritime Boundaries',
+                'scope' => 'ASEAN Member States + Candidate (Brunei, Cambodia, Indonesia, Laos [Landlocked], Malaysia, Myanmar, Philippines, Singapore, Thailand, Vietnam, Timor-Leste)',
+                'member_states' => [
+                    'Brunei Darussalam', 'Cambodia', 'Indonesia', 'Laos', 'Malaysia',
+                    'Myanmar', 'Philippines', 'Singapore', 'Thailand', 'Vietnam', 'Timor-Leste'
+                ],
+                'landlocked_states' => ['Laos'],
+                'count' => count($features),
+                'polygon_count' => $polygonCount,
+                'boundary_line_count' => $boundaryCount,
+                'statuses' => [
+                    'AGREED' => 'Agreed / Delimitated',
+                    'UNDELIMITED' => 'Undelimited / Unresolved',
+                    'DISPUTED' => 'Disputed / Overlapping Claim',
+                    'JOINT_REGIME' => 'Joint Regime Area',
+                    'UNKNOWN' => 'Unknown / Not Verified',
+                ],
+                'dataset' => 'Maritime Boundaries Geodatabase v12 (October 2023)',
+                'publisher' => 'Flanders Marine Institute (VLIZ) Marine Regions',
+                'doi' => '10.14284/632',
+                'license' => 'CC BY 4.0 International',
+            ]
+        ];
+    }
+
+    /**
      * Get FAO Regional Fishery Bodies (RFBs / RFMOs) Competence Areas as GeoJSON FeatureCollection
      */
     public function getFisheriesManagementAreasFeatureCollection(?array $bbox = null, ?string $search = null): array

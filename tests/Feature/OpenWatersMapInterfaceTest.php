@@ -29,10 +29,9 @@ class OpenWatersMapInterfaceTest extends TestCase
         $response = $this->actingAs($this->analyst)->get(route('map.index'));
 
         $response->assertOk();
-        // Base elements
+        // Base elements & ASEAN EEZ
         $response->assertSee('id="global-map-canvas"', false);
-        $response->assertSee('OpenFreeMap Liberty');
-        $response->assertSee('ESRI Dark Gray');
+        $response->assertSee('ASEAN Exclusive Economic Zones (EEZ)');
 
         // Open Waters Side Panel & Telemetry
         $response->assertSee('id="vesselDetailPanel"', false);
@@ -57,8 +56,7 @@ class OpenWatersMapInterfaceTest extends TestCase
         $response->assertSee('24 Jam');
         $response->assertSee('7 Hari');
 
-        // Basemap switcher and Cursor coordinates
-        $response->assertSee('id="btnToggleBasemapMenu"', false);
+        // Cursor coordinates
         $response->assertSee('id="cursorCoordinates"', false);
     }
 

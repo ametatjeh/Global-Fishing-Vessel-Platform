@@ -86,13 +86,13 @@ class MapLibreFullVisualizationTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('id="global-map-canvas"', false);
-        $response->assertSee('ESRI Dark Gray');
+        $response->assertDontSee('ESRI Dark Gray');
         $response->assertDontSee('btnFitVessels');
         $response->assertDontSee('btnFitSarCandidates');
         $response->assertDontSee('btnFitSarScene');
         $response->assertSee('btnResetView');
-        $response->assertSee('toggle-layer-eez-boundaries');
-        $response->assertSee('EEZ Boundaries');
+        $response->assertSee('toggle-layer-asean-eez');
+        $response->assertSee('ASEAN Exclusive Economic Zones (EEZ)');
         $response->assertSee('toggle-layer-vessels');
         $response->assertSee('toggle-layer-dark-vessels');
         $response->assertSee('toggle-layer-sar-scenes');

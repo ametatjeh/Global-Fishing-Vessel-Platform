@@ -97,6 +97,19 @@ class MapLayerApiController extends Controller
                     'disclaimer' => config('maritime.encounters.disclaimer'),
                 ],
                 [
+                    'id' => 'layer-asean-eez',
+                    'name' => 'ASEAN Exclusive Economic Zones (EEZ)',
+                    'type' => 'mixed',
+                    'color' => '#10b981', // emerald-500
+                    'provider_status' => 'connected',
+                    'version' => 'v12 (October 2023)',
+                    'license' => 'Creative Commons Attribution 4.0 International (CC BY 4.0)',
+                    'source_url' => 'https://www.marineregions.org/downloads.php',
+                    'attribution' => 'Flanders Marine Institute (VLIZ) Marine Regions (DOI: 10.14284/632)',
+                    'description' => 'Zona Ekonomi Eksklusif dan garis batas maritim negara-negara anggota ASEAN serta Timor-Leste dengan klasifikasi status delimitasi 4-tingkat.',
+                    'disclaimer' => 'Batas yurisdiksi hak ekonomi maritim regional ASEAN berdasarkan Marine Regions v12. Bukan penetapan batas hukum final.',
+                ],
+                [
                     'id' => 'layer-dark-vessels',
                     'name' => 'Dark Vessel Candidates (SAR)',
                     'type' => 'circle',
@@ -129,6 +142,11 @@ class MapLayerApiController extends Controller
         $bbox = $this->parseBBox($request->query('bbox'));
         $search = $request->query('q');
 
+        if ($request->query('region') === 'asean') {
+            $data = $this->spatial->getAseanEezFeatureCollection($bbox, $search, 'polygons');
+            return response()->json($data);
+        }
+
         $data = $this->spatial->getEezFeatureCollection($bbox, $search);
 
         return response()->json($data);
@@ -142,7 +160,26 @@ class MapLayerApiController extends Controller
         $bbox = $this->parseBBox($request->query('bbox'));
         $search = $request->query('q');
 
+        if ($request->query('region') === 'asean') {
+            $data = $this->spatial->getAseanEezFeatureCollection($bbox, $search, 'boundaries');
+            return response()->json($data);
+        }
+
         $data = $this->spatial->getEezBoundariesFeatureCollection($bbox, $search);
+
+        return response()->json($data);
+    }
+
+    /**
+     * Get ASEAN Exclusive Economic Zones (EEZ) & Maritime Boundaries GeoJSON
+     */
+    public function aseanEez(Request $request): JsonResponse
+    {
+        $bbox = $this->parseBBox($request->query('bbox'));
+        $search = $request->query('q');
+        $type = (string) $request->query('type', 'all');
+
+        $data = $this->spatial->getAseanEezFeatureCollection($bbox, $search, $type);
 
         return response()->json($data);
     }

@@ -21,9 +21,7 @@ export class GlobalMapController {
         this.options = options;
         this.map = null;
         this.activeLayers = Object.assign({
-            fao: true,
-            eez: true,
-            eezBoundaries: true,
+            aseanEez: true,
             encounters: true,
             vessels: true,
             darkVessels: true,
@@ -31,9 +29,7 @@ export class GlobalMapController {
         }, options.layers || {});
 
         this.loadingState = {
-            fao: false,
-            eez: false,
-            eezBoundaries: false,
+            aseanEez: false,
             encounters: false,
             vessels: false,
             darkVessels: false,
@@ -42,9 +38,7 @@ export class GlobalMapController {
 
         // Internal layer GeoJSON cache for reliable bounds fitting and UI interaction
         this.layerData = {
-            fao: null,
-            eez: null,
-            eezBoundaries: null,
+            aseanEez: null,
             encounters: null,
             vessels: null,
             darkVessels: null,
@@ -410,9 +404,7 @@ export class GlobalMapController {
     }
 
     setupSourcesAndLayers() {
-        this.addFaoLayer();
-        this.addEezLayer();
-        this.addEezBoundariesLayer();
+        this.addAseanEezLayer();
         this.addSarSceneLayer();
         this.addGfwLayer();
         this.addSarDetectionLayer();
@@ -422,112 +414,184 @@ export class GlobalMapController {
         this.ensureLayerOrder();
     }
 
-    addFaoLayer() {
-        if (this.map.getSource('fao-source')) return;
+    addAseanEezLayer() {
+        if (this.map.getSource('asean-eez-source')) return;
 
-        this.map.addSource('fao-source', {
+        this.map.addSource('asean-eez-source', {
             type: 'geojson',
             data: { type: 'FeatureCollection', features: [] }
         });
 
+        // 1. Semi-transparent Polygon Fill for ASEAN EEZ (subtle, non-intrusive)
         this.map.addLayer({
-            id: 'fao-fill-layer',
+            id: 'asean-eez-fill-layer',
             type: 'fill',
-            source: 'fao-source',
-            layout: { visibility: this.activeLayers.fao ? 'visible' : 'none' },
-            paint: {
-                'fill-color': '#3b82f6',
-                'fill-opacity': 0.12
-            }
-        });
-
-        this.map.addLayer({
-            id: 'fao-line-layer',
-            type: 'line',
-            source: 'fao-source',
-            layout: { visibility: this.activeLayers.fao ? 'visible' : 'none' },
-            paint: {
-                'line-color': '#93c5fd',
-                'line-width': 1.8,
-                'line-opacity': 0.9,
-                'line-dasharray': [4, 2]
-            }
-        });
-    }
-
-    addEezLayer() {
-        if (this.map.getSource('eez-source')) return;
-
-        this.map.addSource('eez-source', {
-            type: 'geojson',
-            data: { type: 'FeatureCollection', features: [] }
-        });
-
-        this.map.addLayer({
-            id: 'eez-fill-layer',
-            type: 'fill',
-            source: 'eez-source',
-            layout: { visibility: this.activeLayers.eez ? 'visible' : 'none' },
+            source: 'asean-eez-source',
+            filter: ['==', ['get', 'feature_type'], 'zone'],
+            layout: { visibility: this.activeLayers.aseanEez ? 'visible' : 'none' },
             paint: {
                 'fill-color': [
                     'match',
-                    ['get', 'pol_type'],
-                    'Overlapping claim', '#f59e0b',
-                    'Joint regime', '#a855f7',
-                    '#0d9488'
+                    ['get', 'delimitation_status'],
+                    'DISPUTED', '#f43f5e',
+                    'JOINT_REGIME', '#a855f7',
+                    '#10b981' // emerald for AGREED / sovereign 200NM
                 ],
-                'fill-opacity': 0.15
+                'fill-opacity': 0.08
             }
         });
 
+        // 2. Subtle Zone Outline
         this.map.addLayer({
-            id: 'eez-line-layer',
+            id: 'asean-eez-polygon-outline-layer',
             type: 'line',
-            source: 'eez-source',
-            layout: { visibility: this.activeLayers.eez ? 'visible' : 'none' },
+            source: 'asean-eez-source',
+            filter: ['==', ['get', 'feature_type'], 'zone'],
+            layout: { visibility: this.activeLayers.aseanEez ? 'visible' : 'none' },
             paint: {
                 'line-color': [
                     'match',
-                    ['get', 'pol_type'],
-                    'Overlapping claim', '#f59e0b',
-                    'Joint regime', '#c084fc',
-                    '#0d9488'
+                    ['get', 'delimitation_status'],
+                    'DISPUTED', '#f43f5e',
+                    'JOINT_REGIME', '#c084fc',
+                    '#10b981'
                 ],
                 'line-width': 1.0,
-                'line-opacity': 0.35
+                'line-opacity': 0.30
             }
         });
-    }
 
-    addEezBoundariesLayer() {
-        if (this.map.getSource('eez-boundaries-source')) return;
-
-        this.map.addSource('eez-boundaries-source', {
-            type: 'geojson',
-            data: { type: 'FeatureCollection', features: [] }
-        });
-
+        // 3a. AGREED / DELIMITATED Lines (Solid Emerald Line)
         this.map.addLayer({
-            id: 'eez-boundaries-layer',
+            id: 'asean-eez-line-agreed',
             type: 'line',
-            source: 'eez-boundaries-source',
+            source: 'asean-eez-source',
+            filter: [
+                'all',
+                ['==', ['get', 'feature_type'], 'boundary_line'],
+                ['==', ['get', 'delimitation_status'], 'AGREED']
+            ],
             layout: {
-                'visibility': this.activeLayers.eezBoundaries ? 'visible' : 'none',
+                'visibility': this.activeLayers.aseanEez ? 'visible' : 'none',
                 'line-cap': 'round',
                 'line-join': 'round'
             },
             paint: {
-                // Dark slate boundary line (#64748b) for high-clarity maritime delimitation
-                'line-color': '#64748b',
-                'line-opacity': 0.90,
+                'line-color': '#10b981',
+                'line-opacity': 0.95,
                 'line-width': [
-                    'interpolate',
-                    ['linear'],
-                    ['zoom'],
-                    2, 1.0,
-                    6, 1.4,
-                    10, 1.8
+                    'interpolate', ['linear'], ['zoom'],
+                    2, 1.4,
+                    6, 2.2,
+                    10, 3.0
                 ]
+            }
+        });
+
+        // 3b. UNDELIMITED / UNRESOLVED Lines (Dashed Amber Line)
+        this.map.addLayer({
+            id: 'asean-eez-line-undelimited',
+            type: 'line',
+            source: 'asean-eez-source',
+            filter: [
+                'all',
+                ['==', ['get', 'feature_type'], 'boundary_line'],
+                ['==', ['get', 'delimitation_status'], 'UNDELIMITED']
+            ],
+            layout: {
+                'visibility': this.activeLayers.aseanEez ? 'visible' : 'none',
+                'line-cap': 'round',
+                'line-join': 'round'
+            },
+            paint: {
+                'line-color': '#f59e0b',
+                'line-opacity': 0.90,
+                'line-dasharray': [3, 2],
+                'line-width': [
+                    'interpolate', ['linear'], ['zoom'],
+                    2, 1.2,
+                    6, 1.8,
+                    10, 2.6
+                ]
+            }
+        });
+
+        // 3c. DISPUTED / OVERLAPPING CLAIM Lines (Dashed Rose / Red Line)
+        this.map.addLayer({
+            id: 'asean-eez-line-disputed',
+            type: 'line',
+            source: 'asean-eez-source',
+            filter: [
+                'all',
+                ['==', ['get', 'feature_type'], 'boundary_line'],
+                ['==', ['get', 'delimitation_status'], 'DISPUTED']
+            ],
+            layout: {
+                'visibility': this.activeLayers.aseanEez ? 'visible' : 'none',
+                'line-cap': 'round',
+                'line-join': 'round'
+            },
+            paint: {
+                'line-color': '#f43f5e',
+                'line-opacity': 0.95,
+                'line-dasharray': [2, 2],
+                'line-width': [
+                    'interpolate', ['linear'], ['zoom'],
+                    2, 1.4,
+                    6, 2.2,
+                    10, 3.0
+                ]
+            }
+        });
+
+        // 3d. JOINT REGIME Lines (Dash-Dotted Purple Line)
+        this.map.addLayer({
+            id: 'asean-eez-line-joint',
+            type: 'line',
+            source: 'asean-eez-source',
+            filter: [
+                'all',
+                ['==', ['get', 'feature_type'], 'boundary_line'],
+                ['==', ['get', 'delimitation_status'], 'JOINT_REGIME']
+            ],
+            layout: {
+                'visibility': this.activeLayers.aseanEez ? 'visible' : 'none',
+                'line-cap': 'round',
+                'line-join': 'round'
+            },
+            paint: {
+                'line-color': '#a855f7',
+                'line-opacity': 0.95,
+                'line-dasharray': [4, 2],
+                'line-width': [
+                    'interpolate', ['linear'], ['zoom'],
+                    2, 1.4,
+                    6, 2.2,
+                    10, 3.0
+                ]
+            }
+        });
+
+        // 3e. UNKNOWN / NOT VERIFIED Lines (Dotted Slate Line)
+        this.map.addLayer({
+            id: 'asean-eez-line-unknown',
+            type: 'line',
+            source: 'asean-eez-source',
+            filter: [
+                'all',
+                ['==', ['get', 'feature_type'], 'boundary_line'],
+                ['==', ['get', 'delimitation_status'], 'UNKNOWN']
+            ],
+            layout: {
+                'visibility': this.activeLayers.aseanEez ? 'visible' : 'none',
+                'line-cap': 'round',
+                'line-join': 'round'
+            },
+            paint: {
+                'line-color': '#94a3b8',
+                'line-opacity': 0.80,
+                'line-dasharray': [1, 2],
+                'line-width': 1.2
             }
         });
     }
@@ -985,22 +1049,24 @@ export class GlobalMapController {
 
         // Visual rendering sequence (from bottom to topmost):
         // 1. Basemap and ocean (Raster tiles: esri-dark-base, esri-dark-reference)
-        // 2. Polygons / Fills (FAO Major Areas, RFMO/FMA, EEZ Zones)
-        // 3. Official EEZ Maritime Boundaries Lines (eez-boundaries-layer)
+        // 2. ASEAN EEZ Polygons / Fills (semi-transparent)
+        // 3. ASEAN EEZ Boundaries line layers (classified by delimitation status)
         // 4. Overlays & Analysis (SAR scenes footprint, encounters, dark vessel detections)
-        // 5. Vessels — strictly topmost (vessels-circle-layer)
+        // 5. Vessels — strictly topmost (vessels-circle-layer, vessels-oriented-layer)
         const orderedLayers = [
             // 2. Polygons & Fills
-            'fao-fill-layer',
-            'eez-fill-layer',
+            'asean-eez-fill-layer',
             'sar-scenes-fill-layer',
 
             // 2b. Context outlines
-            'fao-line-layer',
-            'eez-line-layer',
+            'asean-eez-polygon-outline-layer',
 
-            // 3. Official EEZ Boundaries line layer (Dark, crisp, distinct)
-            'eez-boundaries-layer',
+            // 3. ASEAN EEZ Boundaries line layers (Status-classified)
+            'asean-eez-line-agreed',
+            'asean-eez-line-undelimited',
+            'asean-eez-line-disputed',
+            'asean-eez-line-joint',
+            'asean-eez-line-unknown',
 
             // 4. Analysis & Detection layers
             'sar-scenes-line-layer',
@@ -1092,82 +1158,20 @@ export class GlobalMapController {
             this.showCandidatePopup({ lng: Number(lng), lat: Number(lat) }, props);
         });
 
-        // FAO Areas Click Popup
-        this.map.on('click', 'fao-fill-layer', (e) => {
-            if (!e.features.length) return;
-            const props = e.features[0].properties;
-            const html = `
-                <div class="space-y-2 text-xs font-sans">
-                    <div class="flex items-center gap-1.5 font-bold text-blue-300 border-b border-blue-900 pb-1">
-                        <span>🌐</span>
-                        <span>FAO Statistical Area ${props.area_code || ''}</span>
-                    </div>
-                    <div class="text-slate-100 font-semibold">${props.name_en || 'Fishing Area'}</div>
-                    <div class="text-[11px] text-blue-200">Ocean Basin: <strong class="text-white">${props.ocean_basin || '-'}</strong></div>
-                    <div class="text-[10px] text-blue-300/80 bg-blue-950/60 p-2 rounded border border-blue-800/40">
-                        <strong>Perhatian:</strong> Poligon FAO adalah wilayah statistik pelaporan perikanan global, bukan batas yurisdiksi atau kewenangan hukum.
-                    </div>
-                </div>
-            `;
-            this.showPopup(e.lngLat, html);
-        });
-
-        // EEZ Boundaries Click Popup
-        this.map.on('click', 'eez-fill-layer', (e) => {
-            if (!e.features.length) return;
-            const props = e.features[0].properties;
-            const polBadge = props.pol_type === 'Overlapping claim' 
-                ? '<span class="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold uppercase">Klaim Tumpang Tindih</span>'
-                : (props.pol_type === 'Joint regime' 
-                    ? '<span class="px-1.5 py-0.5 rounded text-[9px] bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold uppercase">Joint Regime</span>'
-                    : '<span class="px-1.5 py-0.5 rounded text-[9px] bg-teal-500/20 text-teal-300 border border-teal-500/40 font-bold uppercase">200 NM EEZ</span>');
-
-            const html = `
-                <div class="space-y-2 text-xs font-sans">
-                    <div class="flex items-center justify-between border-b border-teal-900 pb-1">
-                        <span class="font-bold text-teal-300 flex items-center gap-1.5">
-                            <span>🛡️</span> World EEZ v12
-                        </span>
-                        ${polBadge}
-                    </div>
-                    <div class="text-slate-100 font-semibold">${props.geoname || 'EEZ Zone'}</div>
-                    <div class="text-[11px] text-teal-200">Negara: <strong class="text-white">${props.sovereign_state || '-'}</strong> ${props.sovereign_iso3 ? `(${props.sovereign_iso3})` : ''}</div>
-                    <div class="text-[10px] text-slate-300">Luas: <strong class="text-white">${props.area_sqkm ? Number(props.area_sqkm).toLocaleString() + ' km²' : '-'}</strong> &bull; MRGID: <strong class="text-teal-300">${props.mrgid || '-'}</strong></div>
-                    <div class="text-[10px] text-teal-300/90 bg-teal-950/70 p-2 rounded border border-teal-800/40">
-                        <strong>Status Hukum (UNCLOS):</strong> ${props.disclaimer || 'Batas yurisdiksi hak ekonomi maritim UNCLOS / traktat bilateral. Bukan penetapan batas hukum final untuk klaim sengketa.'}
-                    </div>
-                </div>
-            `;
-            this.showPopup(e.lngLat, html);
-        });
-
-        // Official EEZ Boundaries Line Click Popup
-        this.map.on('click', 'eez-boundaries-layer', (e) => {
-            if (!e.features.length) return;
-            const props = e.features[0].properties;
-            const sovInfo = props.sovereign2 
-                ? `${props.sovereign1 || '-'} &bull; ${props.sovereign2}`
-                : (props.sovereign1 || 'International / UNCLOS');
-
-            const html = `
-                <div class="space-y-2 text-xs font-sans">
-                    <div class="flex items-center justify-between border-b border-slate-700 pb-1">
-                        <span class="font-bold text-slate-200 flex items-center gap-1.5">
-                            <span>📏</span> EEZ Boundary Line
-                        </span>
-                        <span class="px-1.5 py-0.5 rounded text-[9px] bg-slate-800 text-slate-300 border border-slate-700 font-bold uppercase">
-                            ${props.line_type || 'Delimitation'}
-                        </span>
-                    </div>
-                    <div class="text-white font-semibold">${props.line_name || 'Maritime Boundary'}</div>
-                    <div class="text-[11px] text-slate-300">Negara: <strong class="text-teal-300">${sovInfo}</strong></div>
-                    <div class="text-[10px] text-slate-400 font-mono">Panjang: <strong class="text-white">${props.length_km ? Number(props.length_km).toLocaleString() + ' km' : '-'}</strong> &bull; Line ID: ${props.line_id || '-'}</div>
-                    <div class="text-[10px] text-slate-400 bg-slate-900/80 p-2 rounded border border-slate-800">
-                        Sumber: ${props.source1 || 'VLIZ Marine Regions v12'} ${props.doc_date ? `(${props.doc_date})` : ''}
-                    </div>
-                </div>
-            `;
-            this.showPopup(e.lngLat, html);
+        // ASEAN Exclusive Economic Zones (EEZ) & Maritime Boundaries Click Popup
+        const aseanClickLayers = [
+            'asean-eez-fill-layer',
+            'asean-eez-line-agreed',
+            'asean-eez-line-undelimited',
+            'asean-eez-line-disputed',
+            'asean-eez-line-joint',
+            'asean-eez-line-unknown'
+        ];
+        aseanClickLayers.forEach((layerId) => {
+            this.map.on('click', layerId, (e) => {
+                if (!e.features || !e.features.length) return;
+                this.showAseanEezPopup(e.lngLat, e.features[0].properties);
+            });
         });
 
         // Encounters Click Popup
@@ -1195,9 +1199,12 @@ export class GlobalMapController {
 
         // Cursor pointer styling on hover
         const clickableLayers = [
-            'fao-fill-layer',
-            'eez-fill-layer',
-            'eez-boundaries-layer',
+            'asean-eez-fill-layer',
+            'asean-eez-line-agreed',
+            'asean-eez-line-undelimited',
+            'asean-eez-line-disputed',
+            'asean-eez-line-joint',
+            'asean-eez-line-unknown',
             'encounters-circle-layer',
             'vessels-oriented-layer',
             'vessels-circle-layer',
@@ -1601,9 +1608,15 @@ export class GlobalMapController {
         this.activeLayers[layerKey] = visible;
 
         const layerMap = {
-            fao: ['fao-fill-layer', 'fao-line-layer'],
-            eez: ['eez-fill-layer', 'eez-line-layer'],
-            eezBoundaries: ['eez-boundaries-layer'],
+            aseanEez: [
+                'asean-eez-fill-layer',
+                'asean-eez-polygon-outline-layer',
+                'asean-eez-line-agreed',
+                'asean-eez-line-undelimited',
+                'asean-eez-line-disputed',
+                'asean-eez-line-joint',
+                'asean-eez-line-unknown'
+            ],
             encounters: ['encounters-circle-layer'],
             vessels: [
                 'vessels-oriented-layer',
@@ -1638,9 +1651,7 @@ export class GlobalMapController {
     async fetchLayerData(layerKey, options = {}) {
         const bbox = this.getViewportBBoxString();
         const urls = {
-            fao: `/api/layers/fao?bbox=${bbox || ''}`,
-            eez: `/api/layers/eez?bbox=${bbox || ''}`,
-            eezBoundaries: `/api/layers/eez-boundaries?bbox=${bbox || ''}`,
+            aseanEez: `/api/layers/asean-eez?bbox=${bbox || ''}`,
             encounters: `/api/layers/encounters?bbox=${bbox || ''}`,
             vessels: `/api/layers/vessels?bbox=${bbox || ''}`,
             darkVessels: `/api/layers/dark-vessels?bbox=${bbox || ''}`,
@@ -1648,9 +1659,7 @@ export class GlobalMapController {
         };
 
         const sources = {
-            fao: 'fao-source',
-            eez: 'eez-source',
-            eezBoundaries: 'eez-boundaries-source',
+            aseanEez: 'asean-eez-source',
             encounters: 'encounters-source',
             vessels: 'vessels-source',
             darkVessels: 'dark-vessels-source',
@@ -1710,12 +1719,14 @@ export class GlobalMapController {
             if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
             const geojson = await res.json();
 
-            // Validate coordinates before updating map
+            // Validate coordinates before updating map (supports Points, Lines, and Polygons)
             if (geojson && Array.isArray(geojson.features)) {
                 geojson.features = geojson.features.filter((f) => {
-                    const coords = f.geometry?.coordinates;
-                    return coords && Array.isArray(coords) &&
-                           this.isValidCoord(coords[0], coords[1]);
+                    if (!f.geometry || !Array.isArray(f.geometry.coordinates)) return false;
+                    if (f.geometry.type === 'Point') {
+                        return this.isValidCoord(f.geometry.coordinates[0], f.geometry.coordinates[1]);
+                    }
+                    return f.geometry.coordinates.length > 0;
                 });
             }
 
@@ -1797,15 +1808,9 @@ export class GlobalMapController {
         } else if (type === 'vessels') {
             sourceId = 'vessels-source';
             layerKey = 'vessels';
-        } else if (type === 'eez') {
-            sourceId = 'eez-source';
-            layerKey = 'eez';
-        } else if (type === 'eez-boundaries' || type === 'boundaries') {
-            sourceId = 'eez-boundaries-source';
-            layerKey = 'eezBoundaries';
-        } else if (type === 'fao') {
-            sourceId = 'fao-source';
-            layerKey = 'fao';
+        } else if (type === 'asean-eez' || type === 'aseanEez' || type === 'eez' || type === 'eez-boundaries' || type === 'boundaries') {
+            sourceId = 'asean-eez-source';
+            layerKey = 'aseanEez';
         }
 
         const source = this.map.getSource(sourceId);
@@ -1875,6 +1880,61 @@ export class GlobalMapController {
         } else {
             this.map.flyTo({ center: [100.0, 5.0], zoom: 4 });
         }
+    }
+
+    /**
+     * ASEAN EEZ Delimitation Inspector Popup
+     */
+    showAseanEezPopup(lngLat, props) {
+        if (!lngLat || !props) return;
+        const isLine = props.feature_type === 'boundary_line';
+        const status = props.delimitation_status || 'UNKNOWN';
+
+        const badgeMap = {
+            AGREED: '<span class="px-2 py-0.5 rounded text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold uppercase">Agreed / Delimitated</span>',
+            UNDELIMITED: '<span class="px-2 py-0.5 rounded text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold uppercase">Undelimited / Unresolved</span>',
+            DISPUTED: '<span class="px-2 py-0.5 rounded text-[9px] bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold uppercase">Disputed / Overlapping Claim</span>',
+            JOINT_REGIME: '<span class="px-2 py-0.5 rounded text-[9px] bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold uppercase">Joint Regime Area</span>',
+            UNKNOWN: '<span class="px-2 py-0.5 rounded text-[9px] bg-slate-500/20 text-slate-300 border border-slate-500/40 font-bold uppercase">Unknown / Not Verified</span>'
+        };
+
+        const statusBadge = badgeMap[status] || badgeMap.UNKNOWN;
+        const headerTitle = isLine ? 'Batas Maritim ASEAN' : 'Zona ZEE ASEAN (200 NM)';
+        const headerIcon = isLine ? '📏' : '🛡️';
+
+        const sizeStr = isLine && props.length_km 
+            ? `(${Number(props.length_km).toLocaleString()} km)` 
+            : (!isLine && props.area_sqkm ? `(${Number(props.area_sqkm).toLocaleString()} km²)` : '');
+
+        const html = `
+            <div class="space-y-2 text-xs font-sans min-w-[260px] max-w-[320px]">
+                <div class="flex items-center justify-between border-b border-slate-700/80 pb-1.5 gap-2">
+                    <span class="font-bold text-emerald-300 flex items-center gap-1.5 truncate">
+                        <span>${headerIcon}</span>
+                        <span class="truncate">${headerTitle}</span>
+                    </span>
+                    ${statusBadge}
+                </div>
+                <div class="text-white font-semibold text-sm leading-snug">${props.name || 'Entitas Maritim ASEAN'}</div>
+                <div class="space-y-1 text-[11px] pt-0.5 text-slate-300 font-sans">
+                    <div><span class="text-slate-400">Negara:</span> <strong class="text-white">${props.country || '-'}</strong> ${props.sovereign_iso3 ? `(${props.sovereign_iso3})` : ''}</div>
+                    <div><span class="text-slate-400">Pihak Berbatasan:</span> <strong class="text-teal-300">${props.bordering_parties || '-'}</strong></div>
+                    <div><span class="text-slate-400">${isLine ? 'Tipe Garis Batas:' : 'Tipe Zona:'}</span> <strong class="text-slate-200">${isLine ? (props.line_type || '-') : (props.zone_type || '200NM')}</strong> ${sizeStr}</div>
+                    <div class="p-1.5 rounded bg-slate-900/90 border border-slate-800 text-[10px] text-amber-300/90 font-mono">
+                        <span class="text-slate-400">Dasar Hukum/Traktat:</span><br/>
+                        <span class="text-slate-200 font-semibold">${props.treaty_name || 'Tidak ada traktat terdaftar (Garis Median/Klaim)'}</span>
+                    </div>
+                </div>
+                <div class="text-[10px] text-slate-400 bg-slate-900/80 p-2 rounded border border-slate-800 space-y-0.5">
+                    <div>Sumber: <strong class="text-slate-300">${props.source_dataset || 'Marine Regions v12'}</strong></div>
+                    <div class="flex items-center justify-between">
+                        <span>Pembaruan: ${props.doc_date || '2023-10'}</span>
+                        <span class="text-teal-400 font-mono text-[9px]">CC BY 4.0</span>
+                    </div>
+                </div>
+            </div>
+        `;
+        this.showPopup(lngLat, html);
     }
 
     showCandidatePopup(lngLat, props) {
