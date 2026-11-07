@@ -68,6 +68,7 @@ class ProviderHealthTest extends TestCase
     public function test_copernicus_oauth2_authentication_and_odata_sync(): void
     {
         config([
+            'maritime.providers.copernicus_sar.auth_mode' => 'client_credentials',
             'maritime.providers.copernicus_sar.client_id' => 'test-client-id',
             'maritime.providers.copernicus_sar.client_secret' => 'test-client-secret',
             'maritime.providers.copernicus_sar.auth_url' => 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token',

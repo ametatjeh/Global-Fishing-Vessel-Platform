@@ -82,10 +82,16 @@ return [
         'copernicus_sar' => [
             'name' => 'Copernicus Data Space Ecosystem (Sentinel-1 SAR)',
             'base_url' => env('COPERNICUS_API_URL', 'https://dataspace.copernicus.eu/analyse/apis'),
+            'auth_mode' => env('COPERNICUS_AUTH_MODE', 'password'), // 'password' (default for CDSE OData download) or 'client_credentials'
+            'username' => env('CDSE_USERNAME', env('COPERNICUS_USERNAME', null)),
+            'password' => env('CDSE_PASSWORD', env('COPERNICUS_PASSWORD', null)),
+            'totp' => env('CDSE_TOTP', null),
             'client_id' => env('COPERNICUS_CLIENT_ID', null),
             'client_secret' => env('COPERNICUS_CLIENT_SECRET', null),
-            'auth_url' => env('COPERNICUS_AUTH_URL', 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token'),
+            'auth_url' => env('CDSE_AUTH_URL', env('COPERNICUS_AUTH_URL', 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token')),
             'odata_url' => env('COPERNICUS_ODATA_URL', 'https://catalogue.dataspace.copernicus.eu/odata/v1'),
+            'download_url' => env('COPERNICUS_DOWNLOAD_URL', 'https://download.dataspace.copernicus.eu/odata/v1'),
+            'timeout' => (int) env('COPERNICUS_TIMEOUT', 30),
             'license_type' => 'Copernicus Open Access / Full Free & Open',
             'commercial_use_allowed' => true,
             'redistribution_allowed' => true,

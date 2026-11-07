@@ -284,8 +284,8 @@ class SystemHealthService
      */
     public function getCopernicusStatus(): array
     {
-        $clientId = config('maritime.providers.copernicus_sar.client_id') ?? config('maritime.providers.copernicus.client_id');
-        $isConfigured = !empty($clientId);
+        $adapter = app(\App\Services\Providers\CopernicusSarAdapter::class);
+        $isConfigured = $adapter->isAuthConfigured();
 
         $provider = \App\Models\DataProvider::where('slug', 'copernicus-sentinel-1')->first();
         $healthStatus = $provider?->health_status;
@@ -299,6 +299,10 @@ class SystemHealthService
                 $status = 'catalog_access_failed';
                 $keycloakStatus = 'valid';
                 $catalogStatus = 'access_denied_waf';
+            } elseif ($healthStatus === 'catalog_available_auth_failed') {
+                $status = 'catalog_available_auth_failed';
+                $keycloakStatus = 'invalid';
+                $catalogStatus = 'active';
             } elseif (in_array($healthStatus, ['authenticated', 'ready_to_sync', 'connected'])) {
                 $status = 'authenticated';
                 $keycloakStatus = 'valid';
@@ -312,6 +316,10 @@ class SystemHealthService
                 $keycloakStatus = 'valid';
                 $catalogStatus = 'active';
             }
+        } elseif ($healthStatus === 'ready_to_sync') {
+            $status = 'ready_to_sync';
+            $keycloakStatus = 'not_configured';
+            $catalogStatus = 'active';
         }
 
         return [
