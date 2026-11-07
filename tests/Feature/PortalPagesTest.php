@@ -32,7 +32,6 @@ class PortalPagesTest extends TestCase
             '/dashboard',
             '/map',
             '/vessels',
-            '/fishing-grounds',
             '/encounters',
             '/dark-vessels',
             '/compliance',

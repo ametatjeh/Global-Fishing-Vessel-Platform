@@ -67,12 +67,4 @@ class SystemController extends Controller
         return redirect()->route('settings.index')
             ->with('status', "Status Offsite Backup Activation Gate berhasil diperbarui menjadi [{$validated['status']}]. Seluruh perubahan dicatat pada Audit Log.");
     }
-
-    public function about()
-    {
-        $gfwConfig = config('maritime.providers.gfw');
-        $health = $this->healthService->getGfwStatus();
-
-        return view('pages.about', compact('gfwConfig', 'health'));
-    }
 }

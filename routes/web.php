@@ -5,7 +5,6 @@ use App\Http\Controllers\ComplianceController;
 use App\Http\Controllers\DarkVesselController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EncounterController;
-use App\Http\Controllers\FishingGroundController;
 use App\Http\Controllers\InvestigationController;
 use App\Http\Controllers\MapController;
 use App\Http\Controllers\ProviderController;
@@ -24,6 +23,11 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogle'])->name('auth.google.redirect');
 Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('auth.google.callback');
 
+// Deprecated Fishing Grounds Route (HTTP 410 Gone)
+Route::any('/fishing-grounds', function () {
+    abort(410, 'Modul Fishing Grounds telah dinonaktifkan secara permanen karena data FAO Fishing Areas tidak lagi digunakan (410 Gone).');
+});
+
 // Protected Portal Routes (Requires Authentication, Active Status, and Valid Role)
 Route::middleware(['auth', 'role'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('home');
@@ -39,10 +43,7 @@ Route::middleware(['auth', 'role'])->group(function () {
     // 3. Live Vessel Tracking
     Route::get('/tracking', [TrackingController::class, 'index'])->name('tracking.index');
 
-    // 4. Fishing Grounds (FAO & EEZ)
-    Route::get('/fishing-grounds', [FishingGroundController::class, 'index'])->name('fishing-grounds.index');
-
-    // 5. Vessel Encounters
+    // 4. Vessel Encounters
     Route::get('/encounters', [EncounterController::class, 'index'])->name('encounters.index');
     Route::get('/encounters/{id}', [EncounterController::class, 'show'])->name('encounters.show');
     Route::post('/encounters/{id}/status', [EncounterController::class, 'updateStatus'])
@@ -95,7 +96,6 @@ Route::middleware(['auth', 'role'])->group(function () {
     Route::post('/providers/{slug}/health', [ProviderController::class, 'checkHealth'])
         ->middleware('role:super_admin,admin')
         ->name('providers.health');
-    Route::get('/about', [SystemController::class, 'about'])->name('about');
 
     // 10. System Settings & Activity Logs
     Route::get('/settings', [SystemController::class, 'settings'])

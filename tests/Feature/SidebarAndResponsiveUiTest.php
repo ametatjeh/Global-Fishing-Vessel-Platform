@@ -55,7 +55,7 @@ class SidebarAndResponsiveUiTest extends TestCase
         $response->assertSee('data-tooltip="Global Vessel Map"', false);
         $response->assertSee('data-tooltip="Live Vessel Tracking"', false);
         $response->assertSee('data-tooltip="Vessel Registry"', false);
-        $response->assertSee('data-tooltip="Fishing Grounds (FAO/EEZ)"', false);
+        $response->assertDontSee('data-tooltip="Fishing Grounds (FAO/EEZ)"', false);
         $response->assertSee('data-tooltip="Vessel Encounters"', false);
         $response->assertSee('data-tooltip="Analyst Review (SAR)"', false);
         $response->assertSee('data-tooltip="Fishing Compliance"', false);
@@ -63,6 +63,8 @@ class SidebarAndResponsiveUiTest extends TestCase
         $response->assertSee('data-tooltip="Data Sources & Providers"', false);
         $response->assertSee('data-tooltip="System Settings"', false);
         $response->assertSee('data-tooltip="Activity Logs"', false);
+        $response->assertDontSee('data-tooltip="About & Attributions"', false);
+        $response->assertDontSee('/about', false);
         $response->assertSee('data-tooltip="Manajemen Akun"', false);
     }
 
@@ -118,11 +120,9 @@ class SidebarAndResponsiveUiTest extends TestCase
         $inv->assertSee('responsive-table-container', false);
         $inv->assertSee('min-w-[850px]', false);
 
-        // 7. Fishing Grounds
-        $fg = $this->actingAs($this->superAdmin)->get(route('fishing-grounds.index'));
-        $fg->assertStatus(200);
-        $fg->assertSee('responsive-table-container', false);
-        $fg->assertSee('min-w-[700px]', false);
+        // 7. Deprecated Fishing Grounds Route (410 Gone)
+        $fg = $this->actingAs($this->superAdmin)->get('/fishing-grounds');
+        $fg->assertStatus(410);
 
         // 8. Admin Users Index
         $users = $this->actingAs($this->superAdmin)->get(route('admin.users.index'));
@@ -144,9 +144,9 @@ class SidebarAndResponsiveUiTest extends TestCase
         $settings = $this->actingAs($this->superAdmin)->get(route('settings.index'));
         $settings->assertStatus(200);
 
-        // 12. About & Legal Attributions
-        $about = $this->actingAs($this->superAdmin)->get(route('about'));
-        $about->assertStatus(200);
+        // 12. About Page is removed (returns 404)
+        $about = $this->actingAs($this->superAdmin)->get('/about');
+        $about->assertStatus(404);
 
         // 13. Map View
         $map = $this->actingAs($this->superAdmin)->get(route('map.index'));

@@ -186,6 +186,11 @@ export class GlobalMapController {
             zoom: initialZoom,
             attributionControl: false // Handled cleanly via custom or bottom attribution
         });
+
+        // Immediately enforce English-only country labels whenever a basemap style finishes loading
+        this.map.on('style.load', () => {
+            this.enforceEnglishCountryLabels();
+        });
     }
 
     getBasemapStyle(key = this.currentBasemapKey) {
@@ -248,6 +253,7 @@ export class GlobalMapController {
         const style = this.getBasemapStyle(styleKey);
         this.map.setStyle(style);
         this.map.once('style.load', () => {
+            this.enforceEnglishCountryLabels();
             this.registerVesselIcons();
             this.setupSourcesAndLayers();
             this.refreshAllActiveLayers();
@@ -286,12 +292,6 @@ export class GlobalMapController {
             maxWidth: 160,
             unit: 'nautical'
         }), 'bottom-left');
-
-        // Compact Attribution Control
-        this.map.addControl(new maplibregl.AttributionControl({
-            compact: true,
-            customAttribution: 'GFVIP &bull; OpenFreeMap &bull; ESRI &bull; Global Fishing Watch &bull; Sentinel-1 C-SAR &bull; Marine Regions &bull; FAO'
-        }), 'bottom-right');
 
         // Cursor coordinates tracking
         this.map.on('mousemove', (e) => {
@@ -362,12 +362,18 @@ export class GlobalMapController {
 
     setupLifecycleHooks() {
         this.map.on('load', () => {
+            this.enforceEnglishCountryLabels();
             this.resizeMap();
             this.registerVesselIcons();
             this.setupSourcesAndLayers();
             this.attachEventListeners();
             this.refreshAllActiveLayers();
             this.startLiveVesselPolling(30000);
+
+            // Re-enforce once idle to ensure vector glyphs / late symbol layers are strictly English
+            this.map.once('idle', () => {
+                this.enforceEnglishCountryLabels();
+            });
 
             // Check if initial URL had a vessel to select
             const urlLoc = this.parseUrlLocation();
@@ -422,7 +428,7 @@ export class GlobalMapController {
             data: { type: 'FeatureCollection', features: [] }
         });
 
-        // 1. Semi-transparent Polygon Fill for ASEAN EEZ (subtle, non-intrusive)
+        // 1. Polygon Fill for ASEAN EEZ (retained internally for geometry/containment, fill hidden with opacity 0)
         this.map.addLayer({
             id: 'asean-eez-fill-layer',
             type: 'fill',
@@ -430,14 +436,8 @@ export class GlobalMapController {
             filter: ['==', ['get', 'feature_type'], 'zone'],
             layout: { visibility: this.activeLayers.aseanEez ? 'visible' : 'none' },
             paint: {
-                'fill-color': [
-                    'match',
-                    ['get', 'delimitation_status'],
-                    'DISPUTED', '#f43f5e',
-                    'JOINT_REGIME', '#a855f7',
-                    '#10b981' // emerald for AGREED / sovereign 200NM
-                ],
-                'fill-opacity': 0.08
+                'fill-color': '#000000',
+                'fill-opacity': 0.0
             }
         });
 
@@ -629,13 +629,28 @@ export class GlobalMapController {
         if (!this.map) return;
 
         try {
-            const createHeadingIcon = (fillColor, strokeColor) => {
+            const createHeadingIcon = (fillColor, strokeColor, isFishing = false) => {
                 const size = 32;
                 const canvas = document.createElement('canvas');
                 canvas.width = size;
                 canvas.height = size;
                 const ctx = canvas.getContext('2d');
                 if (!ctx) return null;
+
+                // For fishing vessels, add a prominent dark outline underlayer for supreme contrast on light/dark basemaps
+                if (isFishing) {
+                    ctx.beginPath();
+                    ctx.moveTo(16, 1);
+                    ctx.bezierCurveTo(25, 9, 26, 20, 25, 29);
+                    ctx.lineTo(7, 29);
+                    ctx.bezierCurveTo(6, 20, 7, 9, 16, 1);
+                    ctx.closePath();
+                    ctx.fillStyle = '#00262e';
+                    ctx.fill();
+                    ctx.lineWidth = 3.5;
+                    ctx.strokeStyle = '#001a20';
+                    ctx.stroke();
+                }
 
                 ctx.beginPath();
                 ctx.moveTo(16, 2); // Sharp bow tip
@@ -646,29 +661,45 @@ export class GlobalMapController {
 
                 ctx.fillStyle = fillColor;
                 ctx.fill();
-                ctx.lineWidth = 2.0;
-                ctx.strokeStyle = strokeColor;
+                ctx.lineWidth = isFishing ? 2.0 : 2.0;
+                ctx.strokeStyle = isFishing ? '#00333d' : strokeColor;
                 ctx.stroke();
 
                 // Mast/wheelhouse center dot
                 ctx.beginPath();
-                ctx.arc(16, 15, 2.5, 0, Math.PI * 2);
-                ctx.fillStyle = '#ffffff';
+                ctx.arc(16, 15, isFishing ? 3.0 : 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = isFishing ? '#00262e' : '#ffffff';
                 ctx.fill();
                 ctx.lineWidth = 1.0;
-                ctx.strokeStyle = strokeColor;
+                ctx.strokeStyle = isFishing ? '#00E5FF' : strokeColor;
                 ctx.stroke();
 
                 return ctx.getImageData(0, 0, size, size);
             };
 
-            const createCogIcon = (fillColor, strokeColor) => {
+            const createCogIcon = (fillColor, strokeColor, isFishing = false) => {
                 const size = 32;
                 const canvas = document.createElement('canvas');
                 canvas.width = size;
                 canvas.height = size;
                 const ctx = canvas.getContext('2d');
                 if (!ctx) return null;
+
+                if (isFishing) {
+                    ctx.beginPath();
+                    ctx.moveTo(16, 1);
+                    ctx.lineTo(28, 27);
+                    ctx.lineTo(21, 27);
+                    ctx.lineTo(16, 19);
+                    ctx.lineTo(11, 27);
+                    ctx.lineTo(4, 27);
+                    ctx.closePath();
+                    ctx.fillStyle = '#00262e';
+                    ctx.fill();
+                    ctx.lineWidth = 3.5;
+                    ctx.strokeStyle = '#001a20';
+                    ctx.stroke();
+                }
 
                 ctx.beginPath();
                 ctx.moveTo(16, 2);   // Bow arrowhead tip
@@ -679,17 +710,17 @@ export class GlobalMapController {
                 ctx.lineTo(5, 26);   // Port wing outer
                 ctx.closePath();
 
-                ctx.fillStyle = strokeColor;
+                ctx.fillStyle = isFishing ? fillColor : strokeColor;
                 ctx.fill();
                 ctx.lineWidth = 2.0;
-                ctx.strokeStyle = fillColor;
+                ctx.strokeStyle = isFishing ? '#00333d' : fillColor;
                 ctx.stroke();
 
                 // Central course trajectory ray
                 ctx.beginPath();
                 ctx.moveTo(16, 8);
                 ctx.lineTo(16, 16);
-                ctx.strokeStyle = '#ffffff';
+                ctx.strokeStyle = isFishing ? '#00262e' : '#ffffff';
                 ctx.lineWidth = 2.0;
                 ctx.lineCap = 'round';
                 ctx.stroke();
@@ -697,27 +728,26 @@ export class GlobalMapController {
                 return ctx.getImageData(0, 0, size, size);
             };
 
-            // Register category-specific live icons
+            // Register category-specific live icons: Fishing is vibrant Electric Cyan (#00E5FF)
             const categories = [
-                { id: 'fishing', fill: '#10b981', stroke: '#047857' },
-                { id: 'passenger', fill: '#0284c7', stroke: '#0369a1' },
-                { id: 'patrol', fill: '#f43f5e', stroke: '#be123c' },
-                { id: 'military', fill: '#ef4444', stroke: '#b91c1c' },
-                { id: 'special', fill: '#f59e0b', stroke: '#b45309' },
-                { id: 'unknown', fill: '#94a3b8', stroke: '#475569' },
+                { id: 'fishing', fill: '#00E5FF', stroke: '#00333d', isFishing: true },
+                { id: 'passenger', fill: '#0284c7', stroke: '#0369a1', isFishing: false },
+                { id: 'patrol', fill: '#f43f5e', stroke: '#be123c', isFishing: false },
+                { id: 'military', fill: '#ef4444', stroke: '#b91c1c', isFishing: false },
+                { id: 'special', fill: '#f59e0b', stroke: '#b45309', isFishing: false },
+                { id: 'unknown', fill: '#94a3b8', stroke: '#475569', isFishing: false },
             ];
 
             categories.forEach(cat => {
                 const hName = `vessel-${cat.id}-heading`;
-                if (!this.map.hasImage(hName)) {
-                    const img = createHeadingIcon(cat.fill, cat.stroke);
-                    if (img) this.map.addImage(hName, img, { pixelRatio: 2 });
-                }
+                if (this.map.hasImage(hName)) this.map.removeImage(hName);
+                const hImg = createHeadingIcon(cat.fill, cat.stroke, cat.isFishing);
+                if (hImg) this.map.addImage(hName, hImg, { pixelRatio: 2 });
+
                 const cName = `vessel-${cat.id}-cog`;
-                if (!this.map.hasImage(cName)) {
-                    const img = createCogIcon(cat.fill, cat.stroke);
-                    if (img) this.map.addImage(cName, img, { pixelRatio: 2 });
-                }
+                if (this.map.hasImage(cName)) this.map.removeImage(cName);
+                const cImg = createCogIcon(cat.fill, cat.stroke, cat.isFishing);
+                if (cImg) this.map.addImage(cName, cImg, { pixelRatio: 2 });
             });
 
             // Standard Live Fallbacks (Cyan tone)
@@ -773,11 +803,32 @@ export class GlobalMapController {
             filter: ['==', ['get', 'vessel_id'], this.selectedVesselId || ''],
             layout: { visibility: this.activeLayers.vessels ? 'visible' : 'none' },
             paint: {
-                'circle-radius': 16,
-                'circle-color': 'rgba(6, 182, 212, 0.20)',
-                'circle-stroke-color': '#06b6d4',
-                'circle-stroke-width': 2.5,
-                'circle-stroke-opacity': 0.95
+                'circle-radius': [
+                    'case',
+                    ['==', ['get', 'vessel_type'], 'fishing'], 20,
+                    16
+                ],
+                'circle-color': [
+                    'case',
+                    ['==', ['get', 'vessel_type'], 'fishing'], 'rgba(0, 229, 255, 0.30)',
+                    'rgba(6, 182, 212, 0.20)'
+                ],
+                'circle-stroke-color': [
+                    'case',
+                    ['==', ['get', 'vessel_type'], 'fishing'], '#00E5FF',
+                    '#06b6d4'
+                ],
+                'circle-stroke-width': [
+                    'case',
+                    ['==', ['get', 'vessel_type'], 'fishing'], 3.5,
+                    2.5
+                ],
+                'circle-stroke-opacity': 0.95,
+                'circle-blur': [
+                    'case',
+                    ['==', ['get', 'vessel_type'], 'fishing'], 0.15,
+                    0.0
+                ]
             }
         });
 
@@ -845,11 +896,11 @@ export class GlobalMapController {
                     'interpolate',
                     ['linear'],
                     ['zoom'],
-                    2, 0.5,
-                    6, 0.7,
-                    10, 0.9,
-                    14, 1.2,
-                    18, 1.5
+                    2, ['case', ['==', ['get', 'vessel_type'], 'fishing'], 0.60, 0.50],
+                    6, ['case', ['==', ['get', 'vessel_type'], 'fishing'], 0.85, 0.70],
+                    10, ['case', ['==', ['get', 'vessel_type'], 'fishing'], 1.10, 0.90],
+                    14, ['case', ['==', ['get', 'vessel_type'], 'fishing'], 1.40, 1.20],
+                    18, ['case', ['==', ['get', 'vessel_type'], 'fishing'], 1.70, 1.50]
                 ],
                 'visibility': this.activeLayers.vessels ? 'visible' : 'none'
             }
@@ -867,9 +918,9 @@ export class GlobalMapController {
                     'interpolate',
                     ['linear'],
                     ['zoom'],
-                    2, 3.5,
-                    8, 5.0,
-                    14, 7.5
+                    2, ['case', ['==', ['get', 'vessel_type'], 'fishing'], 4.5, 3.5],
+                    8, ['case', ['==', ['get', 'vessel_type'], 'fishing'], 6.5, 5.0],
+                    14, ['case', ['==', ['get', 'vessel_type'], 'fishing'], 9.5, 7.5]
                 ],
                 'circle-color': [
                     'case',
@@ -878,7 +929,7 @@ export class GlobalMapController {
                     [
                         'match',
                         ['get', 'vessel_type'],
-                        'fishing', '#10b981',
+                        'fishing', '#00E5FF', // Electric Cyan
                         'passenger', '#0284c7',
                         'patrol', '#f43f5e',
                         'military', '#ef4444',
@@ -887,8 +938,16 @@ export class GlobalMapController {
                         '#38bdf8' // Default live cyan
                     ]
                 ],
-                'circle-stroke-width': 1.5,
-                'circle-stroke-color': '#ffffff'
+                'circle-stroke-width': [
+                    'case',
+                    ['==', ['get', 'vessel_type'], 'fishing'], 2.0,
+                    1.5
+                ],
+                'circle-stroke-color': [
+                    'case',
+                    ['==', ['get', 'vessel_type'], 'fishing'], '#00262e',
+                    '#ffffff'
+                ]
             }
         });
     }
@@ -1158,22 +1217,6 @@ export class GlobalMapController {
             this.showCandidatePopup({ lng: Number(lng), lat: Number(lat) }, props);
         });
 
-        // ASEAN Exclusive Economic Zones (EEZ) & Maritime Boundaries Click Popup
-        const aseanClickLayers = [
-            'asean-eez-fill-layer',
-            'asean-eez-line-agreed',
-            'asean-eez-line-undelimited',
-            'asean-eez-line-disputed',
-            'asean-eez-line-joint',
-            'asean-eez-line-unknown'
-        ];
-        aseanClickLayers.forEach((layerId) => {
-            this.map.on('click', layerId, (e) => {
-                if (!e.features || !e.features.length) return;
-                this.showAseanEezPopup(e.lngLat, e.features[0].properties);
-            });
-        });
-
         // Encounters Click Popup
         this.map.on('click', 'encounters-circle-layer', (e) => {
             if (!e.features.length) return;
@@ -1197,14 +1240,8 @@ export class GlobalMapController {
             this.showPopup(e.lngLat, html);
         });
 
-        // Cursor pointer styling on hover
+        // Cursor pointer styling on hover (interactive layers only; maritime boundaries are strictly non-interactive)
         const clickableLayers = [
-            'asean-eez-fill-layer',
-            'asean-eez-line-agreed',
-            'asean-eez-line-undelimited',
-            'asean-eez-line-disputed',
-            'asean-eez-line-joint',
-            'asean-eez-line-unknown',
             'encounters-circle-layer',
             'vessels-oriented-layer',
             'vessels-circle-layer',
@@ -1220,6 +1257,76 @@ export class GlobalMapController {
             });
             this.map.on('mouseleave', layerId, () => {
                 if (this.map.getCanvas()) this.map.getCanvas().style.cursor = '';
+            });
+        });
+
+        // Vessel Identity Hover Tooltip (Interactive, non-blocking)
+        let vesselHoverPopup = null;
+        const showVesselHoverTooltip = (e) => {
+            if (!e.features || !e.features.length) return;
+            const props = e.features[0].properties || {};
+            const coords = e.features[0].geometry?.coordinates || [e.lngLat.lng, e.lngLat.lat];
+            const name = props.name || 'Unknown Vessel';
+            const mmsi = props.mmsi || '-';
+            const vType = (props.vessel_type || 'unknown').toLowerCase();
+            const isFishing = vType === 'fishing';
+            const flagEmoji = props.flag_emoji || '🌐';
+            const sog = props.speed_knots !== null && props.speed_knots !== undefined && isFinite(Number(props.speed_knots))
+                ? `${Number(props.speed_knots).toFixed(1)} kn`
+                : null;
+            const cog = props.course_degrees !== null && props.course_degrees !== undefined && isFinite(Number(props.course_degrees))
+                ? `${Number(props.course_degrees).toFixed(1)}°`
+                : null;
+
+            if (!vesselHoverPopup) {
+                vesselHoverPopup = new maplibregl.Popup({
+                    closeButton: false,
+                    closeOnClick: false,
+                    offset: 14,
+                    className: 'vessel-hover-tooltip pointer-events-none'
+                });
+            }
+
+            const badgeHtml = isFishing
+                ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/60 shadow-[0_0_8px_rgba(0,229,255,0.4)]">🎣 Fishing</span>`
+                : `<span class="px-1.5 py-0.2 rounded text-[9px] font-semibold uppercase bg-slate-800 text-slate-300 border border-slate-700">${vType}</span>`;
+
+            const html = `
+                <div class="px-2.5 py-1.5 rounded-xl bg-slate-950/95 border ${isFishing ? 'border-[#00E5FF]/60 shadow-[0_0_14px_rgba(0,229,255,0.35)]' : 'border-slate-700/80 shadow-xl'} text-xs font-mono backdrop-blur-md space-y-1 pointer-events-none min-w-[160px]">
+                    <div class="flex items-center gap-1.5 font-bold ${isFishing ? 'text-[#00E5FF]' : 'text-white'}">
+                        <span>${flagEmoji}</span>
+                        <span class="truncate max-w-[150px] font-sans">${name}</span>
+                    </div>
+                    <div class="flex items-center justify-between gap-2 text-[10px] text-slate-300">
+                        ${badgeHtml}
+                        <span class="text-slate-400">MMSI: <strong class="text-white">${mmsi}</strong></span>
+                    </div>
+                    ${sog ? `<div class="text-[10px] text-slate-400 flex items-center justify-between border-t border-slate-800/80 pt-0.5">
+                        <span>SOG: <strong class="${isFishing ? 'text-[#00E5FF]' : 'text-sky-300'} font-bold">${sog}</strong></span>
+                        ${cog ? `<span>COG: <strong class="text-slate-300">${cog}</strong></span>` : ''}
+                    </div>` : ''}
+                </div>
+            `;
+
+            vesselHoverPopup.setLngLat(coords).setHTML(html).addTo(this.map);
+        };
+
+        const hideVesselHoverTooltip = () => {
+            if (vesselHoverPopup) {
+                vesselHoverPopup.remove();
+                vesselHoverPopup = null;
+            }
+        };
+
+        ['vessels-oriented-layer', 'vessels-circle-layer'].forEach((layerId) => {
+            this.map.on('mouseenter', layerId, (e) => {
+                showVesselHoverTooltip(e);
+            });
+            this.map.on('mousemove', layerId, (e) => {
+                showVesselHoverTooltip(e);
+            });
+            this.map.on('mouseleave', layerId, () => {
+                hideVesselHoverTooltip();
             });
         });
 
@@ -1316,6 +1423,7 @@ export class GlobalMapController {
 
         this.selectedVesselId = props.vessel_id || null;
         this.selectedMmsi = props.mmsi || null;
+        this.selectedVesselCoords = coords;
 
         if (this.map && this.map.getLayer('vessels-selected-ring')) {
             this.map.setFilter('vessels-selected-ring', ['==', ['get', 'vessel_id'], this.selectedVesselId || '']);
@@ -1351,7 +1459,7 @@ export class GlobalMapController {
         if (typeBadgeEl) {
             typeBadgeEl.textContent = vType;
             if (vType === 'fishing') {
-                typeBadgeEl.className = 'px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-emerald-950 text-emerald-300 border border-emerald-700';
+                typeBadgeEl.className = 'px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/60 shadow-[0_0_10px_rgba(0,229,255,0.35)]';
             } else if (vType === 'passenger') {
                 typeBadgeEl.className = 'px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-sky-950 text-sky-300 border border-sky-700';
             } else if (vType === 'military' || vType === 'patrol') {
@@ -1372,18 +1480,18 @@ export class GlobalMapController {
             }
         }
 
-        if (mmsiEl) mmsiEl.textContent = props.mmsi || '-';
-        if (imoEl) imoEl.textContent = props.imo || '-';
-        if (callsignEl) callsignEl.textContent = props.callsign || '-';
+        if (mmsiEl) mmsiEl.textContent = props.mmsi || 'Tidak tersedia';
+        if (imoEl) imoEl.textContent = props.imo || 'Tidak tersedia';
+        if (callsignEl) callsignEl.textContent = props.callsign || 'Tidak tersedia';
 
         const sogVal = props.speed_knots !== null && props.speed_knots !== undefined && isFinite(Number(props.speed_knots))
             ? Number(props.speed_knots).toFixed(1)
-            : '-';
+            : 'Tidak tersedia';
         if (sogEl) sogEl.textContent = sogVal;
 
         const cogVal = props.course_degrees !== null && props.course_degrees !== undefined && isFinite(Number(props.course_degrees))
             ? `${Number(props.course_degrees).toFixed(1)}°`
-            : '-';
+            : 'Tidak tersedia';
         if (cogEl) cogEl.textContent = cogVal;
 
         const headingVal = props.heading_degrees !== null && props.heading_degrees !== undefined && isFinite(Number(props.heading_degrees))
@@ -1404,11 +1512,81 @@ export class GlobalMapController {
 
         if (timeEl) {
             const d = props.observed_at ? new Date(props.observed_at) : null;
-            timeEl.textContent = d ? d.toUTCString() : '-';
+            timeEl.textContent = d ? d.toUTCString() : 'Tidak tersedia';
             timeEl.title = props.observed_at || '';
         }
 
+        // Relative AIS age
+        const ageEl = document.getElementById('panelVesselAge');
+        if (ageEl) {
+            if (props.observed_at) {
+                const diffSec = Math.floor((Date.now() - new Date(props.observed_at).getTime()) / 1000);
+                if (diffSec < 60) ageEl.textContent = 'Baru saja';
+                else if (diffSec < 3600) ageEl.textContent = `${Math.floor(diffSec / 60)} menit lalu`;
+                else if (diffSec < 86400) ageEl.textContent = `${Math.floor(diffSec / 3600)} jam lalu`;
+                else ageEl.textContent = `${Math.floor(diffSec / 86400)} hari lalu`;
+            } else {
+                ageEl.textContent = 'Tidak tersedia';
+            }
+        }
+
         if (providerEl) providerEl.textContent = props.provider || 'AISStream Gateway';
+
+        // Anomaly / Dark Vessel Correlation
+        const darkStatusEl = document.getElementById('panelVesselDarkVesselStatus');
+        if (darkStatusEl) {
+            if (props.dark_vessel_candidate || props.is_dark_vessel || props.anomaly_flag) {
+                darkStatusEl.innerHTML = '<span class="text-amber-400 font-bold">⚠️ Terindikasi Anomali</span>';
+            } else {
+                darkStatusEl.textContent = 'Tidak ada anomali terdeteksi';
+            }
+        }
+
+        // Encounter Records
+        const encStatusEl = document.getElementById('panelVesselEncounterStatus');
+        if (encStatusEl) {
+            if (props.encounter_count && Number(props.encounter_count) > 0) {
+                encStatusEl.innerHTML = `<span class="text-amber-400 font-bold">⚠️ ${props.encounter_count} Kejadian</span>`;
+            } else {
+                encStatusEl.textContent = '0 kejadian terdeteksi';
+            }
+        }
+
+        // SAR Scene Correlation
+        const sarStatusEl = document.getElementById('panelVesselSarStatus');
+        if (sarStatusEl) {
+            if (props.sar_scene_id || props.sar_correlated) {
+                sarStatusEl.innerHTML = `<span class="text-purple-400 font-bold">🛰️ Korelasi Sentinel-1</span>`;
+            } else {
+                sarStatusEl.textContent = 'Tidak ada korelasi citra';
+            }
+        }
+
+        // Quick action: Center Vessel
+        const btnCenterVessel = document.getElementById('panelBtnCenterVessel');
+        if (btnCenterVessel) {
+            btnCenterVessel.onclick = () => {
+                const lng = coords?.lng !== undefined ? coords.lng : (coords ? coords[0] : 0);
+                const lat = coords?.lat !== undefined ? coords.lat : (coords ? coords[1] : 0);
+                if (lng && lat) {
+                    this.map.flyTo({ center: [Number(lng), Number(lat)], zoom: Math.max(this.map.getZoom(), 8) });
+                }
+            };
+        }
+
+        // Quick action: Copy MMSI
+        const btnCopyMmsi = document.getElementById('panelBtnCopyMmsi');
+        if (btnCopyMmsi) {
+            btnCopyMmsi.onclick = () => {
+                if (props.mmsi && navigator.clipboard) {
+                    navigator.clipboard.writeText(String(props.mmsi)).then(() => {
+                        const orig = btnCopyMmsi.innerHTML;
+                        btnCopyMmsi.innerHTML = '<span>✓</span> <span>Tersalin!</span>';
+                        setTimeout(() => { btnCopyMmsi.innerHTML = orig; }, 1800);
+                    });
+                }
+            };
+        }
 
         if (profileLink) {
             if (props.vessel_id) {
@@ -1554,8 +1732,8 @@ export class GlobalMapController {
                     <div><span class="text-slate-400">MMSI:</span> <strong class="text-white">${props.mmsi || '-'}</strong></div>
                     <div><span class="text-slate-400">IMO:</span> <strong class="text-white">${props.imo || '-'}</strong></div>
                     <div><span class="text-slate-400">Callsign:</span> <strong class="text-white">${props.callsign || '-'}</strong></div>
-                    <div><span class="text-slate-400">Tipe:</span> <span class="text-slate-300 capitalize">${props.vessel_type || 'vessel'}</span></div>
-                    <div><span class="text-slate-400">SOG (Kecepatan):</span> <strong class="text-sky-300">${sogDisplay}</strong></div>
+                    <div><span class="text-slate-400">Tipe:</span> ${props.vessel_type === 'fishing' ? '<span class="text-[#00E5FF] font-bold uppercase">🎣 Fishing</span>' : `<span class="text-slate-300 capitalize">${props.vessel_type || 'vessel'}</span>`}</div>
+                    <div><span class="text-slate-400">SOG (Kecepatan):</span> <strong class="${props.vessel_type === 'fishing' ? 'text-[#00E5FF]' : 'text-sky-300'}">${sogDisplay}</strong></div>
                     <div><span class="text-slate-400">COG (Arah Gerak):</span> <strong class="text-sky-300">${cogDisplay}</strong></div>
                     <div><span class="text-slate-400">Heading (Haluan):</span> <strong class="text-emerald-300">${headingDisplay}</strong></div>
                     <div><span class="text-slate-400">Status Nav:</span> <span class="text-slate-300 capitalize">${props.nav_status || 'under_way'}</span></div>
@@ -1638,6 +1816,7 @@ export class GlobalMapController {
         }
 
         this.ensureLayerOrder();
+        this.updateActiveLayerCount();
     }
 
     refreshAllActiveLayers() {
@@ -1774,11 +1953,25 @@ export class GlobalMapController {
         }
     }
 
+    updateActiveLayerCount() {
+        const badge = document.getElementById('badgeLayerCount') || document.getElementById('badgeActiveLayers');
+        if (badge) {
+            const count = Object.values(this.activeLayers).filter(Boolean).length;
+            badge.textContent = count;
+        }
+    }
+
     updateLayerCountBadge(layerKey, count) {
         const badge = document.getElementById(`count-${layerKey}`);
         if (badge) {
             badge.innerText = count.toLocaleString();
             badge.classList.remove('text-red-400');
+        }
+        if (layerKey === 'vessels') {
+            const statusCount = document.getElementById('statusVesselCount');
+            if (statusCount) {
+                statusCount.innerText = `${count.toLocaleString()} kapal`;
+            }
         }
     }
 
@@ -1884,57 +2077,67 @@ export class GlobalMapController {
 
     /**
      * ASEAN EEZ Delimitation Inspector Popup
+     * Non-interactive: popups and tooltips disabled per task requirements.
      */
     showAseanEezPopup(lngLat, props) {
-        if (!lngLat || !props) return;
-        const isLine = props.feature_type === 'boundary_line';
-        const status = props.delimitation_status || 'UNKNOWN';
+        // Disabled: Maritime boundaries are strictly non-interactive lines
+        return;
+    }
 
-        const badgeMap = {
-            AGREED: '<span class="px-2 py-0.5 rounded text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold uppercase">Agreed / Delimitated</span>',
-            UNDELIMITED: '<span class="px-2 py-0.5 rounded text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold uppercase">Undelimited / Unresolved</span>',
-            DISPUTED: '<span class="px-2 py-0.5 rounded text-[9px] bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold uppercase">Disputed / Overlapping Claim</span>',
-            JOINT_REGIME: '<span class="px-2 py-0.5 rounded text-[9px] bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold uppercase">Joint Regime Area</span>',
-            UNKNOWN: '<span class="px-2 py-0.5 rounded text-[9px] bg-slate-500/20 text-slate-300 border border-slate-500/40 font-bold uppercase">Unknown / Not Verified</span>'
-        };
+    /**
+     * Enforces English-only country labels across basemap vector symbol layers.
+     * Replaces multi-language concatenation or local script fallbacks with English-first expressions.
+     */
+    enforceEnglishCountryLabels() {
+        if (!this.map || !this.map.getStyle) return;
 
-        const statusBadge = badgeMap[status] || badgeMap.UNKNOWN;
-        const headerTitle = isLine ? 'Batas Maritim ASEAN' : 'Zona ZEE ASEAN (200 NM)';
-        const headerIcon = isLine ? '📏' : '🛡️';
+        let style;
+        try {
+            style = this.map.getStyle();
+        } catch (e) {
+            return;
+        }
 
-        const sizeStr = isLine && props.length_km 
-            ? `(${Number(props.length_km).toLocaleString()} km)` 
-            : (!isLine && props.area_sqkm ? `(${Number(props.area_sqkm).toLocaleString()} km²)` : '');
+        if (!style || !Array.isArray(style.layers)) return;
 
-        const html = `
-            <div class="space-y-2 text-xs font-sans min-w-[260px] max-w-[320px]">
-                <div class="flex items-center justify-between border-b border-slate-700/80 pb-1.5 gap-2">
-                    <span class="font-bold text-emerald-300 flex items-center gap-1.5 truncate">
-                        <span>${headerIcon}</span>
-                        <span class="truncate">${headerTitle}</span>
-                    </span>
-                    ${statusBadge}
-                </div>
-                <div class="text-white font-semibold text-sm leading-snug">${props.name || 'Entitas Maritim ASEAN'}</div>
-                <div class="space-y-1 text-[11px] pt-0.5 text-slate-300 font-sans">
-                    <div><span class="text-slate-400">Negara:</span> <strong class="text-white">${props.country || '-'}</strong> ${props.sovereign_iso3 ? `(${props.sovereign_iso3})` : ''}</div>
-                    <div><span class="text-slate-400">Pihak Berbatasan:</span> <strong class="text-teal-300">${props.bordering_parties || '-'}</strong></div>
-                    <div><span class="text-slate-400">${isLine ? 'Tipe Garis Batas:' : 'Tipe Zona:'}</span> <strong class="text-slate-200">${isLine ? (props.line_type || '-') : (props.zone_type || '200NM')}</strong> ${sizeStr}</div>
-                    <div class="p-1.5 rounded bg-slate-900/90 border border-slate-800 text-[10px] text-amber-300/90 font-mono">
-                        <span class="text-slate-400">Dasar Hukum/Traktat:</span><br/>
-                        <span class="text-slate-200 font-semibold">${props.treaty_name || 'Tidak ada traktat terdaftar (Garis Median/Klaim)'}</span>
-                    </div>
-                </div>
-                <div class="text-[10px] text-slate-400 bg-slate-900/80 p-2 rounded border border-slate-800 space-y-0.5">
-                    <div>Sumber: <strong class="text-slate-300">${props.source_dataset || 'Marine Regions v12'}</strong></div>
-                    <div class="flex items-center justify-between">
-                        <span>Pembaruan: ${props.doc_date || '2023-10'}</span>
-                        <span class="text-teal-400 font-mono text-[9px]">CC BY 4.0</span>
-                    </div>
-                </div>
-            </div>
-        `;
-        this.showPopup(lngLat, html);
+        const englishCountryTextField = [
+            'coalesce',
+            ['get', 'name:en'],
+            ['get', 'name_en'],
+            ['get', 'name:latin'],
+            ['get', 'name']
+        ];
+
+        style.layers.forEach((layer) => {
+            if (layer.type !== 'symbol') return;
+            const layerId = layer.id || '';
+            const lowerId = layerId.toLowerCase();
+
+            // Specifically target country label symbol layers (e.g. label_country_1/2/3, place_country_1/2, country-label)
+            // Exclude state, city, town, village, road, or other non-country layers
+            if (lowerId.includes('state') || lowerId.includes('city') || lowerId.includes('town') || 
+                lowerId.includes('village') || lowerId.includes('road') || lowerId.includes('other')) {
+                return;
+            }
+
+            let isCountryLayer = false;
+            if (lowerId.includes('country')) {
+                isCountryLayer = true;
+            } else if (layer.filter && Array.isArray(layer.filter)) {
+                const str = JSON.stringify(layer.filter).replace(/\s+/g, '');
+                if (str.includes('["==",["get","class"],"country"]') || str.includes('["==","class","country"]')) {
+                    isCountryLayer = true;
+                }
+            }
+
+            if (isCountryLayer) {
+                try {
+                    this.map.setLayoutProperty(layerId, 'text-field', englishCountryTextField);
+                } catch (e) {
+                    // Ignore transient layer state
+                }
+            }
+        });
     }
 
     showCandidatePopup(lngLat, props) {

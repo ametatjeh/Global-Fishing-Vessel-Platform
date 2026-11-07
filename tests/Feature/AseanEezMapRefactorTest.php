@@ -228,6 +228,12 @@ class AseanEezMapRefactorTest extends TestCase
         $response->assertDontSee('OpenFreeMap Liberty');
         $response->assertDontSee('OpenFreeMap Bright');
         $response->assertDontSee('ESRI Dark Gray');
+
+        // 3. Removed Right components must NOT appear
+        $response->assertDontSee('btnOpenMetadataModal');
+        $response->assertDontSee('Legal Provenance');
+        $response->assertDontSee('Region Scope Context');
+        $response->assertDontSee('Kawasan: ASEAN Exclusive Economic Zones');
     }
 }
 

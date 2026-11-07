@@ -6,8 +6,7 @@ Platform intelijen maritim global berbasis Laravel 13, PostgreSQL/PostGIS, dan M
 3. **Dark Vessel Detection** (Deteksi kapal tanpa transponder aktif melalui korelasi citra satelit SAR Sentinel-1 dan celah transmisi AIS).
 
 Platform ini dilengkapi layer geospasial resmi:
-- **Fishing Ground FAO** (Dataset resmi FAO Major Fishing Areas untuk keperluan statistik perikanan dunia).
-- **Fishing Ground EEZ** (Batas Zona Ekonomi Eksklusif 200 mil laut dari Flanders Marine Institute Marine Regions).
+- **ASEAN Exclusive Economic Zones (EEZ)** (Garis batas Zona Ekonomi Eksklusif resmi regional ASEAN dari Flanders Marine Institute Marine Regions).
 - **Vessel Encounter Detection** (Deteksi pertemuan dan kedekatan spasio-temporal antar kapal di laut lepas).
 
 ---
@@ -271,7 +270,6 @@ php artisan view:clear
 
 ## 12. Disclaimer Hukum & Metodologi Intelijen
 
-1. **Fishing Ground FAO**: Batas statistik Major Fishing Areas dari FAO adalah instrumen pengumpulan statistik perikanan internasional, bukan bukti adanya aktivitas penangkapan ikan aktual di titik tertentu.
-2. **Fishing Ground EEZ**: Batas Zona Ekonomi Eksklusif (EEZ) 200 mil laut merupakan yurisdiksi hukum maritim negara pantai berdasarkan UNCLOS 1982, bukan secara otomatis merupakan zona terlarang untuk penangkapan ikan tanpa verifikasi izin dan regulasi terkait.
-3. **Vessel Encounters**: Peristiwa kedekatan spasio-temporal dua kapal merupakan anomali observasional yang memerlukan telaah analis (*Needs Review*) dan tidak dapat serta-merta disimpulkan sebagai tindak transshipment ilegal tanpa verifikasi bukti pendukung.
+1. **ASEAN Exclusive Economic Zones (EEZ)**: Batas Zona Ekonomi Eksklusif (EEZ) 200 mil laut merupakan yurisdiksi hukum maritim negara pantai berdasarkan UNCLOS 1982, bukan secara otomatis merupakan zona terlarang untuk pelayaran atau penangkapan ikan tanpa verifikasi izin dan regulasi terkait.
+2. **Vessel Encounters**: Peristiwa kedekatan spasio-temporal dua kapal merupakan anomali observasional yang memerlukan telaah analis (*Needs Review*) dan tidak dapat serta-merta disimpulkan sebagai tindak transshipment ilegal tanpa verifikasi bukti pendukung.
 4. **Dark Vessel Detection**: Diskontinuitas sinyal AIS dan korelasi deteksi SAR merupakan indikasi investigatif; hilangnya transmisi AIS dapat disebabkan oleh hambatan propagasi propagasi sinyal satelit, gangguan atmosferik, atau kegagalan perangkat, bukan bukti mutlak tindak kriminal di laut.

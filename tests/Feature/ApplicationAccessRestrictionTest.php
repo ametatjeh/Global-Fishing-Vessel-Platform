@@ -102,8 +102,8 @@ class ApplicationAccessRestrictionTest extends TestCase
         $encountersResponse = $this->get('/encounters');
         $encountersResponse->assertRedirect('/login');
 
-        $fishingGroundsResponse = $this->get('/fishing-grounds');
-        $fishingGroundsResponse->assertRedirect('/login');
+        $complianceResponse = $this->get('/compliance');
+        $complianceResponse->assertRedirect('/login');
     }
 
     /**

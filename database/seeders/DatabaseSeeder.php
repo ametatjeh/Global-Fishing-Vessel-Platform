@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Models\ComplianceRule;
 use App\Models\DataProvider;
 use App\Models\User;
-use App\Services\Providers\FaoFishingAreaAdapter;
 use App\Services\Providers\MarineRegionsEezAdapter;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -161,8 +160,7 @@ class DatabaseSeeder extends Seeder
             ComplianceRule::firstOrCreate(['rule_code' => $r['rule_code']], $r);
         }
 
-        // 4. Automatically Import Official Seed Geodatasets (FAO & Marine Regions EEZ)
-        app(FaoFishingAreaAdapter::class)->sync();
+        // 4. Automatically Import Official Seed Geodataset (Marine Regions EEZ)
         app(MarineRegionsEezAdapter::class)->sync();
 
         // 5. Seed Vessel Registry

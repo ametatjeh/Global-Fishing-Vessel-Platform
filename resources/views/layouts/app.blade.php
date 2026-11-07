@@ -100,12 +100,6 @@
                 <span class="sidebar-text truncate">Vessel Registry</span>
             </a>
 
-            <a href="{{ route('fishing-grounds.index') }}" data-tooltip="Fishing Grounds (FAO/EEZ)"
-                class="sidebar-item flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('fishing-grounds.*') ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
-                <span class="sidebar-icon">🧭</span>
-                <span class="sidebar-text truncate">Fishing Ground (FAO/EEZ)</span>
-            </a>
-
             <a href="{{ route('encounters.index') }}" data-tooltip="Vessel Encounters"
                 class="sidebar-item flex items-center justify-between px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('encounters.*') ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
                 <div class="flex items-center gap-2.5 min-w-0">
@@ -162,12 +156,6 @@
                 class="sidebar-item flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('audit-logs.*') ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
                 <span class="sidebar-icon">📜</span>
                 <span class="sidebar-text truncate">Activity Logs</span>
-            </a>
-
-            <a href="{{ route('about') }}" data-tooltip="About & Attributions"
-                class="sidebar-item flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('about') ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
-                <span class="sidebar-icon">ℹ️</span>
-                <span class="sidebar-text truncate">About &amp; Attributions</span>
             </a>
 
             @if(auth()->user()?->isSuperAdmin())
@@ -280,31 +268,13 @@
             @yield('content')
         </main>
 
-        <!-- Global Disclaimer & Data Attribution Footer -->
-        <footer class="px-4 sm:px-6 py-4 border-t border-slate-800 text-[11px] text-slate-400 space-y-2 bg-slate-950/60 mt-auto">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-800/80 pb-2">
-                <div class="flex items-center gap-2 flex-wrap">
-                    <span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-teal-500/20 text-teal-300 border border-teal-500/40">
-                        NON-COMMERCIAL RESEARCH
-                    </span>
-                    <span>&copy; {{ date('Y') }} Global Fishing Vessel Tracking.</span>
-                    <span class="hidden sm:inline">&bull;</span>
-                    <a href="{{ route('about') }}" class="text-teal-400 hover:underline font-semibold">About &amp; Attributions</a>
-                </div>
-                <div class="text-[10px] text-slate-500 font-mono">
-                    Sumber Data: <a href="https://globalfishingwatch.org" target="_blank" rel="noopener noreferrer" class="text-teal-400 hover:underline font-semibold">Global Fishing Watch</a> &bull; Pembaruan: {{ now()->format('Y-m-d') }} UTC
-                </div>
+        <!-- Single-Line Compact Footer -->
+        <footer class="h-9 min-h-[36px] max-h-[40px] px-4 sm:px-6 border-t border-slate-800/80 bg-slate-950/80 text-[11px] max-sm:text-[10px] text-slate-400 flex items-center justify-between gap-3 mt-auto shrink-0 select-none">
+            <div class="truncate text-slate-400 font-normal">
+                <span class="font-bold text-slate-300">GFVIP</span> &middot; <span>Global Fishing Vessel Intelligence Platform</span>
             </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-[10px] leading-relaxed text-slate-400">
-                <div>
-                    <strong class="text-slate-300 block mb-0.5">Global Fishing Watch Data Attribution:</strong>
-                    &ldquo;This application uses data and services provided by Global Fishing Watch (GFW) for non-commercial research, educational, and public-interest purposes. GFW data are subject to applicable licensing, attribution, and usage restrictions.&rdquo;
-                </div>
-                <div>
-                    <strong class="text-amber-400/90 block mb-0.5">Pemberitahuan Estimasi Intelijen Maritim:</strong>
-                    Aktivitas kapal yang ditampilkan merupakan estimasi atau hasil analisis berdasarkan sumber data, bukan bukti final pelanggaran. Platform beroperasi 100% bebas biaya tanpa monetisasi komersial.
-                </div>
+            <div class="shrink-0 text-slate-400 text-right whitespace-nowrap">
+                <span>Research Platform</span> &middot; <span>&copy; {{ date('Y') }}</span>
             </div>
         </footer>
     </div>
