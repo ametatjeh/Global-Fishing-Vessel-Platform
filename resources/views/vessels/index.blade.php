@@ -11,12 +11,31 @@
             <p class="text-xs text-slate-400 mt-1">Registrasi kapal global, MMSI, IMO, Callsign, bendera negara, dan status verifikasi.</p>
         </div>
 
-        <form action="{{ route('vessels.index') }}" method="GET" class="flex items-center gap-2 text-xs">
+        <form action="{{ route('vessels.index') }}" method="GET" class="flex flex-wrap items-center gap-2 text-xs">
+            <select name="vessel_type" onchange="this.form.submit()"
+                class="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-400 font-sans cursor-pointer">
+                <option value="">Semua Tipe Armada</option>
+                <option value="fishing" {{ request('vessel_type') === 'fishing' ? 'selected' : '' }}>Fishing (Penangkap)</option>
+                <option value="carrier" {{ request('vessel_type') === 'carrier' ? 'selected' : '' }}>Carrier (Pengangkut)</option>
+                <option value="support" {{ request('vessel_type') === 'support' ? 'selected' : '' }}>Support (Pendukung)</option>
+                <option value="passenger" {{ request('vessel_type') === 'passenger' ? 'selected' : '' }}>Passenger (Penumpang/Yacht)</option>
+                <option value="patrol" {{ request('vessel_type') === 'patrol' ? 'selected' : '' }}>Patrol (Pengawas/SAR)</option>
+                <option value="tug" {{ request('vessel_type') === 'tug' ? 'selected' : '' }}>Tug (Kapal Tunda)</option>
+                <option value="pleasure" {{ request('vessel_type') === 'pleasure' ? 'selected' : '' }}>Pleasure (Rekreasi/Layar)</option>
+                <option value="research" {{ request('vessel_type') === 'research' ? 'selected' : '' }}>Research (Riset Ilmiah)</option>
+                <option value="other" {{ request('vessel_type') === 'other' ? 'selected' : '' }}>Other (Lainnya)</option>
+                <option value="unknown" {{ request('vessel_type') === 'unknown' ? 'selected' : '' }}>Unknown (Belum Diketahui)</option>
+            </select>
             <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari nama, MMSI, IMO..."
-                class="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-teal-400 font-mono w-60">
+                class="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-teal-400 font-mono w-56">
             <button type="submit" class="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold transition">
                 Cari
             </button>
+            @if(request('search') || request('vessel_type'))
+            <a href="{{ route('vessels.index') }}" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition border border-slate-700" title="Reset filter">
+                Reset
+            </a>
+            @endif
         </form>
     </div>
 
@@ -55,8 +74,24 @@
                                 {{ $vessel->flag_state ?? 'UN' }}
                             </span>
                         </td>
-                        <td class="py-3 px-4 font-medium text-slate-300 capitalize">
-                            {{ $vessel->vessel_type }}
+                        <td class="py-3 px-4 font-medium">
+                            @php
+                                $typeKey = strtolower($vessel->vessel_type ?? 'unknown');
+                                $typeBadgeClass = match($typeKey) {
+                                    'fishing' => 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+                                    'carrier', 'support' => 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+                                    'passenger' => 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+                                    'patrol' => 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+                                    'tug' => 'bg-orange-500/15 text-orange-300 border-orange-500/30',
+                                    'pleasure' => 'bg-violet-500/15 text-violet-300 border-violet-500/30',
+                                    'research' => 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
+                                    'cargo', 'tanker' => 'bg-red-950 text-red-400 border-red-500/40',
+                                    default => 'bg-slate-800 text-slate-400 border-slate-700',
+                                };
+                            @endphp
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono capitalize border {{ $typeBadgeClass }}">
+                                {{ $vessel->vessel_type ?: 'Unknown' }}
+                            </span>
                         </td>
                         <td class="py-3 px-4 font-mono text-teal-300">
                             {{ $vessel->mmsi ?? '-' }}

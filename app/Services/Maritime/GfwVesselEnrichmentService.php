@@ -6,27 +6,23 @@ use App\Models\AuditLog;
 use App\Models\DataProvider;
 use App\Models\Vessel;
 use App\Models\VesselIdentifier;
-use Illuminate\Support\Facades\Http;
+use App\Services\Providers\GfwApiService;
 use Illuminate\Support\Facades\Log;
 
 class GfwVesselEnrichmentService
 {
-    protected ?string $token;
-    protected string $baseUrl;
-    protected int $timeout;
+    protected GfwApiService $apiService;
     protected string $vesselIdentityDataset;
 
-    public function __construct()
+    public function __construct(GfwApiService $apiService)
     {
-        $this->token = config('maritime.providers.gfw.token') ?: env('GFW_API_TOKEN');
-        $this->baseUrl = config('maritime.providers.gfw.base_url', 'https://gateway.api.globalfishingwatch.org/v3');
-        $this->timeout = (int) config('maritime.providers.gfw.timeout', 20);
-        $this->vesselIdentityDataset = 'public-global-vessel-identity:latest';
+        $this->apiService = $apiService;
+        $this->vesselIdentityDataset = GfwApiService::DATASET_VESSEL_IDENTITY;
     }
 
     public function isConfigured(): bool
     {
-        return !empty($this->token);
+        return $this->apiService->isConfigured();
     }
 
     /**
@@ -295,39 +291,7 @@ class GfwVesselEnrichmentService
      */
     public function querySearchEndpoint(string $query): array
     {
-        try {
-            $response = Http::withToken($this->token)
-                ->timeout($this->timeout)
-                ->get("{$this->baseUrl}/vessels/search", [
-                    'datasets[0]' => $this->vesselIdentityDataset,
-                    'query' => $query,
-                ]);
-
-            if ($response->successful()) {
-                $json = $response->json();
-                return [
-                    'status' => 200,
-                    'total' => $json['total'] ?? count($json['entries'] ?? []),
-                    'entries' => $json['entries'] ?? [],
-                    'error' => null,
-                ];
-            }
-
-            return [
-                'status' => $response->status(),
-                'total' => 0,
-                'entries' => [],
-                'error' => $response->body(),
-            ];
-        } catch (\Throwable $e) {
-            Log::warning("GFW vessel search failed for query '{$query}': " . $e->getMessage());
-            return [
-                'status' => 500,
-                'total' => 0,
-                'entries' => [],
-                'error' => $e->getMessage(),
-            ];
-        }
+        return $this->apiService->searchVessels($query, $this->vesselIdentityDataset);
     }
 
     /**
@@ -335,22 +299,7 @@ class GfwVesselEnrichmentService
      */
     public function getGfwVesselDetails(string $gfwVesselId): ?array
     {
-        try {
-            $response = Http::withToken($this->token)
-                ->timeout($this->timeout)
-                ->get("{$this->baseUrl}/vessels/{$gfwVesselId}", [
-                    'dataset' => $this->vesselIdentityDataset,
-                ]);
-
-            if ($response->successful()) {
-                return $response->json();
-            }
-
-            return null;
-        } catch (\Throwable $e) {
-            Log::warning("GFW vessel detail query failed for vesselId '{$gfwVesselId}': " . $e->getMessage());
-            return null;
-        }
+        return $this->apiService->getVessel($gfwVesselId, $this->vesselIdentityDataset);
     }
 
     /**
@@ -367,67 +316,53 @@ class GfwVesselEnrichmentService
         $permissions = [];
 
         $datasets = [
-            'port_visits' => 'public-global-port-visits-events:latest',
-            'loitering' => 'public-global-loitering-events:latest',
-            'encounters' => 'public-global-encounters-events:latest',
-            'fishing' => 'public-global-fishing-events:latest',
+            'port_visits' => GfwApiService::DATASET_PORT_VISITS,
+            'loitering' => GfwApiService::DATASET_LOITERING,
+            'encounters' => GfwApiService::DATASET_ENCOUNTERS,
+            'fishing' => GfwApiService::DATASET_FISHING,
         ];
 
         foreach ($datasets as $key => $dataset) {
-            try {
-                $response = Http::withToken($this->token)
-                    ->timeout(10)
-                    ->get("{$this->baseUrl}/events", [
-                        'datasets[0]' => $dataset,
-                        'vessels[0]' => $gfwVesselId,
-                        'limit' => 1,
-                        'offset' => 0,
-                    ]);
+            $response = $this->apiService->getEvents([
+                'datasets[0]' => $dataset,
+                'vessels[0]' => $gfwVesselId,
+                'limit' => 1,
+                'offset' => 0,
+            ]);
 
-                $status = $response->status();
+            $status = $response['status'];
 
-                if ($status === 200) {
-                    $json = $response->json();
-                    $total = $json['total'] ?? count($json['entries'] ?? []);
-                    $summary[$key] = [
-                        'count' => (int) $total,
-                        'status' => 'available',
-                        'dataset' => $dataset,
-                    ];
-                    $permissions[$key] = 'authorized';
-                } elseif ($status === 403) {
-                    $summary[$key] = [
-                        'count' => null,
-                        'status' => 'permission_restricted',
-                        'message' => 'HTTP 403: Research Access permission required for ' . $dataset,
-                        'dataset' => $dataset,
-                    ];
-                    $permissions[$key] = 'permission_restricted';
-                } elseif ($status === 429) {
-                    $summary[$key] = [
-                        'count' => null,
-                        'status' => 'rate_limited',
-                        'message' => 'HTTP 429: Rate limited',
-                        'dataset' => $dataset,
-                    ];
-                    $permissions[$key] = 'rate_limited';
-                } else {
-                    $summary[$key] = [
-                        'count' => null,
-                        'status' => 'unavailable',
-                        'message' => "HTTP {$status}",
-                        'dataset' => $dataset,
-                    ];
-                    $permissions[$key] = 'unavailable';
-                }
-            } catch (\Throwable $e) {
+            if ($status === 200) {
                 $summary[$key] = [
-                    'count' => null,
-                    'status' => 'network_error',
-                    'message' => $e->getMessage(),
+                    'count' => (int) $response['total'],
+                    'status' => 'available',
                     'dataset' => $dataset,
                 ];
-                $permissions[$key] = 'network_error';
+                $permissions[$key] = 'authorized';
+            } elseif ($status === 403) {
+                $summary[$key] = [
+                    'count' => null,
+                    'status' => 'permission_restricted',
+                    'message' => 'HTTP 403: Research Access permission required for ' . $dataset,
+                    'dataset' => $dataset,
+                ];
+                $permissions[$key] = 'permission_restricted';
+            } elseif ($status === 429) {
+                $summary[$key] = [
+                    'count' => null,
+                    'status' => 'rate_limited',
+                    'message' => 'HTTP 429: Rate limited',
+                    'dataset' => $dataset,
+                ];
+                $permissions[$key] = 'rate_limited';
+            } else {
+                $summary[$key] = [
+                    'count' => null,
+                    'status' => 'unavailable',
+                    'message' => "HTTP {$status}",
+                    'dataset' => $dataset,
+                ];
+                $permissions[$key] = 'unavailable';
             }
         }
 
