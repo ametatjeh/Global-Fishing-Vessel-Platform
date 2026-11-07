@@ -86,24 +86,6 @@
         </div>
     </div>
 
-    <!-- Active Vessel Track Controller Banner -->
-    <div id="activeTrackBanner" class="hidden absolute top-14 left-3 z-20 pointer-events-auto flex flex-wrap items-center gap-2 p-1.5 rounded-xl glass-panel border border-cyan-500/50 shadow-2xl text-xs backdrop-blur-md">
-        <div class="flex items-center gap-1.5 text-cyan-300 font-semibold font-mono pl-1">
-            <span class="animate-pulse">🛰️</span>
-            <span id="activeTrackVesselLabel">Track: -</span>
-            <span id="activeTrackPointCountBadge" class="px-1.5 py-0.2 rounded text-[10px] bg-cyan-950 text-cyan-300 border border-cyan-700 font-bold">0 pts</span>
-        </div>
-        <div class="h-4 w-px bg-slate-700 mx-1"></div>
-        <button type="button" id="btnFitActiveTrack" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-300 font-bold text-[11px] border border-slate-700 flex items-center gap-1 transition" title="Pusatkan peta ke garis lintasan (Fit Track)">
-            <span>🧭</span> Fit Track
-        </button>
-        <button type="button" id="btnToggleActiveTrack" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-[11px] border border-slate-700 flex items-center gap-1 transition" title="Sembunyikan / Tampilkan garis lintasan (Hide/Show)">
-            <span id="toggleTrackIcon">👁️</span> <span id="toggleTrackLabel">Hide Track</span>
-        </button>
-        <button type="button" id="btnClearActiveTrack" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-rose-950 text-rose-300 font-bold text-[11px] border border-slate-700 hover:border-rose-700 flex items-center gap-1 transition" title="Hapus garis lintasan dari peta (Clear Track)">
-            <span>✖️</span> Clear Track
-        </button>
-    </div>
 
     <!-- POPOVER 1: ADVANCED MARITIME FILTERS -->
     <div id="advancedFiltersPanel" class="hidden absolute top-14 left-3 z-30 w-84 sm:w-96 max-h-[calc(100%-4.5rem)] overflow-y-auto glass-panel p-4 rounded-2xl border border-slate-700/80 shadow-2xl space-y-3.5 text-xs backdrop-blur-xl">
@@ -431,26 +413,67 @@
         </div>
 
         <div class="space-y-3">
-            <!-- 1. Klasifikasi Kapal -->
+            <!-- 1. Klasifikasi Armada Kapal (Directional Triangles) -->
             <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2 text-[10px] font-mono">
-                <div class="text-[9px] uppercase font-bold text-slate-400 tracking-wider">1. Klasifikasi Armada Kapal</div>
+                <div class="text-[9px] uppercase font-bold text-slate-400 tracking-wider">1. Tipe Kapal (Vessel Type)</div>
                 <div class="grid grid-cols-2 gap-2 text-slate-300">
-                    <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-[#F59E0B] border border-[#451a03] shadow-[0_0_8px_rgba(245,158,11,0.7)] shrink-0"></span> <strong class="text-[#F59E0B]">Fishing</strong> <span class="text-slate-400">(Perikanan)</span></div>
-                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-400 shrink-0"></span> Passenger (Penumpang)</div>
-                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-indigo-400"></span> Cargo / Tanker</div>
-                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span> Patrol / Military</div>
-                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Special / Tug</div>
-                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span> Unknown Vessel</div>
+                    <div class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 32 32">
+                            <path d="M 16 2 L 28 27.5 L 16 22.5 L 4 27.5 Z" fill="#F59E0B" stroke="#FFFFFF" stroke-width="2"/>
+                            <line x1="9" y1="17" x2="23" y2="17" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round"/>
+                            <circle cx="16" cy="13" r="2.2" fill="#1e293b" stroke="#FFFFFF" stroke-width="1"/>
+                        </svg>
+                        <strong class="text-[#F59E0B]">Fishing (Amber)</strong>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 32 32">
+                            <path d="M 16 2.5 L 27.5 26.5 L 16 22 L 4.5 26.5 Z" fill="#2563EB" stroke="#FFFFFF" stroke-width="2"/>
+                        </svg>
+                        <span class="text-blue-400 font-semibold">Cargo (Blue)</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 32 32">
+                            <path d="M 16 2.5 L 27.5 26.5 L 16 22 L 4.5 26.5 Z" fill="#9333EA" stroke="#FFFFFF" stroke-width="2"/>
+                        </svg>
+                        <span class="text-purple-400 font-semibold">Tanker (Purple)</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 32 32">
+                            <path d="M 16 2.5 L 27.5 26.5 L 16 22 L 4.5 26.5 Z" fill="#06B6D4" stroke="#FFFFFF" stroke-width="2"/>
+                        </svg>
+                        <span class="text-cyan-400 font-semibold">Passenger (Cyan)</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 32 32">
+                            <path d="M 16 2.5 L 27.5 26.5 L 16 22 L 4.5 26.5 Z" fill="#64748B" stroke="#FFFFFF" stroke-width="2"/>
+                        </svg>
+                        <span class="text-slate-300 font-semibold">Support (Slate)</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 32 32">
+                            <path d="M 16 2.5 L 27.5 26.5 L 16 22 L 4.5 26.5 Z" fill="#DC2626" stroke="#FFFFFF" stroke-width="2"/>
+                        </svg>
+                        <span class="text-rose-400 font-semibold">Patrol (Red)</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 col-span-2">
+                        <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 32 32">
+                            <path d="M 16 2.5 L 27.5 26.5 L 16 22 L 4.5 26.5 Z" fill="#94A3B8" stroke="#FFFFFF" stroke-width="2"/>
+                        </svg>
+                        <span class="text-slate-400 font-semibold">Unknown Vessel (Gray)</span>
+                    </div>
                 </div>
             </div>
 
             <!-- 2. Status Data AIS & Simbologi Haluan -->
             <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2 text-[10px] font-mono">
                 <div class="text-[9px] uppercase font-bold text-sky-400 tracking-wider flex items-center justify-between">
-                    <span>Live AIS Vessels (Posisi Aktual)</span>
+                    <span>Arah Gerak (Course Over Ground / COG)</span>
                     <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>
                 </div>
                 <div class="space-y-1.5 text-slate-300">
+                    <p class="text-[9px] text-slate-400 leading-relaxed italic">
+                        Triangle orientation indicates Course Over Ground (COG).
+                    </p>
                     <div class="flex items-center justify-between">
                         <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Posisi Terbaru (&lt; 2 Jam)</span>
                         <span class="text-emerald-300 font-bold">● Live</span>
@@ -465,29 +488,22 @@
                     </div>
                     <div class="pt-1 border-t border-slate-800/80 space-y-1">
                         <div class="flex items-center gap-2">
-                            <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
-                                <path d="M12 2 C16 6 16.5 11 16 15 L8 15 C7.5 11 8 6 12 2 Z" fill="#38bdf8" stroke="#0284c7" stroke-width="1.5"/>
-                                <circle cx="12" cy="8.5" r="1.2" fill="#ffffff" stroke="#0284c7" stroke-width="0.5"/>
+                            <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 32 32">
+                                <path d="M 16 2 L 28 27.5 L 16 22.5 L 4 27.5 Z" fill="#F59E0B" stroke="#FFFFFF" stroke-width="2"/>
+                                <line x1="9" y1="17" x2="23" y2="17" stroke="#FFFFFF" stroke-width="1.6"/>
                             </svg>
-                            <span>Heading: Arah haluan (heading valid)</span>
+                            <span>COG Direction: Segitiga berorientasi mengikuti arah gerak kapal</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
-                                <path d="M12 2 L17.5 14 L14.5 14 L12 10 L9.5 14 L6.5 14 Z" fill="#0284c7" stroke="#38bdf8" stroke-width="1.5" stroke-linejoin="round"/>
-                                <line x1="12" y1="5" x2="12" y2="9" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"/>
+                                <circle cx="12" cy="12" r="4.5" fill="#F59E0B" stroke="#451a03" stroke-width="1.5"/>
                             </svg>
-                            <span>COG fallback: Arah gerak lintasan bumi</span>
+                            <span>Direction unavailable: Orientasi tidak diketahui (Beacon lingkaran)</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
-                                <circle cx="12" cy="12" r="4.5" fill="#38bdf8" stroke="#ffffff" stroke-width="1.5"/>
-                            </svg>
-                            <span>Direction unavailable: Orientasi tidak diketahui</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
-                                <circle cx="12" cy="12" r="5" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="2 2"/>
-                                <circle cx="12" cy="12" r="1.5" fill="#38bdf8"/>
+                                <circle cx="12" cy="12" r="5" stroke="#F59E0B" stroke-width="1.5" stroke-dasharray="2 2"/>
+                                <circle cx="12" cy="12" r="1.5" fill="#F59E0B"/>
                             </svg>
                             <span>Selected vessel: Cincin sorot kapal terpilih</span>
                         </div>
@@ -560,7 +576,7 @@
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="w-4 h-0.5 border-b border-dashed border-slate-400 shrink-0"></span>
-                            <span class="truncate">Undelimited / Median Line</span>
+                            <span class="truncate">Undelimited / Unresolved (Median Line)</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="w-4 h-0.5 border-b border-dashed border-rose-400 shrink-0"></span>
@@ -1302,53 +1318,6 @@
             });
         }
 
-        // Active Vessel Track Controller
-        const trackBanner = document.getElementById('activeTrackBanner');
-        const trackLabel = document.getElementById('activeTrackVesselLabel');
-        const trackBadge = document.getElementById('activeTrackPointCountBadge');
-        const btnFitTrack = document.getElementById('btnFitActiveTrack');
-        const btnToggleTrack = document.getElementById('btnToggleActiveTrack');
-        const btnClearTrack = document.getElementById('btnClearActiveTrack');
-        const toggleIcon = document.getElementById('toggleTrackIcon');
-        const toggleLabel = document.getElementById('toggleTrackLabel');
-
-        mapController.onTrackUpdated = (geoJson) => {
-            if (!trackBanner) return;
-            if (geoJson && geoJson.properties && geoJson.properties.position_count > 0) {
-                trackBanner.classList.remove('hidden');
-                if (trackLabel) trackLabel.textContent = `Track: ${geoJson.properties.name || geoJson.properties.mmsi}`;
-                if (trackBadge) trackBadge.textContent = `${geoJson.properties.position_count} pts`;
-            } else if (geoJson && geoJson.properties && geoJson.properties.track_status === 'empty') {
-                trackBanner.classList.remove('hidden');
-                if (trackLabel) trackLabel.textContent = `Track: ${geoJson.properties.name || geoJson.properties.mmsi} (Kosong)`;
-                if (trackBadge) trackBadge.textContent = `0 pts`;
-            } else {
-                trackBanner.classList.add('hidden');
-            }
-        };
-
-        mapController.onTrackVisibilityChanged = (visible) => {
-            if (toggleLabel && toggleIcon) {
-                toggleLabel.textContent = visible ? 'Hide Track' : 'Show Track';
-                toggleIcon.textContent = visible ? '👁️' : '🙈';
-            }
-        };
-
-        if (btnFitTrack) {
-            btnFitTrack.addEventListener('click', () => mapController.fitVesselTrack());
-        }
-        if (btnToggleTrack) {
-            btnToggleTrack.addEventListener('click', () => {
-                if (mapController.trackVisible) {
-                    mapController.hideVesselTrack();
-                } else {
-                    mapController.showTrackLayer();
-                }
-            });
-        }
-        if (btnClearTrack) {
-            btnClearTrack.addEventListener('click', () => mapController.clearVesselTrack());
-        }
 
         // ----------------------------------------------------
         // VESSEL DETAIL PANEL & TRACK CONTROLS

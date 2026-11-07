@@ -929,156 +929,180 @@ export class GlobalMapController {
         if (!this.map) return;
 
         try {
-            const createHeadingIcon = (fillColor, strokeColor, isFishing = false) => {
-                const size = 32;
+            // Helper to generate crisp canvas ImageBitmap for MapLibre
+            const size = 32;
+
+            // 1. Fishing Custom Directional Triangle with fishing trawler silhouette detail
+            const createFishingIcon = (isStale = false) => {
                 const canvas = document.createElement('canvas');
                 canvas.width = size;
                 canvas.height = size;
                 const ctx = canvas.getContext('2d');
                 if (!ctx) return null;
 
-                // For fishing vessels, add a prominent dark outline underlayer for supreme contrast on light/dark basemaps
-                if (isFishing) {
-                    ctx.beginPath();
-                    ctx.moveTo(16, 1);
-                    ctx.bezierCurveTo(25, 9, 26, 20, 25, 29);
-                    ctx.lineTo(7, 29);
-                    ctx.bezierCurveTo(6, 20, 7, 9, 16, 1);
-                    ctx.closePath();
-                    ctx.fillStyle = '#451a03';
-                    ctx.fill();
-                    ctx.lineWidth = 3.5;
-                    ctx.strokeStyle = '#1c1917';
-                    ctx.stroke();
-                }
+                const fillColor = isStale ? '#92400e' : '#F59E0B'; // Muted dark amber if stale, bright amber #F59E0B if live
+                const outlineColor = '#FFFFFF';
 
+                // Outer high-contrast dark drop-shadow/backing for dark/light basemaps
                 ctx.beginPath();
-                ctx.moveTo(16, 2); // Sharp bow tip
-                ctx.bezierCurveTo(24, 10, 25, 20, 24, 28); // Starboard hull curve
-                ctx.lineTo(8, 28); // Flat transom stern
-                ctx.bezierCurveTo(7, 20, 8, 10, 16, 2); // Port hull curve
+                ctx.moveTo(16, 0.5);  // Bow tip
+                ctx.lineTo(29.5, 29); // Starboard aft corner
+                ctx.lineTo(16, 23.5); // Center inward notch
+                ctx.lineTo(2.5, 29);  // Port aft corner
                 ctx.closePath();
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+                ctx.fill();
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = 'rgba(15, 23, 42, 0.85)';
+                ctx.stroke();
 
+                // Main Triangle Hull (pointing North/Up)
+                ctx.beginPath();
+                ctx.moveTo(16, 2);
+                ctx.lineTo(28, 27.5);
+                ctx.lineTo(16, 22.5);
+                ctx.lineTo(4, 27.5);
+                ctx.closePath();
                 ctx.fillStyle = fillColor;
                 ctx.fill();
-                ctx.lineWidth = isFishing ? 2.0 : 2.0;
-                ctx.strokeStyle = isFishing ? '#78350f' : strokeColor;
+                ctx.lineWidth = 2.0;
+                ctx.strokeStyle = outlineColor;
                 ctx.stroke();
 
-                // Mast/wheelhouse center dot
+                // Fishing detail: Outrigger / trawler boom crossbar line
                 ctx.beginPath();
-                ctx.arc(16, 15, isFishing ? 3.0 : 2.5, 0, Math.PI * 2);
-                ctx.fillStyle = isFishing ? '#451a03' : '#ffffff';
+                ctx.moveTo(9, 17);
+                ctx.lineTo(23, 17);
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.6;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+
+                // Outrigger stabilizer tip indicators (fishing gear)
+                ctx.beginPath();
+                ctx.arc(9, 17, 1.2, 0, Math.PI * 2);
+                ctx.arc(23, 17, 1.2, 0, Math.PI * 2);
+                ctx.fillStyle = '#451a03';
+                ctx.fill();
+
+                // Central wheelhouse / deck cabin dot
+                ctx.beginPath();
+                ctx.arc(16, 13, 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = '#1e293b';
                 ctx.fill();
                 ctx.lineWidth = 1.0;
-                ctx.strokeStyle = isFishing ? '#F59E0B' : strokeColor;
+                ctx.strokeStyle = '#ffffff';
                 ctx.stroke();
 
-                return ctx.getImageData(0, 0, size, size);
-            };
-
-            const createCogIcon = (fillColor, strokeColor, isFishing = false) => {
-                const size = 32;
-                const canvas = document.createElement('canvas');
-                canvas.width = size;
-                canvas.height = size;
-                const ctx = canvas.getContext('2d');
-                if (!ctx) return null;
-
-                if (isFishing) {
-                    ctx.beginPath();
-                    ctx.moveTo(16, 1);
-                    ctx.lineTo(28, 27);
-                    ctx.lineTo(21, 27);
-                    ctx.lineTo(16, 19);
-                    ctx.lineTo(11, 27);
-                    ctx.lineTo(4, 27);
-                    ctx.closePath();
-                    ctx.fillStyle = '#451a03';
-                    ctx.fill();
-                    ctx.lineWidth = 3.5;
-                    ctx.strokeStyle = '#1c1917';
-                    ctx.stroke();
-                }
-
+                // Forward mast / direction centerline
                 ctx.beginPath();
-                ctx.moveTo(16, 2);   // Bow arrowhead tip
-                ctx.lineTo(27, 26);  // Starboard wing outer
-                ctx.lineTo(21, 26);  // Starboard wing inner
-                ctx.lineTo(16, 18);  // Central forward notch
-                ctx.lineTo(11, 26);  // Port wing inner
-                ctx.lineTo(5, 26);   // Port wing outer
-                ctx.closePath();
-
-                ctx.fillStyle = isFishing ? fillColor : strokeColor;
-                ctx.fill();
-                ctx.lineWidth = 2.0;
-                ctx.strokeStyle = isFishing ? '#78350f' : fillColor;
-                ctx.stroke();
-
-                // Central course trajectory ray
-                ctx.beginPath();
-                ctx.moveTo(16, 8);
-                ctx.lineTo(16, 16);
-                ctx.strokeStyle = isFishing ? '#451a03' : '#ffffff';
-                ctx.lineWidth = 2.0;
+                ctx.moveTo(16, 4);
+                ctx.lineTo(16, 10);
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.4;
                 ctx.lineCap = 'round';
                 ctx.stroke();
 
                 return ctx.getImageData(0, 0, size, size);
             };
 
-            // Register category-specific live icons: Fishing is vibrant Amber/Orange (#F59E0B)
+            // 2. Standard Directional Triangle for other vessel categories
+            const createStandardTriangleIcon = (fillColor, strokeColor = '#FFFFFF', isStale = false) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return null;
+
+                const actualFill = isStale ? '#475569' : fillColor;
+
+                // High-contrast outer stroke / backing
+                ctx.beginPath();
+                ctx.moveTo(16, 1);
+                ctx.lineTo(29, 28);
+                ctx.lineTo(16, 23);
+                ctx.lineTo(3, 28);
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+                ctx.fill();
+                ctx.lineWidth = 3.5;
+                ctx.strokeStyle = 'rgba(15, 23, 42, 0.75)';
+                ctx.stroke();
+
+                // Main Triangle Body
+                ctx.beginPath();
+                ctx.moveTo(16, 2.5);
+                ctx.lineTo(27.5, 26.5);
+                ctx.lineTo(16, 22);
+                ctx.lineTo(4.5, 26.5);
+                ctx.closePath();
+                ctx.fillStyle = actualFill;
+                ctx.fill();
+                ctx.lineWidth = 2.0;
+                ctx.strokeStyle = strokeColor;
+                ctx.stroke();
+
+                // Subtle center dot / mast
+                ctx.beginPath();
+                ctx.arc(16, 14, 2.0, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+
+                return ctx.getImageData(0, 0, size, size);
+            };
+
+            // Vessel Type Taxonomy mapping per requirement table
             const categories = [
-                { id: 'fishing', fill: '#F59E0B', stroke: '#78350f', isFishing: true },
-                { id: 'passenger', fill: '#0284c7', stroke: '#0369a1', isFishing: false },
-                { id: 'patrol', fill: '#f43f5e', stroke: '#be123c', isFishing: false },
-                { id: 'military', fill: '#ef4444', stroke: '#b91c1c', isFishing: false },
-                { id: 'special', fill: '#f59e0b', stroke: '#b45309', isFishing: false },
-                { id: 'unknown', fill: '#94a3b8', stroke: '#475569', isFishing: false },
+                { id: 'fishing', fill: '#F59E0B', isFishing: true },
+                { id: 'cargo', fill: '#2563EB', isFishing: false },
+                { id: 'tanker', fill: '#9333EA', isFishing: false },
+                { id: 'passenger', fill: '#06B6D4', isFishing: false },
+                { id: 'support', fill: '#64748B', isFishing: false },
+                { id: 'patrol', fill: '#DC2626', isFishing: false },
+                { id: 'military', fill: '#DC2626', isFishing: false },
+                { id: 'law_enforcement', fill: '#DC2626', isFishing: false },
+                { id: 'unknown', fill: '#94A3B8', isFishing: false },
             ];
 
             categories.forEach(cat => {
-                const hName = `vessel-${cat.id}-heading`;
-                if (this.map.hasImage(hName)) this.map.removeImage(hName);
-                const hImg = createHeadingIcon(cat.fill, cat.stroke, cat.isFishing);
-                if (hImg) this.map.addImage(hName, hImg, { pixelRatio: 2 });
+                const liveImg = cat.isFishing
+                    ? createFishingIcon(false)
+                    : createStandardTriangleIcon(cat.fill, '#FFFFFF', false);
 
-                const cName = `vessel-${cat.id}-cog`;
-                if (this.map.hasImage(cName)) this.map.removeImage(cName);
-                const cImg = createCogIcon(cat.fill, cat.stroke, cat.isFishing);
-                if (cImg) this.map.addImage(cName, cImg, { pixelRatio: 2 });
+                const staleImg = cat.isFishing
+                    ? createFishingIcon(true)
+                    : createStandardTriangleIcon(cat.fill, '#E2E8F0', true);
+
+                // Register both heading & cog variants with identical clean triangle iconography
+                const names = [
+                    `vessel-${cat.id}`,
+                    `vessel-${cat.id}-heading`,
+                    `vessel-${cat.id}-cog`
+                ];
+
+                names.forEach(name => {
+                    if (this.map.hasImage(name)) this.map.removeImage(name);
+                    if (liveImg) this.map.addImage(name, liveImg, { pixelRatio: 2 });
+
+                    const staleName = `${name}-stale`;
+                    if (this.map.hasImage(staleName)) this.map.removeImage(staleName);
+                    if (staleImg) this.map.addImage(staleName, staleImg, { pixelRatio: 2 });
+                });
             });
 
-            // Standard Live Fallbacks (Cyan tone)
-            if (!this.map.hasImage('vessel-heading')) {
-                const img = createHeadingIcon('#38bdf8', '#0284c7');
-                if (img) this.map.addImage('vessel-heading', img, { pixelRatio: 2 });
-            }
-            if (!this.map.hasImage('vessel-cog')) {
-                const img = createCogIcon('#38bdf8', '#0284c7');
-                if (img) this.map.addImage('vessel-cog', img, { pixelRatio: 2 });
-            }
+            // Global fallbacks
+            const defaultLive = createStandardTriangleIcon('#06B6D4', '#FFFFFF', false);
+            const defaultStale = createStandardTriangleIcon('#64748B', '#E2E8F0', true);
 
-            // Stale Icons (> 2h, Muted Slate tone)
-            if (!this.map.hasImage('vessel-heading-stale')) {
-                const img = createHeadingIcon('#64748b', '#334155');
-                if (img) this.map.addImage('vessel-heading-stale', img, { pixelRatio: 2 });
-            }
-            if (!this.map.hasImage('vessel-cog-stale')) {
-                const img = createCogIcon('#64748b', '#334155');
-                if (img) this.map.addImage('vessel-cog-stale', img, { pixelRatio: 2 });
-            }
+            ['vessel-heading', 'vessel-cog', 'vessel-oriented-live'].forEach(name => {
+                if (this.map.hasImage(name)) this.map.removeImage(name);
+                if (defaultLive) this.map.addImage(name, defaultLive, { pixelRatio: 2 });
+            });
 
-            // Aliases for compatibility
-            if (!this.map.hasImage('vessel-oriented-live')) {
-                const img = this.map.getImage('vessel-heading');
-                if (img && img.data) this.map.addImage('vessel-oriented-live', img.data);
-            }
-            if (!this.map.hasImage('vessel-oriented-stale')) {
-                const img = this.map.getImage('vessel-heading-stale');
-                if (img && img.data) this.map.addImage('vessel-oriented-stale', img.data);
-            }
+            ['vessel-heading-stale', 'vessel-cog-stale', 'vessel-oriented-stale'].forEach(name => {
+                if (this.map.hasImage(name)) this.map.removeImage(name);
+                if (defaultStale) this.map.addImage(name, defaultStale, { pixelRatio: 2 });
+            });
         } catch (e) {
             console.warn('[GlobalMapController] Canvas image registration warning:', e);
         }
@@ -1152,37 +1176,52 @@ export class GlobalMapController {
                         ['get', 'vessel_type'],
                         'fishing', [
                             'case',
-                            ['==', ['get', 'orientation_source'], 'heading'], 'vessel-fishing-heading',
+                            ['!=', ['get', 'is_fresh'], true], 'vessel-fishing-cog-stale',
                             'vessel-fishing-cog'
+                        ],
+                        'cargo', [
+                            'case',
+                            ['!=', ['get', 'is_fresh'], true], 'vessel-cargo-cog-stale',
+                            'vessel-cargo-cog'
+                        ],
+                        'tanker', [
+                            'case',
+                            ['!=', ['get', 'is_fresh'], true], 'vessel-tanker-cog-stale',
+                            'vessel-tanker-cog'
                         ],
                         'passenger', [
                             'case',
-                            ['==', ['get', 'orientation_source'], 'heading'], 'vessel-passenger-heading',
+                            ['!=', ['get', 'is_fresh'], true], 'vessel-passenger-cog-stale',
                             'vessel-passenger-cog'
+                        ],
+                        'support', [
+                            'case',
+                            ['!=', ['get', 'is_fresh'], true], 'vessel-support-cog-stale',
+                            'vessel-support-cog'
+                        ],
+                        'carrier', [
+                            'case',
+                            ['!=', ['get', 'is_fresh'], true], 'vessel-support-cog-stale',
+                            'vessel-support-cog'
                         ],
                         'patrol', [
                             'case',
-                            ['==', ['get', 'orientation_source'], 'heading'], 'vessel-patrol-heading',
+                            ['!=', ['get', 'is_fresh'], true], 'vessel-patrol-cog-stale',
                             'vessel-patrol-cog'
                         ],
                         'military', [
                             'case',
-                            ['==', ['get', 'orientation_source'], 'heading'], 'vessel-military-heading',
+                            ['!=', ['get', 'is_fresh'], true], 'vessel-military-cog-stale',
                             'vessel-military-cog'
                         ],
-                        'support', [
+                        'law_enforcement', [
                             'case',
-                            ['==', ['get', 'orientation_source'], 'heading'], 'vessel-special-heading',
-                            'vessel-special-cog'
-                        ],
-                        'carrier', [
-                            'case',
-                            ['==', ['get', 'orientation_source'], 'heading'], 'vessel-special-heading',
-                            'vessel-special-cog'
+                            ['!=', ['get', 'is_fresh'], true], 'vessel-law_enforcement-cog-stale',
+                            'vessel-law_enforcement-cog'
                         ],
                         [
                             'case',
-                            ['==', ['get', 'orientation_source'], 'heading'], 'vessel-unknown-heading',
+                            ['!=', ['get', 'is_fresh'], true], 'vessel-unknown-cog-stale',
                             'vessel-unknown-cog'
                         ]
                     ]
@@ -1229,13 +1268,16 @@ export class GlobalMapController {
                     [
                         'match',
                         ['get', 'vessel_type'],
-                        'fishing', '#F59E0B', // Amber/Orange
-                        'passenger', '#0284c7',
-                        'patrol', '#f43f5e',
-                        'military', '#ef4444',
-                        'support', '#f59e0b',
-                        'carrier', '#06b6d4',
-                        '#38bdf8' // Default live cyan
+                        'fishing', '#F59E0B', // Amber
+                        'cargo', '#2563EB',   // Blue
+                        'tanker', '#9333EA',  // Purple
+                        'passenger', '#06B6D4', // Cyan
+                        'support', '#64748B', // Slate
+                        'carrier', '#64748B', // Slate
+                        'patrol', '#DC2626',  // Red
+                        'military', '#DC2626', // Red
+                        'law_enforcement', '#DC2626', // Red
+                        '#94A3B8' // Unknown gray
                     ]
                 ],
                 'circle-stroke-width': [

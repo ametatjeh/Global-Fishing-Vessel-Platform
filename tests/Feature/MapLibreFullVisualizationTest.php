@@ -96,15 +96,12 @@ class MapLibreFullVisualizationTest extends TestCase
         $response->assertSee('toggle-layer-vessels');
         $response->assertSee('toggle-layer-dark-vessels');
         $response->assertSee('toggle-layer-sar-scenes');
-        $response->assertSee('Live AIS Vessels (Posisi Aktual)');
-        $response->assertSee('Heading: Arah haluan (heading valid)');
-        $response->assertSee('COG fallback: Arah gerak lintasan bumi');
         $response->assertSee('Direction unavailable: Orientasi tidak diketahui');
         $response->assertSee('Selected vessel: Cincin sorot kapal terpilih');
-        $response->assertSee('id="activeTrackBanner"', false);
-        $response->assertSee('id="btnFitActiveTrack"', false);
-        $response->assertSee('id="btnToggleActiveTrack"', false);
-        $response->assertSee('id="btnClearActiveTrack"', false);
+        $response->assertDontSee('id="activeTrackBanner"', false);
+        $response->assertDontSee('id="btnFitActiveTrack"', false);
+        $response->assertDontSee('id="btnToggleActiveTrack"', false);
+        $response->assertDontSee('id="btnClearActiveTrack"', false);
         $response->assertDontSee('Cluster Padat');
         $response->assertDontSee('Cluster Kecil');
     }
@@ -115,10 +112,7 @@ class MapLibreFullVisualizationTest extends TestCase
         $response = $this->actingAs($this->analyst)->get(route('map.index'));
         $response->assertOk();
         $response->assertSee('id="global-map-canvas"', false);
-        $response->assertSee('id="activeTrackBanner"', false);
-        $response->assertSee('btnFitActiveTrack');
-        $response->assertSee('btnToggleActiveTrack');
-        $response->assertSee('btnClearActiveTrack');
+        $response->assertDontSee('id="activeTrackBanner"', false);
         $response->assertSee('btnToggleAdvancedFilters');
         $response->assertSee('btnToggleLayers');
 
