@@ -64,7 +64,7 @@ class PortalPagesTest extends TestCase
         ];
 
         foreach ($endpoints as $endpoint) {
-            $response = $this->getJson($endpoint);
+            $response = $this->actingAs($this->user)->getJson($endpoint);
             $response->assertStatus(200);
             $response->assertJsonStructure([
                 'type',

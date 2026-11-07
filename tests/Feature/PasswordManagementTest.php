@@ -141,10 +141,11 @@ class PasswordManagementTest extends TestCase
             'name' => 'SSO Navigator',
             'email' => 'navigator@gmail.com',
             'google_id' => 'google-oauth-unique-9988',
-            'role' => 'viewer',
+            'role' => 'analyst',
             'organization' => 'External / Google SSO',
             'password' => Hash::make('SystemGeneratedRandom32CharsLongString'),
             'password_set_at' => null,
+            'is_active' => true,
         ]);
 
         $this->assertFalse($googleUser->hasSetPassword());

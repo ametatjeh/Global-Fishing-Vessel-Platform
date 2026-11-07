@@ -102,7 +102,7 @@
                             <li><strong class="text-amber-300">Super Admin:</strong> Hak akses penuh root, manajemen akun, offsite backup, dan seluruh modul.</li>
                             <li><strong class="text-blue-300">Admin:</strong> Kelola provider health, system settings, activity log, dan operasional.</li>
                             <li><strong class="text-teal-300">Analyst:</strong> Evaluasi SAR/Dark Vessels, buat investigasi, update compliance status.</li>
-                            <li><strong class="text-slate-300">Viewer:</strong> Akses hanya-baca ke peta global, live tracking, registry, dan statistik.</li>
+                            <li class="text-rose-400"><strong>Viewer:</strong> Dinonaktifkan secara permanen. Hanya peran terdaftar di atas yang dapat mengakses sistem.</li>
                         </ul>
                     </div>
                 </div>

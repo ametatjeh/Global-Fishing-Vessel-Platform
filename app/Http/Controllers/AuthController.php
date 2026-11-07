@@ -31,13 +31,25 @@ class AuthController extends Controller
         ]);
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
-            if (Auth::user()->is_active === false) {
+            $user = Auth::user();
+
+            if ($user->is_active === false) {
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
 
                 throw ValidationException::withMessages([
                     'email' => __('Akun ini telah dinonaktifkan oleh administrator. Silakan hubungi Super Admin.'),
+                ]);
+            }
+
+            if ($user->role === 'viewer' || !in_array($user->role, ['super_admin', 'admin', 'analyst'], true)) {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                throw ValidationException::withMessages([
+                    'email' => __('Akses ditolak: Peran akun Anda (' . ($user->role ?? 'none') . ') telah dinonaktifkan. Silakan hubungi Super Administrator.'),
                 ]);
             }
 
@@ -114,22 +126,23 @@ class AuthController extends Controller
                 }
                 $user->save();
             } else {
-                // 3. Register new user with safe default role
-                $user = User::create([
-                    'name' => $googleUser->getName() ?: 'Google User',
+                // Reject unregistered Google users! Self-registration is strictly disabled.
+                AuditLog::log('rejected_unregistered_sso', 'user', '0', [
                     'email' => $email,
                     'google_id' => $googleId,
-                    'role' => 'viewer',
-                    'organization' => 'External / Google SSO',
-                    'email_verified_at' => now(),
-                    'password' => Hash::make(Str::random(32)),
-                    'password_set_at' => null,
+                    'reason' => 'unregistered_email',
                 ]);
+
+                return redirect()->route('login')->with('error', 'Akses ditolak: Alamat email Google ini (' . $email . ') belum terdaftar di sistem. Pendaftaran pengguna baru hanya dapat dilakukan oleh Super Administrator.');
             }
         }
 
         if ($user && $user->is_active === false) {
             return redirect()->route('login')->with('error', 'Akun ini telah dinonaktifkan oleh administrator. Silakan hubungi Super Admin.');
+        }
+
+        if ($user && ($user->role === 'viewer' || !in_array($user->role, ['super_admin', 'admin', 'analyst'], true))) {
+            return redirect()->route('login')->with('error', 'Akses ditolak: Peran akun Anda (' . $user->role . ') telah dinonaktifkan. Silakan hubungi Super Administrator.');
         }
 
         Auth::login($user, true);

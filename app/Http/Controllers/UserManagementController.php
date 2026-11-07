@@ -14,13 +14,13 @@ use Illuminate\View\View;
 class UserManagementController extends Controller
 {
     /**
-     * Allowed system roles with clear privilege boundaries.
+     * Allowed active system roles with clear privilege boundaries.
+     * Role 'viewer' has been permanently decommissioned and disabled.
      */
     public const ROLES = [
         'super_admin' => 'Super Administrator (Akses Penuh)',
         'admin' => 'Administrator Sistem',
         'analyst' => 'Intelligence Analyst',
-        'viewer' => 'Viewer (Akses Baca)',
     ];
 
     /**
@@ -79,7 +79,7 @@ class UserManagementController extends Controller
             'email.email' => 'Format email tidak valid.',
             'email.unique' => 'Alamat email sudah terdaftar dalam sistem.',
             'role.required' => 'Peran pengguna wajib dipilih.',
-            'role.in' => 'Peran yang dipilih tidak valid.',
+            'role.in' => 'Peran yang dipilih tidak valid atau telah dinonaktifkan (role viewer tidak lagi didukung).',
             'password.required' => 'Kata sandi wajib diisi.',
             'password.min' => 'Kata sandi minimal 8 karakter.',
             'password.confirmed' => 'Konfirmasi kata sandi tidak cocok.',
@@ -162,7 +162,7 @@ class UserManagementController extends Controller
             'email.required' => 'Alamat email wajib diisi.',
             'email.unique' => 'Alamat email telah digunakan akun lain.',
             'role.required' => 'Peran akun wajib dipilih.',
-            'role.in' => 'Peran yang dipilih tidak valid.',
+            'role.in' => 'Peran yang dipilih tidak valid atau telah dinonaktifkan (role viewer tidak lagi didukung).',
         ]);
 
         $newRole = $validated['role'];

@@ -9,29 +9,32 @@ use Illuminate\Support\Facades\Route;
 // System Health & Observability Endpoint (Tahap 14)
 Route::get('/health', [HealthApiController::class, 'index'])->name('api.health');
 
-// Unified Map Search (Vessels & SAR Candidates)
-Route::get('/map/search', [MapLayerApiController::class, 'search'])->name('api.map.search');
+// Internal Data & Map API Endpoints (Requires Valid Session/Token, Active Status, and Valid Role)
+Route::middleware(['web', 'role'])->group(function () {
+    // Unified Map Search (Vessels & SAR Candidates)
+    Route::get('/map/search', [MapLayerApiController::class, 'search'])->name('api.map.search');
 
-Route::prefix('layers')->group(function () {
-    Route::get('/', [MapLayerApiController::class, 'layers'])->name('api.layers');
-    Route::get('/fao', [MapLayerApiController::class, 'fao'])->name('api.layers.fao');
-    Route::get('/eez', [MapLayerApiController::class, 'eez'])->name('api.layers.eez');
-    Route::get('/eez-boundaries', [MapLayerApiController::class, 'eezBoundaries'])->name('api.layers.eez-boundaries');
-    Route::get('/fma', [MapLayerApiController::class, 'fma'])->name('api.layers.fma');
-    Route::get('/vessels', [MapLayerApiController::class, 'vessels'])->name('api.layers.vessels');
-    Route::get('/encounters', [MapLayerApiController::class, 'encounters'])->name('api.layers.encounters');
-    Route::get('/dark-vessels', [MapLayerApiController::class, 'darkVessels'])->name('api.layers.dark-vessels');
-    Route::get('/sar-scenes', [MapLayerApiController::class, 'sarScenes'])->name('api.layers.sar-scenes');
+    Route::prefix('layers')->group(function () {
+        Route::get('/', [MapLayerApiController::class, 'layers'])->name('api.layers');
+        Route::get('/fao', [MapLayerApiController::class, 'fao'])->name('api.layers.fao');
+        Route::get('/eez', [MapLayerApiController::class, 'eez'])->name('api.layers.eez');
+        Route::get('/eez-boundaries', [MapLayerApiController::class, 'eezBoundaries'])->name('api.layers.eez-boundaries');
+        Route::get('/fma', [MapLayerApiController::class, 'fma'])->name('api.layers.fma');
+        Route::get('/vessels', [MapLayerApiController::class, 'vessels'])->name('api.layers.vessels');
+        Route::get('/encounters', [MapLayerApiController::class, 'encounters'])->name('api.layers.encounters');
+        Route::get('/dark-vessels', [MapLayerApiController::class, 'darkVessels'])->name('api.layers.dark-vessels');
+        Route::get('/sar-scenes', [MapLayerApiController::class, 'sarScenes'])->name('api.layers.sar-scenes');
+    });
+
+    Route::get('/encounters/{id}', [MapLayerApiController::class, 'encounterDetail'])->name('api.encounters.detail');
+
+    // Historical AIS Vessel Track API (Tahap 11)
+    Route::get('/vessels/{id}/track', [MapLayerApiController::class, 'vesselTrack'])->name('api.vessels.track');
+
+    // SAR Evidence & Track API (Tahap 8 & 9)
+    Route::get('/sar/candidates/{id}/evidence', [\App\Http\Controllers\SarEvidenceController::class, 'apiEvidence'])->name('api.sar.candidates.evidence');
+    Route::get('/sar/candidates/{id}/track', [\App\Http\Controllers\SarEvidenceController::class, 'apiTrack'])->name('api.sar.candidates.track');
 });
-
-Route::get('/encounters/{id}', [MapLayerApiController::class, 'encounterDetail'])->name('api.encounters.detail');
-
-// Historical AIS Vessel Track API (Tahap 11)
-Route::get('/vessels/{id}/track', [MapLayerApiController::class, 'vesselTrack'])->name('api.vessels.track');
-
-// SAR Evidence & Track API (Tahap 8 & 9)
-Route::get('/sar/candidates/{id}/evidence', [\App\Http\Controllers\SarEvidenceController::class, 'apiEvidence'])->name('api.sar.candidates.evidence');
-Route::get('/sar/candidates/{id}/track', [\App\Http\Controllers\SarEvidenceController::class, 'apiTrack'])->name('api.sar.candidates.track');
 
 // Genuine AIS Telemetry Ingestion Endpoint
 Route::post('/telemetry/ais', function (Request $request, AisStreamAdapter $adapter) {

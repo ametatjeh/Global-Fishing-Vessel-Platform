@@ -75,8 +75,8 @@
                             ANALYST
                         </span>
                     @else
-                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700 uppercase">
-                            VIEWER
+                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 uppercase" title="Peran viewer dinonaktifkan: Tidak memiliki akses">
+                            DISABLED ({{ strtoupper($targetUser->role) }})
                         </span>
                     @endif
 

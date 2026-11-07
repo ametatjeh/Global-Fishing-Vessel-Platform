@@ -554,14 +554,14 @@
                 </div>
 
                 @if(!$canReview)
-                <!-- Viewer Read-Only Banner -->
+                <!-- Read-Only Restricted Banner -->
                 <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-400 space-y-1">
                     <div class="text-slate-200 font-bold flex items-center gap-1.5">
                         <span>🔒</span>
                         <span>Mode Akses Terbatas (Read-Only):</span>
                     </div>
                     <p>
-                        Akun Anda memiliki peran <strong>Viewer</strong>. Hanya Analis Intelijen Maritim (<em class="text-teal-300">analyst</em>) dan Administrator (<em class="text-teal-300">super_admin</em>) yang memiliki wewenang mencatat atau mengubah keputusan peninjauan.
+                        Akun Anda tidak memiliki hak otorisasi peninjauan. Hanya Analis Intelijen Maritim (<em class="text-teal-300">analyst</em>) dan Administrator (<em class="text-teal-300">super_admin</em>) yang memiliki wewenang mencatat atau mengubah keputusan peninjauan.
                     </p>
                 </div>
                 @endif

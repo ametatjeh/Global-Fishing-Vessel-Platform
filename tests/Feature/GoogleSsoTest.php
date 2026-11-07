@@ -55,12 +55,12 @@ class GoogleSsoTest extends TestCase
         $response->assertRedirect('https://accounts.google.com/o/oauth2/auth');
     }
 
-    public function test_google_callback_creates_new_user_safely(): void
+    public function test_google_callback_rejects_unregistered_email_and_does_not_create_user(): void
     {
         $googleUserMock = Mockery::mock('Laravel\Socialite\Two\User');
         $googleUserMock->shouldReceive('getId')->andReturn('google-unique-id-998877');
         $googleUserMock->shouldReceive('getName')->andReturn('Maritime Observer Google');
-        $googleUserMock->shouldReceive('getEmail')->andReturn('new.analyst@maritime-intel.org');
+        $googleUserMock->shouldReceive('getEmail')->andReturn('unregistered.visitor@maritime-intel.org');
 
         $providerMock = Mockery::mock('Laravel\Socialite\Contracts\Provider');
         $providerMock->shouldReceive('user')->andReturn($googleUserMock);
@@ -69,14 +69,11 @@ class GoogleSsoTest extends TestCase
 
         $response = $this->get('/auth/google/callback');
 
-        $response->assertRedirect('/dashboard');
-        $this->assertAuthenticated();
+        $response->assertRedirect('/login');
+        $response->assertSessionHas('error');
+        $this->assertGuest();
 
-        $user = User::where('email', 'new.analyst@maritime-intel.org')->first();
-        $this->assertNotNull($user);
-        $this->assertEquals('google-unique-id-998877', $user->google_id);
-        $this->assertEquals('viewer', $user->role);
-        $this->assertNotNull($user->email_verified_at);
+        $this->assertDatabaseMissing('users', ['email' => 'unregistered.visitor@maritime-intel.org']);
     }
 
     public function test_google_callback_links_existing_user_without_creating_duplicate(): void

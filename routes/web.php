@@ -24,8 +24,8 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/auth/google/redirect', [AuthController::class, 'redirectToGoogle'])->name('auth.google.redirect');
 Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('auth.google.callback');
 
-// Protected Portal Routes
-Route::middleware('auth')->group(function () {
+// Protected Portal Routes (Requires Authentication, Active Status, and Valid Role)
+Route::middleware(['auth', 'role'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('home');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 

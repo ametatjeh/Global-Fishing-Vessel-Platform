@@ -108,7 +108,7 @@ class SarEvidenceViewerTest extends TestCase
 
     public function test_api_sar_candidate_evidence_endpoint_returns_valid_structure_without_secrets(): void
     {
-        $response = $this->getJson("/api/sar/candidates/{$this->detection->id}/evidence");
+        $response = $this->actingAs($this->analyst)->getJson("/api/sar/candidates/{$this->detection->id}/evidence");
 
         $response->assertStatus(200);
         $response->assertJsonStructure([
@@ -284,7 +284,7 @@ class SarEvidenceViewerTest extends TestCase
     public function test_evidence_endpoint_accepts_compound_detection_identifier(): void
     {
         // Querying with non-UUID compound identifier like "542e73f3-35ea-4ff6-bc6a-fa71d5d1fee7-0001"
-        $response = $this->getJson("/api/sar/candidates/{$this->detection->detection_identifier}/evidence");
+        $response = $this->actingAs($this->analyst)->getJson("/api/sar/candidates/{$this->detection->detection_identifier}/evidence");
 
         $response->assertStatus(200);
         $response->assertJson([
@@ -295,7 +295,7 @@ class SarEvidenceViewerTest extends TestCase
 
     public function test_track_endpoint_accepts_compound_detection_identifier(): void
     {
-        $response = $this->getJson("/api/sar/candidates/{$this->detection->detection_identifier}/track?window=60");
+        $response = $this->actingAs($this->analyst)->getJson("/api/sar/candidates/{$this->detection->detection_identifier}/track?window=60");
 
         $response->assertStatus(200);
         $data = $response->json();
@@ -305,7 +305,7 @@ class SarEvidenceViewerTest extends TestCase
 
     public function test_evidence_endpoint_returns_404_for_unknown_identifier(): void
     {
-        $response = $this->getJson('/api/sar/candidates/non-existent-candidate-identifier/evidence');
+        $response = $this->actingAs($this->analyst)->getJson('/api/sar/candidates/non-existent-candidate-identifier/evidence');
 
         $response->assertStatus(404);
         $response->assertJson([
@@ -315,7 +315,7 @@ class SarEvidenceViewerTest extends TestCase
 
     public function test_track_endpoint_returns_422_for_invalid_window(): void
     {
-        $response = $this->getJson("/api/sar/candidates/{$this->detection->detection_identifier}/track?window=invalid_window");
+        $response = $this->actingAs($this->analyst)->getJson("/api/sar/candidates/{$this->detection->detection_identifier}/track?window=invalid_window");
 
         $response->assertStatus(422);
         $response->assertJson([
@@ -326,7 +326,7 @@ class SarEvidenceViewerTest extends TestCase
 
     public function test_track_endpoint_returns_404_for_unknown_identifier(): void
     {
-        $response = $this->getJson('/api/sar/candidates/non-existent-candidate-identifier/track');
+        $response = $this->actingAs($this->analyst)->getJson('/api/sar/candidates/non-existent-candidate-identifier/track');
 
         $response->assertStatus(404);
         $response->assertJson([

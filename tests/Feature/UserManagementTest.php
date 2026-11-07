@@ -103,9 +103,9 @@ class UserManagementTest extends TestCase
         $response->assertStatus(200);
         $response->assertDontSee('Manajemen Akun');
 
+        // Decommissioned viewer role is rejected with 403
         $viewerResponse = $this->actingAs($this->viewer)->get('/dashboard');
-        $viewerResponse->assertStatus(200);
-        $viewerResponse->assertDontSee('Manajemen Akun');
+        $viewerResponse->assertStatus(403);
 
         $adminResponse = $this->actingAs($this->admin)->get('/dashboard');
         $adminResponse->assertStatus(200);

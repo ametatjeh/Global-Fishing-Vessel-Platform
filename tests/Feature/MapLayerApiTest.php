@@ -14,6 +14,18 @@ class MapLayerApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected User $user;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->user = User::factory()->create([
+            'role' => 'analyst',
+            'is_active' => true,
+        ]);
+        $this->actingAs($this->user);
+    }
+
     public function test_api_layers_endpoint_returns_layer_catalog_and_metadata(): void
     {
         $response = $this->getJson('/api/layers');

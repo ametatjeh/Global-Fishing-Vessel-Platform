@@ -98,12 +98,23 @@
                     </label>
                     <select id="role" name="role" required
                         class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition text-xs font-medium">
+                        @if(!array_key_exists($targetUser->role, $roles))
+                            <option value="" disabled selected class="text-rose-400 font-bold">
+                                ⚠️ [DINONAKTIFKAN] Peran Saat Ini: {{ strtoupper($targetUser->role) }} (Wajib Pilih Peran Sah)
+                            </option>
+                        @endif
                         @foreach($roles as $roleKey => $roleLabel)
                             <option value="{{ $roleKey }}" {{ old('role', $targetUser->role) === $roleKey ? 'selected' : '' }}>
                                 {{ $roleLabel }}
                             </option>
                         @endforeach
                     </select>
+
+                    @if(!array_key_exists($targetUser->role, $roles))
+                        <div class="mt-2 p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-[11px] text-rose-300">
+                            <strong>Perhatian:</strong> Peran <em>{{ $targetUser->role }}</em> telah dinonaktifkan secara permanen. Pengguna ini tidak dapat mengakses aplikasi hingga Super Administrator menetapkan salah satu peran sah di atas.
+                        </div>
+                    @endif
 
                     @if($targetUser->id === auth()->id())
                         <p class="text-[10px] text-amber-400 mt-1">

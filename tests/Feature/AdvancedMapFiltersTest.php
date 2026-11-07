@@ -23,7 +23,10 @@ class AdvancedMapFiltersTest extends TestCase
         $this->analyst = User::factory()->create([
             'role' => 'analyst',
             'name' => 'Maritime Operations Analyst',
+            'is_active' => true,
         ]);
+
+        $this->actingAs($this->analyst);
     }
 
     public function test_map_page_renders_advanced_filters_panel_and_search_bar(): void

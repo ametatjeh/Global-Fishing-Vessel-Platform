@@ -123,7 +123,7 @@ class SarMultiSourceIntelligenceTest extends TestCase
             'received_at' => $sarTime->copy()->addMinutes(20),
         ]);
 
-        $response = $this->getJson("/api/sar/candidates/{$this->detection->id}/track?window=60");
+        $response = $this->actingAs($this->analyst)->getJson("/api/sar/candidates/{$this->detection->id}/track?window=60");
 
         $response->assertStatus(200);
         $response->assertJsonStructure([
@@ -445,12 +445,12 @@ class SarMultiSourceIntelligenceTest extends TestCase
     public function test_maplibre_sar_layer_and_ais_track_regression(): void
     {
         // 1. SAR scenes layer
-        $sceneResp = $this->getJson('/api/layers/sar-scenes');
+        $sceneResp = $this->actingAs($this->analyst)->getJson('/api/layers/sar-scenes');
         $sceneResp->assertStatus(200);
         $sceneResp->assertJsonPath('type', 'FeatureCollection');
 
         // 2. Dark vessels / SAR candidates layer
-        $darkResp = $this->getJson('/api/layers/dark-vessels');
+        $darkResp = $this->actingAs($this->analyst)->getJson('/api/layers/dark-vessels');
         $darkResp->assertStatus(200);
         $darkResp->assertJsonPath('type', 'FeatureCollection');
 
