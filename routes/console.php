@@ -44,4 +44,10 @@ Schedule::command('ais:prune-telemetry')
     ->withoutOverlapping()
     ->description('Prune AIS historical telemetry according to vessel type retention policies (Fishing is permanently protected)');
 
+Schedule::command('vessels:enrich-awaiting --limit=50 --active-only')
+    ->hourly()
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->description('Periodically enrich active vessels awaiting static data across maritime providers');
+
 
