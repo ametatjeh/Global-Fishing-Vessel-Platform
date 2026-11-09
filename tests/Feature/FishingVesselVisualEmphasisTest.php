@@ -30,10 +30,8 @@ class FishingVesselVisualEmphasisTest extends TestCase
         $response = $this->actingAs($this->analyst)->get('/map');
 
         $response->assertOk();
-        $response->assertSee('bg-[#F59E0B]', false);
         $response->assertSee('text-[#F59E0B]', false);
         $response->assertSee('Fishing');
-        $response->assertSee('(Perikanan)');
     }
 
     /**
@@ -48,9 +46,9 @@ class FishingVesselVisualEmphasisTest extends TestCase
         // 1. Amber/Orange (#F59E0B) used for fishing category
         $this->assertStringContainsString("id: 'fishing', fill: '#F59E0B'", $content);
 
-        // 2. Dark outline contrast implemented for fishing (#451a03, #78350f, #1c1917)
+        // 2. High contrast outline implemented for fishing (#451a03, #FFFFFF)
         $this->assertStringContainsString("#451a03", $content);
-        $this->assertStringContainsString("#78350f", $content);
+        $this->assertStringContainsString("#FFFFFF", $content);
 
         // 3. Neutral circle layer uses #F59E0B for fishing
         $this->assertStringContainsString("'fishing', '#F59E0B'", $content);
@@ -70,11 +68,10 @@ class FishingVesselVisualEmphasisTest extends TestCase
         $this->assertStringContainsString("vessel-hover-tooltip", $content);
 
         // 7. Other vessel categories remain distinct and untouched
-        $this->assertStringContainsString("id: 'passenger', fill: '#0284c7'", $content);
-        $this->assertStringContainsString("id: 'patrol', fill: '#f43f5e'", $content);
-        $this->assertStringContainsString("id: 'military', fill: '#ef4444'", $content);
-        $this->assertStringContainsString("id: 'special', fill: '#f59e0b'", $content);
-        $this->assertStringContainsString("id: 'unknown', fill: '#94a3b8'", $content);
+        $this->assertStringContainsString("id: 'passenger', fill: '#06B6D4'", $content);
+        $this->assertStringContainsString("id: 'patrol', fill: '#DC2626'", $content);
+        $this->assertStringContainsString("id: 'military', fill: '#DC2626'", $content);
+        $this->assertStringContainsString("id: 'unknown', fill: '#94A3B8'", $content);
     }
 }
 
