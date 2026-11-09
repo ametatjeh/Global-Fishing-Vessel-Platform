@@ -47,7 +47,6 @@ Schedule::command('ais:prune-telemetry')
 Schedule::command('vessels:enrich-awaiting --limit=50 --active-only --queue')
     ->hourly()
     ->withoutOverlapping(60)
-    ->runInBackground()
     ->onFailure(function () {
         \Illuminate\Support\Facades\Log::error('Scheduled vessels:enrich-awaiting failed to dispatch background enrichment jobs.');
     })

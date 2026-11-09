@@ -151,6 +151,8 @@ class EnrichAwaitingVesselsCommand extends Command
             $startTime = microtime(true);
             $dispatched = 0;
             foreach ($vessels as $v) {
+                // Mark immediately as searching to prevent re-dispatch on subsequent scheduler runs
+                $v->update(['enrichment_status' => 'searching']);
                 EnrichAwaitingVesselJob::dispatch($v->id, force: $force);
                 $dispatched++;
             }

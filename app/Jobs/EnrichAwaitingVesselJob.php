@@ -42,15 +42,8 @@ class EnrichAwaitingVesselJob implements ShouldQueue
     public function handle(VesselEnrichmentManager $enrichmentManager): void
     {
         $startTime = microtime(true);
-        $lockKey = 'awaiting_enrich_job_lock_' . $this->vesselId;
-
-        // Atomic lock check: skip if job for this vessel is currently active
-        if (!Cache::add($lockKey, true, 300)) {
-            Log::info("EnrichAwaitingVesselJob: Job skipped for vessel {$this->vesselId} due to active lock (duplicate prevention).");
-            return;
-        }
-
         $vessel = null;
+
         try {
             $vessel = Vessel::find($this->vesselId);
             if (!$vessel) {
@@ -66,7 +59,9 @@ class EnrichAwaitingVesselJob implements ShouldQueue
                 }
             }
 
-            $vessel->update(['enrichment_status' => 'searching']);
+            if ($vessel->enrichment_status !== 'searching') {
+                $vessel->update(['enrichment_status' => 'searching']);
+            }
 
             $result = $enrichmentManager->enrichVessel($vessel, dryRun: false);
             $durationMs = round((microtime(true) - $startTime) * 1000, 2);
@@ -83,7 +78,6 @@ class EnrichAwaitingVesselJob implements ShouldQueue
             // If transient provider failure occurred and attempts remain, release back to queue for backoff retry
             if ($result['enrichment_status'] === 'provider_unavailable' && $this->attempts() < $this->tries) {
                 Log::warning("EnrichAwaitingVesselJob: Provider unavailable for vessel {$vessel->id}. Releasing back to queue with backoff.");
-                Cache::forget($lockKey);
                 $this->release(60 * $this->attempts());
                 return;
             }
@@ -107,8 +101,6 @@ class EnrichAwaitingVesselJob implements ShouldQueue
 
             $vessel?->update(['enrichment_status' => 'provider_unavailable']);
             throw $e;
-        } finally {
-            Cache::forget($lockKey);
         }
     }
 }

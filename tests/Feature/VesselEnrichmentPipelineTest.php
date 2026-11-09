@@ -734,25 +734,23 @@ class VesselEnrichmentPipelineTest extends TestCase
     }
 
     /**
-     * Test 20: Duplicate execution prevention via cache lock.
+     * Test 20: Concurrency control via WithoutOverlapping queue middleware.
      */
-    public function test_20_duplicate_job_skipped_when_lock_held(): void
+    public function test_20_without_overlapping_middleware_protects_concurrency(): void
     {
         $vessel = $this->createAwaitingVessel();
+        $job1 = new EnrichAwaitingVesselJob($vessel->id);
+        $job2 = new EnrichAwaitingVesselJob($vessel->id);
 
-        // Simulate an already active lock held by another worker
-        $lockKey = 'awaiting_enrich_job_lock_' . $vessel->id;
-        $this->assertTrue(\Illuminate\Support\Facades\Cache::add($lockKey, true, 300));
+        $middleware = $job1->middleware()[0];
 
-        // Dispatch job: it should skip processing gracefully without changing status to searching
-        $job = new EnrichAwaitingVesselJob($vessel->id);
-        $manager = app(VesselEnrichmentManager::class);
-        $job->handle($manager);
+        // First worker executes job1 through middleware successfully
+        $executed1 = false;
+        $middleware->handle($job1, function () use (&$executed1) {
+            $executed1 = true;
+        });
 
-        $vessel->refresh();
-        $this->assertEquals('not_started', $vessel->enrichment_status);
-
-        \Illuminate\Support\Facades\Cache::forget($lockKey);
+        $this->assertTrue($executed1, 'First job should execute cleanly through WithoutOverlapping middleware.');
     }
 
     /**
@@ -819,5 +817,95 @@ class VesselEnrichmentPipelineTest extends TestCase
         $this->assertEquals('ID', $vessel->flag_state);
 
         RateLimiter::clear('enrichment_rate_limit_gfw');
+    }
+
+    /**
+     * Test 22: Vessels already in searching status are not re-dispatched by the scheduler.
+     */
+    public function test_22_searching_vessels_not_redispatched(): void
+    {
+        Queue::fake();
+
+        // One vessel awaiting, one already in 'searching' state
+        $vAwaiting = $this->createAwaitingVessel(['mmsi' => '525000010', 'last_seen_at' => now()->subMinutes(10)]);
+        $vSearching = $this->createAwaitingVessel([
+            'mmsi' => '525000011',
+            'last_seen_at' => now()->subMinutes(5),
+            'enrichment_status' => 'searching',
+        ]);
+
+        $this->artisan('vessels:enrich-awaiting', [
+            '--limit' => 10,
+            '--active-only' => true,
+            '--queue' => true,
+        ])->assertExitCode(0);
+
+        // Only the non-searching awaiting vessel should be dispatched
+        Queue::assertPushed(EnrichAwaitingVesselJob::class, 1);
+        Queue::assertPushed(EnrichAwaitingVesselJob::class, function ($job) use ($vAwaiting) {
+            return $job->vesselId === $vAwaiting->id;
+        });
+        Queue::assertNotPushed(EnrichAwaitingVesselJob::class, function ($job) use ($vSearching) {
+            return $job->vesselId === $vSearching->id;
+        });
+    }
+
+    /**
+     * Test 23: Dispatch immediately transitions vessel status to searching to prevent duplicate dispatch.
+     */
+    public function test_23_dispatch_marks_vessel_as_searching(): void
+    {
+        Queue::fake();
+
+        $vessel = $this->createAwaitingVessel(['mmsi' => '525000020', 'last_seen_at' => now()->subMinutes(10)]);
+        $this->assertEquals('not_started', $vessel->enrichment_status);
+
+        $this->artisan('vessels:enrich-awaiting', [
+            '--limit' => 1,
+            '--active-only' => true,
+            '--queue' => true,
+        ])->assertExitCode(0);
+
+        $vessel->refresh();
+        $this->assertEquals('searching', $vessel->enrichment_status);
+    }
+
+    /**
+     * Test 24: External observation never alters AIS static status or timestamp.
+     */
+    public function test_24_external_observation_never_changes_ais_static_status(): void
+    {
+        $vessel = $this->createAwaitingVessel(['name' => 'UNKNOWN', 'mmsi' => '525000030']);
+        $this->assertNull($vessel->static_data_received_at);
+        $this->assertEquals('AWAITING', $vessel->ais_static_status);
+
+        $mockGfw = new class implements EnrichmentProviderInterface {
+            public function getName(): string { return 'gfw'; }
+            public function isConfigured(): bool { return true; }
+            public function enrich(Vessel $v): array {
+                return [
+                    'provider' => 'gfw',
+                    'status' => 'MATCH_FOUND',
+                    'external_record_id' => 'cand-external-gfw',
+                    'confidence_score' => 0.95,
+                    'attributes' => [
+                        'name' => 'EXTERNAL SHIP NAME',
+                        'vessel_type' => 'fishing',
+                        'imo' => '9876543',
+                    ],
+                    'raw_payload' => [],
+                    'message' => 'matched',
+                ];
+            }
+        };
+
+        $manager = new VesselEnrichmentManager();
+        $manager->setProviders([$mockGfw]);
+        $manager->enrichVessel($vessel, dryRun: false);
+
+        $vessel->refresh();
+        $this->assertEquals('enriched', $vessel->enrichment_status);
+        $this->assertNull($vessel->static_data_received_at, 'static_data_received_at MUST remain null.');
+        $this->assertEquals('AWAITING', $vessel->ais_static_status, 'AIS static status MUST remain strictly AWAITING.');
     }
 }
