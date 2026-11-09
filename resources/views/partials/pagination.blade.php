@@ -2,12 +2,17 @@
     <!-- Left: Per page selector -->
     <div class="flex items-center gap-2">
         <span class="text-slate-400">Tampilkan</span>
+        @php
+            $currentPerPage = request('per_page', $paginator->perPage());
+            $isAll = ($currentPerPage === 'all' || $currentPerPage === 'semua' || (int) $currentPerPage >= max(1, $paginator->total()) && !in_array((int)$currentPerPage, [10, 25, 50, 100], true));
+        @endphp
         <select onchange="const u = new URL(window.location.href); u.searchParams.set('per_page', this.value); u.searchParams.set('page', 1); window.location.href = u.toString();"
-            class="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-medium cursor-pointer">
-            <option value="10" {{ $paginator->perPage() == 10 ? 'selected' : '' }}>10</option>
-            <option value="25" {{ $paginator->perPage() == 25 ? 'selected' : '' }}>25</option>
-            <option value="50" {{ $paginator->perPage() == 50 ? 'selected' : '' }}>50</option>
-            <option value="100" {{ $paginator->perPage() == 100 ? 'selected' : '' }}>100</option>
+            class="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 font-medium cursor-pointer">
+            <option value="10" {{ (!$isAll && (int)$currentPerPage === 10) ? 'selected' : '' }}>10</option>
+            <option value="25" {{ (!$isAll && (int)$currentPerPage === 25) ? 'selected' : '' }}>25</option>
+            <option value="50" {{ (!$isAll && (int)$currentPerPage === 50) ? 'selected' : '' }}>50</option>
+            <option value="100" {{ (!$isAll && (int)$currentPerPage === 100) ? 'selected' : '' }}>100</option>
+            <option value="all" {{ $isAll ? 'selected' : '' }}>Semua</option>
         </select>
         <span class="text-slate-400">baris per halaman</span>
     </div>

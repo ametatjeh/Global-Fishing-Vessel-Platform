@@ -159,11 +159,22 @@ class AdvancedMapFiltersTest extends TestCase
             'received_at' => now()->subHours(5),
         ]);
 
-        // 1. Filter by flag IDN
+        // 1. Filter by flag IDN and ISO2 ID
         $resFlag = $this->getJson('/api/layers/vessels?flag=IDN');
         $resFlag->assertOk();
         $this->assertCount(1, $resFlag->json('features'));
         $this->assertEquals('KM INDO JAYA', $resFlag->json('features.0.properties.name'));
+
+        $resFlagIso2 = $this->getJson('/api/layers/vessels?flag=ID');
+        $resFlagIso2->assertOk();
+        $this->assertCount(1, $resFlagIso2->json('features'));
+        $this->assertEquals('KM INDO JAYA', $resFlagIso2->json('features.0.properties.name'));
+
+        // 1b. Filter by flag CHN and ISO2 CN
+        $resFlagChn = $this->getJson('/api/layers/vessels?flag=CN');
+        $resFlagChn->assertOk();
+        $this->assertCount(1, $resFlagChn->json('features'));
+        $this->assertEquals('TIANJIN VOYAGER', $resFlagChn->json('features.0.properties.name'));
 
         // 2. Filter by vessel_type tanker
         $resType = $this->getJson('/api/layers/vessels?vessel_type=tanker');

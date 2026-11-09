@@ -11,6 +11,7 @@ use App\Models\VesselPosition;
 use App\Models\VesselEncounter;
 use App\Models\SatelliteDetection;
 use App\Models\MaritimeZone;
+use App\Services\Maritime\FlagStateService;
 use Illuminate\Support\Facades\DB;
 
 class SpatialQueryService
@@ -866,7 +867,31 @@ class SpatialQueryService
 
         if (!empty($filters['flag'])) {
             $vesselFiltersActive = true;
-            $vesselQuery->where('flag_state', strtoupper(trim($filters['flag'])));
+            $criteria = FlagStateService::getFilterCriteria($filters['flag']);
+            if ($criteria['is_unknown']) {
+                $vesselQuery->where(function ($q) {
+                    $q->whereNull('flag_state')
+                      ->orWhere('flag_state', '')
+                      ->orWhereRaw('LOWER(flag_state) IN (?, ?, ?)', ['unknown', 'un', '-']);
+                });
+            } else {
+                $vesselQuery->where(function ($sub) use ($criteria) {
+                    $sub->whereIn('flag_state', $criteria['codes']);
+                    if (!empty($criteria['mids'])) {
+                        $sub->orWhere(function ($midQ) use ($criteria) {
+                            $midQ->where(function ($emptyFlag) {
+                                $emptyFlag->whereNull('flag_state')
+                                    ->orWhere('flag_state', '')
+                                    ->orWhereRaw('LOWER(flag_state) IN (?, ?, ?)', ['unknown', 'un', '-']);
+                            })->where(function ($prefixQ) use ($criteria) {
+                                foreach ($criteria['mids'] as $mid) {
+                                    $prefixQ->orWhere('mmsi', 'like', "{$mid}%");
+                                }
+                            });
+                        });
+                    }
+                });
+            }
         }
 
         if (!empty($filters['vessel_type'])) {

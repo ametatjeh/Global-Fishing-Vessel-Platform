@@ -40,6 +40,9 @@
     <!-- Multi-Dimensional Filter Bar (Compact Mode) -->
     <div class="glass-panel p-4 rounded-2xl border border-slate-800 shadow-xl">
         <form action="{{ route('vessels.index') }}" method="GET" id="vesselsFilterForm" class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end text-xs">
+            @if(request()->filled('per_page'))
+            <input type="hidden" name="per_page" value="{{ request('per_page') }}">
+            @endif
 
             <!-- 1. Search Query -->
             <div class="md:col-span-4 space-y-1">

@@ -269,6 +269,7 @@
                     Reset
                 </button>
             </div>
+            <div id="filterFeedbackMsg" class="hidden text-[10px] font-mono text-center py-1 rounded bg-teal-950/60 border border-teal-500/30 text-teal-300 transition-all"></div>
         </form>
     </div>
 
@@ -1297,7 +1298,18 @@
                 };
 
                 mapController.applyFilters(collected);
-                closeAllPopovers();
+
+                const feedback = document.getElementById('filterFeedbackMsg');
+                if (feedback) {
+                    feedback.textContent = '✓ Filter diterapkan pada peta';
+                    feedback.classList.remove('hidden');
+                    setTimeout(() => feedback.classList.add('hidden'), 2500);
+                }
+
+                // Auto-close popover on mobile viewports (< 640px)
+                if (window.innerWidth < 640) {
+                    closeAllPopovers();
+                }
             });
         }
 
@@ -1307,6 +1319,13 @@
                 if (form) form.reset();
                 if (customDateRangeContainer) customDateRangeContainer.classList.add('hidden');
                 mapController.resetFilters();
+
+                const feedback = document.getElementById('filterFeedbackMsg');
+                if (feedback) {
+                    feedback.textContent = '✓ Filter di-reset ke nilai awal';
+                    feedback.classList.remove('hidden');
+                    setTimeout(() => feedback.classList.add('hidden'), 2000);
+                }
             });
         }
 

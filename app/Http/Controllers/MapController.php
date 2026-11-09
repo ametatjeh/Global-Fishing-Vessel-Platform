@@ -15,22 +15,55 @@ class MapController extends Controller
     {
         $providers = DataProvider::all()->keyBy('slug');
 
+        // Build available flag countries derived from actual vessel records in DB (both explicit and MMSI MID clues)
+        $explicitCodes = Vessel::whereNotNull('flag_state')
+            ->where('flag_state', '!=', '')
+            ->distinct()
+            ->pluck('flag_state');
+
+        $mmsiPrefixes = Vessel::where(function ($q) {
+                $q->whereNull('flag_state')->orWhere('flag_state', '');
+            })
+            ->whereNotNull('mmsi')
+            ->where('mmsi', '!=', '')
+            ->pluck('mmsi')
+            ->map(fn ($m) => substr(trim($m), 0, 3))
+            ->unique()
+            ->filter(fn ($p) => strlen($p) === 3 && ctype_digit($p));
+
+        $countries = collect();
+        foreach ($explicitCodes as $code) {
+            $detail = FlagStateService::resolveCountryDetails($code);
+            if (!empty($detail['is_known']) && !empty($detail['iso2']) && $detail['iso2'] !== 'UN') {
+                $countries->push($detail);
+            }
+        }
+
+        foreach ($mmsiPrefixes as $mid) {
+            $midInfo = FlagStateService::lookupMid($mid . '000000');
+            if ($midInfo) {
+                $detail = FlagStateService::resolveCountryDetails($midInfo['iso2']);
+                if (!empty($detail['is_known']) && !empty($detail['iso2']) && $detail['iso2'] !== 'UN') {
+                    $countries->push($detail);
+                }
+            }
+        }
+
+        $availableFlagCountries = $countries
+            ->unique('iso2')
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values()
+            ->map(function ($item) {
+                return [
+                    'code' => $item['iso2'],
+                    'name' => $item['name'],
+                    'emoji' => $item['flag_emoji'],
+                    'label' => "{$item['flag_emoji']} {$item['iso2']} • {$item['name']}",
+                ];
+            });
+
         $filterMeta = [
-            'flags' => Vessel::whereNotNull('flag_state')
-                ->distinct()
-                ->pluck('flag_state')
-                ->filter()
-                ->map(function ($code) {
-                    $info = FlagStateService::resolveFromCodeAndMmsi($code, null);
-                    return [
-                        'code' => $code,
-                        'name' => $info['country_name'] ?? $code,
-                        'emoji' => $info['flag_emoji'] ?? '🌐',
-                        'label' => ($info['flag_emoji'] ?? '🌐') . ' ' . ($info['country_name'] ?? $code) . " ({$code})",
-                    ];
-                })
-                ->sortBy('name')
-                ->values(),
+            'flags' => $availableFlagCountries,
             'vessel_types' => Vessel::whereNotNull('vessel_type')
                 ->distinct()
                 ->orderBy('vessel_type')

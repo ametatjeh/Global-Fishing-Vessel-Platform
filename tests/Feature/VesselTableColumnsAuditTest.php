@@ -552,4 +552,54 @@ class VesselTableColumnsAuditTest extends TestCase
         $res->assertDontSee('F/V DONG WON REEFER'); // Wrong type (carrier)
         $res->assertDontSee('F/V SAJO COLUMBIA'); // Wrong search (SAJO)
     }
+
+    public function test_vessels_pagination_per_page_options(): void
+    {
+        // Generate 35 vessels
+        for ($i = 1; $i <= 35; $i++) {
+            Vessel::create([
+                'name' => sprintf('VESSEL_%03d', $i),
+                'mmsi' => sprintf('52500%04d', $i),
+                'flag_state' => 'IDN',
+                'vessel_type' => 'fishing',
+            ]);
+        }
+
+        // Test per_page = 10
+        $res10 = $this->actingAs($this->user)->get('/vessels?per_page=10');
+        $res10->assertOk();
+        $this->assertCount(10, $res10->viewData('vessels'));
+        $res10->assertSee('value="10" selected', false);
+
+        // Test per_page = 25
+        $res25 = $this->actingAs($this->user)->get('/vessels?per_page=25');
+        $res25->assertOk();
+        $this->assertCount(25, $res25->viewData('vessels'));
+        $res25->assertSee('value="25" selected', false);
+
+        // Test per_page = 50 (should show all 35 without page 2)
+        $res50 = $this->actingAs($this->user)->get('/vessels?per_page=50');
+        $res50->assertOk();
+        $this->assertCount(35, $res50->viewData('vessels'));
+        $res50->assertSee('value="50" selected', false);
+
+        // Test per_page = 100
+        $res100 = $this->actingAs($this->user)->get('/vessels?per_page=100');
+        $res100->assertOk();
+        $this->assertCount(35, $res100->viewData('vessels'));
+        $res100->assertSee('value="100" selected', false);
+
+        // Test per_page = all (Semua)
+        $resAll = $this->actingAs($this->user)->get('/vessels?per_page=all');
+        $resAll->assertOk();
+        $this->assertCount(35, $resAll->viewData('vessels'));
+        $resAll->assertSee('value="all" selected', false);
+        $resAll->assertSee('Semua');
+
+        // Test per_page = semua (alias)
+        $resSemua = $this->actingAs($this->user)->get('/vessels?per_page=semua');
+        $resSemua->assertOk();
+        $this->assertCount(35, $resSemua->viewData('vessels'));
+        $resSemua->assertSee('value="all" selected', false);
+    }
 }
