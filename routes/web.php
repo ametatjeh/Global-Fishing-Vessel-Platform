@@ -49,6 +49,11 @@ Route::middleware(['auth', 'role'])->group(function () {
     Route::get('/vessels', [VesselController::class, 'index'])->name('vessels.index');
     Route::get('/vessels/{id}', [VesselController::class, 'show'])->name('vessels.show');
     Route::post('/vessels/{id}/gfw-sync', [VesselController::class, 'syncGfw'])->name('vessels.gfw-sync');
+    Route::post('/vessels/{id}/enrich', [VesselController::class, 'enrichSingle'])->name('vessels.enrich');
+    Route::post('/vessels/enrich-bulk', [VesselController::class, 'enrichBulk'])->name('vessels.enrich-bulk');
+    Route::post('/vessels/{id}/observations/{obsId}/accept', [VesselController::class, 'acceptObservation'])
+        ->middleware('role:super_admin,admin,analyst')
+        ->name('vessels.observations.accept');
 
     // 3. Vessel Encounters
     Route::get('/encounters', [EncounterController::class, 'index'])->name('encounters.index');

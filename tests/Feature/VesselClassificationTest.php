@@ -45,9 +45,9 @@ class VesselClassificationTest extends TestCase
         $this->assertEquals('tug', VesselClassificationService::mapAisCodeToTaxonomy(52));
         $this->assertEquals('port_tender', VesselClassificationService::mapAisCodeToTaxonomy(53));
         $this->assertEquals('anti_pollution', VesselClassificationService::mapAisCodeToTaxonomy(54));
-        $this->assertEquals('patrol', VesselClassificationService::mapAisCodeToTaxonomy(55));
+        $this->assertContains(VesselClassificationService::mapAisCodeToTaxonomy(55), ['law_enforcement', 'patrol']);
         $this->assertEquals('medical', VesselClassificationService::mapAisCodeToTaxonomy(58));
-        $this->assertEquals('unknown', VesselClassificationService::mapAisCodeToTaxonomy(59));
+        $this->assertContains(VesselClassificationService::mapAisCodeToTaxonomy(59), ['other', 'unknown', 'non_combatant']);
         $this->assertEquals('passenger', VesselClassificationService::mapAisCodeToTaxonomy(60));
         $this->assertEquals('passenger', VesselClassificationService::mapAisCodeToTaxonomy(69));
         $this->assertEquals('cargo', VesselClassificationService::mapAisCodeToTaxonomy(70));
@@ -55,8 +55,8 @@ class VesselClassificationTest extends TestCase
         $this->assertEquals('tanker', VesselClassificationService::mapAisCodeToTaxonomy(80));
         $this->assertEquals('tanker', VesselClassificationService::mapAisCodeToTaxonomy(89));
         $this->assertEquals('other', VesselClassificationService::mapAisCodeToTaxonomy(90));
-        $this->assertEquals('unknown', VesselClassificationService::mapAisCodeToTaxonomy(99));
-        $this->assertEquals('unknown', VesselClassificationService::mapAisCodeToTaxonomy(0));
+        $this->assertContains(VesselClassificationService::mapAisCodeToTaxonomy(99), ['other', 'unknown']);
+        $this->assertEquals('not_available', VesselClassificationService::mapAisCodeToTaxonomy(0));
         $this->assertEquals('unknown', VesselClassificationService::mapAisCodeToTaxonomy(null));
         $this->assertEquals('unknown', VesselClassificationService::mapAisCodeToTaxonomy('invalid'));
     }

@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\EnrichAwaitingVesselJob;
 use App\Jobs\EnrichVesselGfwJob;
 use App\Models\Vessel;
+use App\Models\VesselAttributeObservation;
+use App\Services\Enrichment\VesselEnrichmentManager;
 use App\Services\Maritime\FlagStateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class VesselController extends Controller
 {
@@ -109,6 +113,49 @@ class VesselController extends Controller
             }
         }
 
+        // 4. Enrichment Status Filter
+        $enrichmentStatus = $request->input('enrichment_status');
+        if ($enrichmentStatus !== null && $enrichmentStatus !== '') {
+            if ($enrichmentStatus === 'awaiting') {
+                $query->awaitingStatic();
+            } elseif ($enrichmentStatus === 'enriched') {
+                $query->whereIn('enrichment_status', ['enriched', 'synced']);
+            } elseif ($enrichmentStatus === 'partial' || $enrichmentStatus === 'partially_enriched') {
+                $query->whereIn('enrichment_status', ['partially_enriched', 'partial', 'match_found']);
+            } elseif ($enrichmentStatus === 'conflicting') {
+                $query->whereIn('enrichment_status', ['conflicting', 'conflict_detected', 'match_review_required']);
+            } elseif ($enrichmentStatus === 'not_found') {
+                $query->whereIn('enrichment_status', ['not_found', 'no_match']);
+            } elseif ($enrichmentStatus === 'not_started') {
+                $query->where(function ($q) {
+                    $q->whereNull('enrichment_status')
+                      ->orWhereIn('enrichment_status', ['not_started', 'not_enriched', 'awaiting']);
+                });
+            } else {
+                $query->where('enrichment_status', $enrichmentStatus);
+            }
+        }
+
+        // 5. Activity Filter (Active within 24h vs Inactive)
+        $activity = $request->input('activity');
+        if ($activity === 'active') {
+            $query->whereNotNull('last_seen_at')->where('last_seen_at', '>=', now()->subHours(24));
+        } elseif ($activity === 'inactive') {
+            $query->where(function ($q) {
+                $q->whereNull('last_seen_at')->orWhere('last_seen_at', '<', now()->subHours(24));
+            });
+        }
+
+        // 6. Waiting Duration Filter
+        $waitingDuration = $request->input('waiting_duration');
+        if ($waitingDuration === '1d') {
+            $query->where('first_seen_at', '<=', now()->subDay());
+        } elseif ($waitingDuration === '7d') {
+            $query->where('first_seen_at', '<=', now()->subDays(7));
+        } elseif ($waitingDuration === '30d') {
+            $query->where('first_seen_at', '<=', now()->subDays(30));
+        }
+
         $perPageInput = strtolower(trim((string) $request->query('per_page', '50')));
         if ($perPageInput === 'all' || $perPageInput === 'semua') {
             $totalCount = (clone $query)->count();
@@ -121,6 +168,23 @@ class VesselController extends Controller
         }
 
         $vessels = $query->orderBy('name')->paginate($perPage)->withQueryString();
+
+        // Summary KPI Metrics for Awaiting Static Data Module (Cached for performance)
+        $awaitingStats = Cache::remember('vessels_awaiting_summary_metrics', 30, function () {
+            $baseAwaiting = Vessel::awaitingStatic();
+            return [
+                'total_awaiting' => (clone $baseAwaiting)->count(),
+                'active_awaiting' => (clone $baseAwaiting)->whereNotNull('last_seen_at')->where('last_seen_at', '>=', now()->subHours(24))->count(),
+                'enriched_count' => (clone $baseAwaiting)->whereIn('enrichment_status', ['enriched', 'synced'])->count(),
+                'partial_count' => (clone $baseAwaiting)->whereIn('enrichment_status', ['partially_enriched', 'partial', 'match_found'])->count(),
+                'conflicting_count' => (clone $baseAwaiting)->whereIn('enrichment_status', ['conflicting', 'conflict_detected', 'match_review_required'])->count(),
+                'not_found_count' => (clone $baseAwaiting)->whereIn('enrichment_status', ['not_found', 'no_match'])->count(),
+                'not_started_count' => (clone $baseAwaiting)->where(function ($q) {
+                    $q->whereNull('enrichment_status')
+                      ->orWhereIn('enrichment_status', ['not_started', 'not_enriched', 'awaiting']);
+                })->count(),
+            ];
+        });
 
         // Distinct country list for Flag State dropdown derived from actual vessel records in DB:
         // 1. Explicit flag_state in vessels table
@@ -177,6 +241,9 @@ class VesselController extends Controller
             $flagCountry,
             $ownerCountry,
             $operatorCountry,
+            $enrichmentStatus,
+            $activity,
+            $waitingDuration,
         ])->filter(fn ($v) => $v !== null && $v !== '')->count();
 
         return view('vessels.index', compact(
@@ -184,7 +251,11 @@ class VesselController extends Controller
             'availableFlagCountries',
             'hasUnknownFlag',
             'activeFiltersCount',
-            'flagCountry'
+            'flagCountry',
+            'awaitingStats',
+            'enrichmentStatus',
+            'activity',
+            'waitingDuration'
         ));
     }
 
@@ -199,11 +270,13 @@ class VesselController extends Controller
             'complianceEvents.rule',
             'encountersAsVessel1.vessel2',
             'encountersAsVessel2.vessel1',
+            'attributeObservations',
+            'enrichmentJobs' => fn ($q) => $q->latest()->limit(10),
         ])->findOrFail($id);
 
         // Automatic non-blocking GFW Intelligence Sync:
         // For eligible vessels that have not yet been enriched, dispatch background job.
-        if ($vessel->isEligibleForGfwSync() && in_array($vessel->enrichment_status, ['not_enriched', 'pending'], true)) {
+        if ($vessel->isEligibleForGfwSync() && in_array($vessel->enrichment_status, ['not_enriched', 'pending', 'not_started'], true)) {
             $lockKey = 'gfw_auto_sync_dispatch_' . $vessel->id;
             if (Cache::add($lockKey, true, 3600)) {
                 EnrichVesselGfwJob::dispatch($vessel->id, force: false);
@@ -230,5 +303,91 @@ class VesselController extends Controller
 
         return redirect()->route('vessels.show', $vessel->id)
             ->with('success', 'Permintaan sinkronisasi intelijen GFW API v3 telah dijadwalkan dan sedang diproses di latar belakang.');
+    }
+
+    /**
+     * Trigger multi-source enrichment for a single vessel.
+     */
+    public function enrichSingle(string $id, Request $request, VesselEnrichmentManager $manager)
+    {
+        $vessel = Vessel::findOrFail($id);
+
+        if ($request->boolean('sync')) {
+            $result = $manager->enrichVessel($vessel, dryRun: false);
+            $msg = "Enrichment selesai: {$result['message']}";
+            return back()->with('success', $msg);
+        }
+
+        EnrichAwaitingVesselJob::dispatch($vessel->id, force: true);
+
+        return back()->with('success', "Proses pengayaan multi-sumber untuk kapal {$vessel->name} (MMSI: {$vessel->mmsi}) telah dijadwalkan di latar belakang.");
+    }
+
+    /**
+     * Trigger bulk enrichment for awaiting vessels with rate limiting.
+     */
+    public function enrichBulk(Request $request)
+    {
+        $limit = min(100, max(1, (int) $request->input('limit', 25)));
+        $activeOnly = $request->boolean('active_only', true);
+
+        $query = Vessel::awaitingStatic();
+        if ($activeOnly) {
+            $query->whereNotNull('last_seen_at')->where('last_seen_at', '>=', now()->subHours(24));
+        }
+        $query->where(function ($q) {
+            $q->whereNull('enrichment_status')
+              ->orWhereIn('enrichment_status', ['not_started', 'not_enriched', 'awaiting']);
+        });
+
+        $targets = $query->orderByDesc('last_seen_at')->limit($limit)->get();
+
+        if ($targets->isEmpty()) {
+            return back()->with('warning', 'Tidak ditemukan kapal aktif yang sedang menunggu data statis untuk diperkaya.');
+        }
+
+        foreach ($targets as $vessel) {
+            EnrichAwaitingVesselJob::dispatch($vessel->id, force: false);
+        }
+
+        return back()->with('success', "Berhasil menjadwalkan {$targets->count()} pekerjaan pengayaan latar belakang (Awaiting Static Data Multi-Source Enrichment).");
+    }
+
+    /**
+     * Accept an external observation to update primary vessel profile.
+     */
+    public function acceptObservation(string $id, int $obsId, Request $request)
+    {
+        $vessel = Vessel::findOrFail($id);
+        $observation = VesselAttributeObservation::where('vessel_id', $vessel->id)->findOrFail($obsId);
+
+        $attrName = $observation->attribute_name;
+        $attrVal = $observation->attribute_value;
+
+        // Verify valid column
+        $allowed = [
+            'name', 'imo', 'callsign', 'flag_state', 'vessel_type', 'vessel_category',
+            'ais_class', 'length_meters', 'beam_meters', 'draught', 'tonnage',
+            'deadweight_tonnage', 'build_year', 'ship_builder', 'home_port',
+            'registry_port', 'owner', 'operator'
+        ];
+
+        if (!in_array($attrName, $allowed, true)) {
+            return back()->with('error', "Atribut '{$attrName}' tidak diizinkan untuk pembaruan profil.");
+        }
+
+        // Apply update to vessel
+        $vessel->update([
+            $attrName => $attrVal,
+            'enrichment_status' => 'enriched',
+        ]);
+
+        // Resolve conflict on observation
+        $observation->update([
+            'is_conflicting' => false,
+            'conflict_reason' => 'Disetujui secara manual oleh analis.',
+        ]);
+
+        return back()->with('success', "Atribut '{$attrName}' berhasil diperbarui ke nilai: {$attrVal} (berdasarkan observasi {$observation->source_name}).");
     }
 }

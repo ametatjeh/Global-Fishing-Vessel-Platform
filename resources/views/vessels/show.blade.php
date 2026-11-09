@@ -60,27 +60,39 @@
                                 Unknown
                             @endif
                         </span>
-                        @if($vessel->gfw_sync_status === 'synced')
-                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-teal-500/20 text-teal-300 border border-teal-500/40">
-                            ✓ GFW Enriched
+
+                        <!-- AIS Stream Static Data Telemetry Status -->
+                        @if($vessel->ais_static_status === 'RECEIVED')
+                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" title="Data statis diterima langsung dari telemetri AISStream">
+                            ✓ AIS Static: Received
                         </span>
-                        @elseif($vessel->gfw_sync_status === 'syncing')
-                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-sky-500/20 text-sky-300 border border-sky-500/40 animate-pulse">
-                            ⏳ GFW Syncing...
+                        @elseif($vessel->ais_static_status === 'INVALID')
+                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-rose-500/20 text-rose-300 border border-rose-500/40" title="MMSI tidak valid untuk penangkapan telemetri">
+                            ✕ AIS: Invalid MMSI
                         </span>
-                        @elseif($vessel->gfw_sync_status === 'not_found')
-                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-slate-800 text-slate-300 border border-slate-700">
-                            🔍 GFW Not Found
-                        </span>
-                        @elseif($vessel->gfw_sync_status === 'match_review_required')
-                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                            ⚠️ Review Required
-                        </span>
-                        @elseif($vessel->gfw_sync_status === 'failed')
-                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                            ✕ GFW Sync Failed
+                        @else
+                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40" title="Belum ada pesan statis Type 5/19/24 dari AISStream">
+                            ⏳ AIS: Awaiting Static Data
                         </span>
                         @endif
+
+                        <!-- Multi-Source Enrichment Status -->
+                        @php
+                            $normEnrich = $vessel->normalized_enrichment_status;
+                            $normBadge = match($normEnrich) {
+                                'ENRICHED' => 'bg-teal-500/20 text-teal-300 border-teal-500/40',
+                                'PARTIALLY_ENRICHED' => 'bg-sky-500/20 text-sky-300 border-sky-500/40',
+                                'CONFLICTING' => 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse',
+                                'SEARCHING' => 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse',
+                                'NOT_FOUND' => 'bg-slate-800 text-slate-400 border-slate-700',
+                                'PROVIDER_UNAVAILABLE' => 'bg-red-950 text-red-400 border-red-800',
+                                'NOT_CONFIGURED' => 'bg-slate-800 text-slate-500 border-slate-700',
+                                default => 'bg-slate-800/80 text-slate-400 border-slate-700',
+                            };
+                        @endphp
+                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border {{ $normBadge }}">
+                            Enrichment: {{ $normEnrich }}
+                        </span>
                     </h2>
                     <div class="text-xs text-slate-400 mt-1.5 font-mono flex items-center gap-2 flex-wrap">
                         <span>UUID: <span class="text-slate-300">{{ $vessel->id }}</span></span>
@@ -99,7 +111,14 @@
             </div>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
+            <form action="{{ route('vessels.enrich', $vessel->id) }}" method="POST" class="inline">
+                @csrf
+                <button type="submit" class="px-3 py-2 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 font-semibold text-xs flex items-center gap-1.5 transition shadow-sm" title="Jalankan pengayaan multi-sumber eksternal">
+                    <span>⚡</span>
+                    <span>Enrich (Multi-Sumber)</span>
+                </button>
+            </form>
             <a href="{{ route('vessels.index') }}" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition border border-slate-700">
                 &larr; Kembali ke Registry
             </a>
@@ -133,6 +152,99 @@
         </div>
     </div>
     @endif
+
+    <!-- AWAITING STATIC DATA MULTI-SOURCE ATTRIBUTE COMPARISON & RECONCILIATION MATRIX -->
+    <div class="glass-panel p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-3">
+            <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-lg">⚖️</span>
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-teal-400 font-mono">
+                        Awaiting Static Data — Multi-Source Comparison & Reconciliation Matrix
+                    </h3>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">
+                    Perbandingan atribut kapal lintas sumber: Profil Aktif, AISStream (Telemetri), Global Fishing Watch, Registri Resmi Bendera, dan FAO Global Record.
+                </p>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <form action="{{ route('vessels.enrich', $vessel->id) }}" method="POST" class="inline">
+                    @csrf
+                    <input type="hidden" name="sync" value="1">
+                    <button type="submit" class="px-3 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs transition shadow-md shadow-teal-500/20 flex items-center gap-1.5" title="Jalankan pengayaan multi-sumber secara langsung">
+                        <span>⚡</span>
+                        <span>Enrich Now (Multi-Source)</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto text-xs responsive-table-container">
+            <table class="w-full text-left min-w-[750px]">
+                <thead class="bg-slate-900/90 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
+                    <tr>
+                        <th class="py-2.5 px-3 font-semibold text-slate-300">Attribute</th>
+                        <th class="py-2.5 px-3 font-semibold text-teal-300">Active Profile</th>
+                        <th class="py-2.5 px-3 font-semibold text-slate-300">AISStream</th>
+                        <th class="py-2.5 px-3 font-semibold text-slate-300">GFW</th>
+                        <th class="py-2.5 px-3 font-semibold text-slate-300">Official Registry</th>
+                        <th class="py-2.5 px-3 font-semibold text-slate-300">FAO Record</th>
+                        <th class="py-2.5 px-3 text-right font-semibold text-slate-300">Status & Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 font-mono">
+                    @php
+                        $attrMatrix = $vessel->attribute_matrix;
+                    @endphp
+                    @foreach($attrMatrix as $attrKey => $row)
+                    <tr class="hover:bg-slate-900/40 transition">
+                        <td class="py-2.5 px-3 font-sans font-medium text-slate-300">
+                            {{ $row['label'] }}
+                        </td>
+                        <td class="py-2.5 px-3 font-bold {{ $row['profile'] ? 'text-white' : 'text-slate-500 italic' }}">
+                            {{ $row['profile'] ?: '—' }}
+                        </td>
+                        <td class="py-2.5 px-3 text-slate-300">
+                            {{ $row['aisstream'] ?: '—' }}
+                        </td>
+                        <td class="py-2.5 px-3 text-slate-300">
+                            {{ $row['gfw'] ?: '—' }}
+                        </td>
+                        <td class="py-2.5 px-3 text-slate-300">
+                            {{ $row['registry'] ?: '—' }}
+                        </td>
+                        <td class="py-2.5 px-3 text-slate-300">
+                            {{ $row['fao'] ?: '—' }}
+                        </td>
+                        <td class="py-2.5 px-3 text-right whitespace-nowrap">
+                            @if($row['is_conflicting'])
+                                <span class="px-2 py-0.5 rounded text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/40" title="{{ $row['conflict_reason'] }}">
+                                    ⚠️ Conflicting
+                                </span>
+                                @foreach($row['observations'] as $src => $obs)
+                                    @if($obs && $obs->is_conflicting)
+                                    <form action="{{ route('vessels.observations.accept', [$vessel->id, $obs->id]) }}" method="POST" class="inline ml-1.5">
+                                        @csrf
+                                        <button type="submit" class="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-sans font-semibold transition" title="Setujui nilai dari {{ $src }} untuk memperbarui profil utama">
+                                            Accept {{ strtoupper($src) }}
+                                        </button>
+                                    </form>
+                                    @endif
+                                @endforeach
+                            @elseif(!empty($row['profile']))
+                                <span class="px-2 py-0.5 rounded text-[10px] bg-teal-500/10 text-teal-300 border border-teal-500/30">
+                                    ✓ Concordant
+                                </span>
+                            @else
+                                <span class="text-slate-500 text-[10px] italic">No Observations</span>
+                            @endif
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
 
     <!-- Main Grid: Sections 1 to 5 -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1176,6 +1288,76 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- SECTION 7: Multi-Source Observation History & Audit Trail -->
+    <div class="glass-panel p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-teal-400 border-b border-slate-800 pb-2 flex items-center justify-between">
+            <span class="flex items-center gap-1.5">
+                <span>📜</span>
+                <span>7. Riwayat Observasi Multi-Sumber & Audit Log Pengayaan (Observations Log)</span>
+            </span>
+            <span class="text-[10px] font-mono text-slate-400">
+                Total: {{ $vessel->attributeObservations->count() }} observasi tercatat
+            </span>
+        </h3>
+
+        @if($vessel->attributeObservations->isNotEmpty())
+        <div class="overflow-x-auto text-xs responsive-table-container">
+            <table class="w-full text-left min-w-[700px]">
+                <thead class="bg-slate-900/90 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
+                    <tr>
+                        <th class="py-2 px-3">Waktu Diambil</th>
+                        <th class="py-2 px-3">Sumber Data</th>
+                        <th class="py-2 px-3">Atribut</th>
+                        <th class="py-2 px-3">Nilai Observasi</th>
+                        <th class="py-2 px-3">Record ID Eksternal</th>
+                        <th class="py-2 px-3">Confidence</th>
+                        <th class="py-2 px-3 text-right">Status Konflik</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                    @foreach($vessel->attributeObservations as $obs)
+                    <tr class="hover:bg-slate-900/40 transition">
+                        <td class="py-2 px-3 text-slate-400 whitespace-nowrap">
+                            {{ $obs->retrieved_at?->format('Y-m-d H:i:s') ?? $obs->created_at->format('Y-m-d H:i:s') }}
+                        </td>
+                        <td class="py-2 px-3 text-teal-300 font-bold uppercase">
+                            {{ $obs->source_name }}
+                        </td>
+                        <td class="py-2 px-3 text-slate-300 font-sans">
+                            {{ $obs->attribute_name }}
+                        </td>
+                        <td class="py-2 px-3 text-white font-bold max-w-[200px] truncate" title="{{ $obs->attribute_value }}">
+                            {{ $obs->attribute_value }}
+                        </td>
+                        <td class="py-2 px-3 text-slate-400 truncate max-w-[150px]">
+                            {{ $obs->external_record_id ?: '—' }}
+                        </td>
+                        <td class="py-2 px-3 text-slate-300">
+                            {{ $obs->confidence_score ? round($obs->confidence_score * 100) . '%' : '—' }}
+                        </td>
+                        <td class="py-2 px-3 text-right whitespace-nowrap">
+                            @if($obs->is_conflicting)
+                                <span class="px-2 py-0.5 rounded text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/40 font-sans font-semibold">
+                                    ⚠️ Konflik
+                                </span>
+                            @else
+                                <span class="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 font-sans">
+                                    ✓ Valid
+                                </span>
+                            @endif
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        @else
+        <div class="py-6 text-center text-slate-500 text-xs italic">
+            Belum ada observasi eksternal yang tercatat untuk kapal ini. Klik tombol <strong>Enrich Now</strong> untuk menjalankan pencarian multi-sumber.
+        </div>
+        @endif
     </div>
 
 </div>

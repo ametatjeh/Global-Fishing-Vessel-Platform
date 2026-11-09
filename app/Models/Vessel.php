@@ -18,7 +18,9 @@ class Vessel extends Model
     protected $casts = [
         'length_meters' => 'float',
         'beam_meters' => 'float',
+        'draught' => 'float',
         'tonnage' => 'float',
+        'deadweight_tonnage' => 'float',
         'engine_power_kw' => 'float',
         'build_year' => 'integer',
         'first_seen_at' => 'datetime',
@@ -33,6 +35,16 @@ class Vessel extends Model
     public function identifiers(): HasMany
     {
         return $this->hasMany(VesselIdentifier::class);
+    }
+
+    public function attributeObservations(): HasMany
+    {
+        return $this->hasMany(VesselAttributeObservation::class)->orderBy('retrieved_at', 'desc');
+    }
+
+    public function enrichmentJobs(): HasMany
+    {
+        return $this->hasMany(EnrichmentJob::class)->orderBy('created_at', 'desc');
     }
 
     public function positions(): HasMany
@@ -554,5 +566,171 @@ class Vessel extends Model
     public function getGfwIntelligenceAttribute(): array
     {
         return $this->metadata['enrichment'] ?? [];
+    }
+
+    /**
+     * Scope query to vessels Awaiting AIS Static Data
+     */
+    public function scopeAwaitingStatic($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNull('static_data_received_at')
+              ->where(function ($sub) {
+                  $sub->whereNull('vessel_type')
+                      ->orWhere('vessel_type', 'unknown')
+                      ->orWhereNull('ais_ship_type_code')
+                      ->orWhere('ais_ship_type_code', 0);
+              });
+        });
+    }
+
+    /**
+     * Scope query to active vessels awaiting static data (seen within last 24h)
+     */
+    public function scopeActiveAwaiting($query)
+    {
+        return $query->awaitingStatic()
+            ->whereNotNull('last_seen_at')
+            ->where('last_seen_at', '>=', now()->subHours(24));
+    }
+
+    /**
+     * Distinct AIS Static Data status:
+     * - RECEIVED: Valid static data packet received from AIS stream
+     * - AWAITING: No static packet received yet from AIS
+     * - INVALID: MMSI is missing or malformed
+     */
+    public function getAisStaticStatusAttribute(): string
+    {
+        $mmsi = trim((string) ($this->mmsi ?? ''));
+        if (empty($mmsi) || !preg_match('/^[0-9]{9}$/', $mmsi) || $mmsi === '000000000' || $mmsi === '111111111') {
+            return 'INVALID';
+        }
+
+        if ($this->static_data_received_at !== null) {
+            return 'RECEIVED';
+        }
+
+        return 'AWAITING';
+    }
+
+    /**
+     * Normalized Enrichment Status for Awaiting Static Data Module:
+     * NOT_STARTED, SEARCHING, MATCH_FOUND, PARTIALLY_ENRICHED, ENRICHED, CONFLICTING, NOT_FOUND, PROVIDER_UNAVAILABLE, NOT_CONFIGURED
+     */
+    public function getNormalizedEnrichmentStatusAttribute(): string
+    {
+        $raw = strtolower(trim((string) ($this->enrichment_status ?? 'not_started')));
+
+        return match ($raw) {
+            'searching', 'syncing' => 'SEARCHING',
+            'match_found' => 'MATCH_FOUND',
+            'partially_enriched', 'partial' => 'PARTIALLY_ENRICHED',
+            'enriched', 'synced' => 'ENRICHED',
+            'conflicting', 'conflict_detected', 'match_review_required' => 'CONFLICTING',
+            'not_found', 'no_match' => 'NOT_FOUND',
+            'provider_unavailable', 'timeout' => 'PROVIDER_UNAVAILABLE',
+            'not_configured' => 'NOT_CONFIGURED',
+            default => 'NOT_STARTED',
+        };
+    }
+
+    /**
+     * Get multi-source attribute comparison matrix for review UI:
+     * | Attribute | Profile Value | AISStream | GFW | Flag / Registry | FAO Record | Conflicting? |
+     */
+    public function getAttributeMatrixAttribute(): array
+    {
+        $observations = $this->attributeObservations()->get();
+        $bySourceAndAttr = [];
+        foreach ($observations as $obs) {
+            $source = strtolower($obs->source_name);
+            $attr = strtolower($obs->attribute_name);
+            if (!isset($bySourceAndAttr[$attr][$source])) {
+                $bySourceAndAttr[$attr][$source] = $obs;
+            }
+        }
+
+        $fields = [
+            'name' => 'Vessel Name',
+            'mmsi' => 'MMSI',
+            'imo' => 'IMO Number',
+            'callsign' => 'Call Sign',
+            'flag_state' => 'Flag State',
+            'vessel_type' => 'Vessel Type',
+            'vessel_category' => 'Vessel Category',
+            'ais_class' => 'AIS Class',
+            'length_meters' => 'Length (LOA)',
+            'beam_meters' => 'Beam / Width',
+            'draught' => 'Draught',
+            'tonnage' => 'Gross Tonnage (GT)',
+            'deadweight_tonnage' => 'Deadweight (DWT)',
+            'build_year' => 'Year Built',
+            'ship_builder' => 'Ship Builder',
+            'home_port' => 'Home Port',
+            'registry_info' => 'Registry Information',
+            'owner' => 'Owner',
+            'operator' => 'Operator',
+        ];
+
+        $matrix = [];
+        foreach ($fields as $key => $label) {
+            $profileVal = match ($key) {
+                'name' => $this->name,
+                'mmsi' => $this->mmsi,
+                'imo' => $this->display_imo !== '—' ? $this->display_imo : null,
+                'callsign' => $this->callsign,
+                'flag_state' => $this->flag_state,
+                'vessel_type' => $this->vessel_type,
+                'vessel_category' => $this->vessel_category,
+                'ais_class' => $this->ais_class,
+                'length_meters' => $this->length_meters ? $this->length_meters . ' m' : null,
+                'beam_meters' => $this->beam_meters ? $this->beam_meters . ' m' : null,
+                'draught' => $this->draught ? $this->draught . ' m' : null,
+                'tonnage' => $this->tonnage ? number_format($this->tonnage) . ' GT' : null,
+                'deadweight_tonnage' => $this->deadweight_tonnage ? number_format($this->deadweight_tonnage) . ' DWT' : null,
+                'build_year' => $this->build_year ? (string) $this->build_year : null,
+                'ship_builder' => $this->ship_builder,
+                'home_port' => $this->home_port,
+                'registry_info' => $this->registry_port,
+                'owner' => $this->owner,
+                'operator' => $this->operator,
+                default => null,
+            };
+
+            $aisObs = $bySourceAndAttr[$key]['aisstream'] ?? null;
+            $gfwObs = $bySourceAndAttr[$key]['gfw'] ?? null;
+            $regObs = $bySourceAndAttr[$key]['flag_registry'] ?? null;
+            $faoObs = $bySourceAndAttr[$key]['fao'] ?? null;
+
+            $hasConflict = false;
+            $conflictMsg = null;
+            foreach ([$aisObs, $gfwObs, $regObs, $faoObs] as $obs) {
+                if ($obs && $obs->is_conflicting) {
+                    $hasConflict = true;
+                    $conflictMsg = $obs->conflict_reason;
+                    break;
+                }
+            }
+
+            $matrix[$key] = [
+                'label' => $label,
+                'profile' => $profileVal,
+                'aisstream' => $aisObs?->attribute_value,
+                'gfw' => $gfwObs?->attribute_value,
+                'registry' => $regObs?->attribute_value,
+                'fao' => $faoObs?->attribute_value,
+                'is_conflicting' => $hasConflict,
+                'conflict_reason' => $conflictMsg,
+                'observations' => array_filter([
+                    'aisstream' => $aisObs,
+                    'gfw' => $gfwObs,
+                    'flag_registry' => $regObs,
+                    'fao' => $faoObs,
+                ]),
+            ];
+        }
+
+        return $matrix;
     }
 }
