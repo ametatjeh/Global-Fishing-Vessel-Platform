@@ -73,6 +73,7 @@ return [
             'base_url' => env('GFW_API_BASE_URL', 'https://gateway.api.globalfishingwatch.org/v3'),
             'token' => env('GFW_API_ACCESS_TOKEN', env('GFW_API_TOKEN', null)),
             'dataset' => env('GFW_VESSELS_DATASET', 'public-global-vessel-identity:latest'),
+            'rate_limit_per_minute' => (int) env('GFW_RATE_LIMIT_PER_MINUTE', 60),
             'timeout' => (int) env('GFW_API_TIMEOUT', 30),
             'cache_ttl' => (int) env('GFW_API_CACHE_TTL', 3600),
             'search_cache_ttl' => (int) env('GFW_SEARCH_CACHE_TTL', 604800), // 7 days cache for stable identifiers
@@ -146,15 +147,22 @@ return [
             'socket_timeout' => (int) env('AIS_SOCKET_TIMEOUT', 15),
             'reconnect_delay_seconds' => (int) env('AIS_RECONNECT_DELAY', 5),
             'max_reconnect_attempts' => (int) env('AIS_MAX_RECONNECT_ATTEMPTS', 10),
+            'rate_limit_per_minute' => (int) env('AIS_STREAM_RATE_LIMIT_PER_MINUTE', 120),
             'batch_size' => (int) env('AIS_BATCH_SIZE', 50),
         ],
         'fao_global_record' => [
             'name' => 'FAO Global Record of Fishing Vessels',
             'base_url' => env('FAO_GLOBAL_RECORD_URL', 'https://www.fao.org/global-record/api/v1'),
             'api_key' => env('FAO_GLOBAL_RECORD_API_KEY', null),
+            'rate_limit_per_minute' => (int) env('FAO_RATE_LIMIT_PER_MINUTE', 30),
             'timeout' => (int) env('FAO_GLOBAL_RECORD_TIMEOUT', 15),
             'cache_ttl' => (int) env('FAO_GLOBAL_RECORD_CACHE_TTL', 604800),
             'license_type' => 'FAO Open Access Terms / CC-BY-NC-SA 3.0 IGO',
+        ],
+        'flag_registry' => [
+            'name' => 'Official Flag State Registry & ITU MID Resolution',
+            'rate_limit_per_minute' => (int) env('FLAG_REGISTRY_RATE_LIMIT_PER_MINUTE', 300),
+            'license_type' => 'ITU-R Radio Regulations & Sovereign Flag Data',
         ],
     ],
 

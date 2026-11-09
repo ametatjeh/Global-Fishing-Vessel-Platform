@@ -2,12 +2,14 @@
 
 namespace App\Jobs;
 
+use App\Models\EnrichmentJob;
 use App\Models\Vessel;
 use App\Services\Enrichment\VesselEnrichmentManager;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -24,6 +26,13 @@ class EnrichAwaitingVesselJob implements ShouldQueue
         return [60, 300, 900];
     }
 
+    public function middleware(): array
+    {
+        return [
+            (new WithoutOverlapping($this->vesselId))->releaseAfter(60)->expireAfter(300),
+        ];
+    }
+
     public function __construct(
         public string $vesselId,
         public bool $force = false
@@ -32,19 +41,20 @@ class EnrichAwaitingVesselJob implements ShouldQueue
 
     public function handle(VesselEnrichmentManager $enrichmentManager): void
     {
+        $startTime = microtime(true);
         $lockKey = 'awaiting_enrich_job_lock_' . $this->vesselId;
-        $lock = Cache::lock($lockKey, 3600);
 
-        if (!$lock->get()) {
+        // Atomic lock check: skip if job for this vessel is currently active
+        if (!Cache::add($lockKey, true, 300)) {
             Log::info("EnrichAwaitingVesselJob: Job skipped for vessel {$this->vesselId} due to active lock (duplicate prevention).");
             return;
         }
 
+        $vessel = null;
         try {
             $vessel = Vessel::find($this->vesselId);
             if (!$vessel) {
                 Log::warning("EnrichAwaitingVesselJob: Vessel ID {$this->vesselId} not found in database.");
-                $lock->release();
                 return;
             }
 
@@ -52,7 +62,6 @@ class EnrichAwaitingVesselJob implements ShouldQueue
             if (!$this->force && in_array($vessel->enrichment_status, ['enriched', 'conflicting', 'not_found'], true)) {
                 if ($vessel->last_enriched_at && $vessel->last_enriched_at->gt(now()->subDays(7))) {
                     Log::info("EnrichAwaitingVesselJob: Vessel {$vessel->id} already enriched recently ({$vessel->enrichment_status}). Skipping.");
-                    $lock->release();
                     return;
                 }
             }
@@ -60,14 +69,46 @@ class EnrichAwaitingVesselJob implements ShouldQueue
             $vessel->update(['enrichment_status' => 'searching']);
 
             $result = $enrichmentManager->enrichVessel($vessel, dryRun: false);
+            $durationMs = round((microtime(true) - $startTime) * 1000, 2);
 
-            Log::info("EnrichAwaitingVesselJob: Successfully processed vessel {$vessel->id} ({$result['message']}).");
+            Log::info("EnrichAwaitingVesselJob: Processed vessel {$vessel->id} [MMSI: {$vessel->mmsi}] in {$durationMs}ms - Status: {$result['enrichment_status']}.", [
+                'vessel_id' => $vessel->id,
+                'mmsi' => $vessel->mmsi,
+                'status' => $result['enrichment_status'],
+                'updates_applied' => count($result['updates_applied'] ?? []),
+                'conflicts' => count($result['conflicts'] ?? []),
+                'duration_ms' => $durationMs,
+            ]);
+
+            // If transient provider failure occurred and attempts remain, release back to queue for backoff retry
+            if ($result['enrichment_status'] === 'provider_unavailable' && $this->attempts() < $this->tries) {
+                Log::warning("EnrichAwaitingVesselJob: Provider unavailable for vessel {$vessel->id}. Releasing back to queue with backoff.");
+                Cache::forget($lockKey);
+                $this->release(60 * $this->attempts());
+                return;
+            }
         } catch (\Throwable $e) {
-            Log::error("EnrichAwaitingVesselJob: Error enriching vessel {$this->vesselId}: " . $e->getMessage());
+            $durationMs = round((microtime(true) - $startTime) * 1000, 2);
+            Log::error("EnrichAwaitingVesselJob: Error enriching vessel {$this->vesselId} after {$durationMs}ms: " . $e->getMessage(), [
+                'vessel_id' => $this->vesselId,
+                'attempt' => $this->attempts(),
+                'duration_ms' => $durationMs,
+                'exception' => $e->getMessage(),
+            ]);
+
+            EnrichmentJob::create([
+                'vessel_id' => $this->vesselId,
+                'status' => 'failed',
+                'error_message' => $e->getMessage(),
+                'scheduled_at' => now(),
+                'started_at' => now(),
+                'completed_at' => now(),
+            ]);
+
             $vessel?->update(['enrichment_status' => 'provider_unavailable']);
             throw $e;
         } finally {
-            $lock->release();
+            Cache::forget($lockKey);
         }
     }
 }

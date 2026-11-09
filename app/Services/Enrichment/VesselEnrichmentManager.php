@@ -12,6 +12,7 @@ use App\Services\Enrichment\Providers\GfwEnrichmentProvider;
 use App\Services\Enrichment\Providers\OfficialFlagRegistryProvider;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 
 class VesselEnrichmentManager
 {
@@ -115,6 +116,32 @@ class VesselEnrichmentManager
                 ];
                 continue;
             }
+
+            // Enforce distinct rate limiting per provider
+            $rateLimitKey = 'enrichment_rate_limit_' . $sourceName;
+            $maxPerMinute = match ($sourceName) {
+                'aisstream' => (int) config('maritime.providers.ais_stream.rate_limit_per_minute', 120),
+                'gfw' => (int) config('maritime.providers.gfw.rate_limit_per_minute', 60),
+                'fao' => (int) config('maritime.providers.fao_global_record.rate_limit_per_minute', 30),
+                'flag_registry' => (int) config('maritime.providers.flag_registry.rate_limit_per_minute', 300),
+                default => 60,
+            };
+
+            if (RateLimiter::tooManyAttempts($rateLimitKey, $maxPerMinute)) {
+                $availableIn = RateLimiter::availableIn($rateLimitKey);
+                Log::warning("VesselEnrichmentManager: Provider '{$sourceName}' reached rate limit ({$maxPerMinute}/min). Retry in {$availableIn}s.");
+                $report['provider_results'][$sourceName] = [
+                    'status' => 'PROVIDER_UNAVAILABLE',
+                    'external_record_id' => null,
+                    'confidence_score' => null,
+                    'attributes' => [],
+                    'raw_payload' => null,
+                    'message' => "Provider '{$sourceName}' rate limit reached ({$maxPerMinute}/min). Available in {$availableIn}s.",
+                ];
+                continue;
+            }
+
+            RateLimiter::hit($rateLimitKey, 60);
 
             $hasAnyConfigured = true;
 

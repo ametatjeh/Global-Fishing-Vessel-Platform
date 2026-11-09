@@ -140,19 +140,36 @@ class EnrichAwaitingVesselsCommand extends Command
 
         if ($vessels->isEmpty()) {
             $this->info(" No eligible vessels found matching criteria.");
+            \Illuminate\Support\Facades\Log::info("EnrichAwaitingVesselsCommand: No eligible awaiting vessels found matching batch criteria.", [
+                'limit' => $limit,
+                'active_only' => $activeOnly,
+            ]);
             return Command::SUCCESS;
         }
 
         if ($isQueue) {
+            $startTime = microtime(true);
             $dispatched = 0;
             foreach ($vessels as $v) {
                 EnrichAwaitingVesselJob::dispatch($v->id, force: $force);
                 $dispatched++;
             }
-            $this->info(" Successfully dispatched {$dispatched} background enrichment jobs to queue.");
+            $durationMs = round((microtime(true) - $startTime) * 1000, 2);
+            $this->info(" Successfully dispatched {$dispatched} background enrichment jobs to queue (dispatch took {$durationMs}ms).");
+
+            \Illuminate\Support\Facades\Log::info("EnrichAwaitingVesselsCommand: Batch queue dispatch completed.", [
+                'scheduled' => true,
+                'dispatched_count' => $dispatched,
+                'batch_limit' => $limit,
+                'active_only' => $activeOnly,
+                'total_eligible' => $totalEligible,
+                'dispatch_duration_ms' => $durationMs,
+            ]);
+
             return Command::SUCCESS;
         }
 
+        $startTime = microtime(true);
         $counts = [
             'total' => $vessels->count(),
             'enriched' => 0,
@@ -181,6 +198,7 @@ class EnrichAwaitingVesselsCommand extends Command
         }
 
         $progressBar->finish();
+        $durationMs = round((microtime(true) - $startTime) * 1000, 2);
         $this->line("\n");
 
         $this->info(" --- BATCH EXECUTION RESULTS ---");
@@ -193,8 +211,20 @@ class EnrichAwaitingVesselsCommand extends Command
                 ['Conflicting (Review Required)', $counts['conflicting']],
                 ['Not Found', $counts['not_found']],
                 ['Provider Unavailable / Rate Limited', $counts['provider_unavailable']],
+                ['Execution Duration', "{$durationMs}ms"],
             ]
         );
+
+        \Illuminate\Support\Facades\Log::info("EnrichAwaitingVesselsCommand: Synchronous batch execution completed.", [
+            'total_processed' => $counts['total'],
+            'enriched' => $counts['enriched'],
+            'partially_enriched' => $counts['partially_enriched'],
+            'conflicting' => $counts['conflicting'],
+            'not_found' => $counts['not_found'],
+            'provider_unavailable' => $counts['provider_unavailable'],
+            'duration_ms' => $durationMs,
+            'dry_run' => $isDryRun,
+        ]);
 
         return Command::SUCCESS;
     }

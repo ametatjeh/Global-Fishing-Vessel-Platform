@@ -44,10 +44,16 @@ Schedule::command('ais:prune-telemetry')
     ->withoutOverlapping()
     ->description('Prune AIS historical telemetry according to vessel type retention policies (Fishing is permanently protected)');
 
-Schedule::command('vessels:enrich-awaiting --limit=50 --active-only')
+Schedule::command('vessels:enrich-awaiting --limit=50 --active-only --queue')
     ->hourly()
-    ->withoutOverlapping()
+    ->withoutOverlapping(60)
     ->runInBackground()
-    ->description('Periodically enrich active vessels awaiting static data across maritime providers');
+    ->onFailure(function () {
+        \Illuminate\Support\Facades\Log::error('Scheduled vessels:enrich-awaiting failed to dispatch background enrichment jobs.');
+    })
+    ->onSuccess(function () {
+        \Illuminate\Support\Facades\Log::info('Scheduled vessels:enrich-awaiting successfully ran and queued active awaiting vessels.');
+    })
+    ->description('Periodically queue multi-source enrichment for active vessels awaiting static data');
 
 

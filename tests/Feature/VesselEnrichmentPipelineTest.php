@@ -14,6 +14,9 @@ use App\Services\Enrichment\Providers\OfficialFlagRegistryProvider;
 use App\Services\Enrichment\VesselEnrichmentManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Console\Scheduling\Schedule;
 use Tests\TestCase;
 
 class VesselEnrichmentPipelineTest extends TestCase
@@ -664,5 +667,157 @@ class VesselEnrichmentPipelineTest extends TestCase
         $this->assertNotNull($jobAudit);
         $this->assertEquals('completed', $jobAudit->status);
         $this->assertNotEmpty($jobAudit->sources_attempted);
+    }
+
+    /**
+     * Test 17: Scheduler registers hourly command with withoutOverlapping and queue.
+     */
+    public function test_17_scheduler_registration_and_configuration(): void
+    {
+        $schedule = app(Schedule::class);
+        $events = collect($schedule->events());
+
+        $scheduledEvent = $events->first(function ($event) {
+            return str_contains($event->command ?? '', 'vessels:enrich-awaiting');
+        });
+
+        $this->assertNotNull($scheduledEvent, 'Scheduled command vessels:enrich-awaiting is not registered in Schedule.');
+        $this->assertStringContainsString('--limit=50', $scheduledEvent->command);
+        $this->assertStringContainsString('--active-only', $scheduledEvent->command);
+        $this->assertStringContainsString('--queue', $scheduledEvent->command);
+        $this->assertEquals('0 * * * *', $scheduledEvent->expression, 'Event is not scheduled hourly (0 * * * *).');
+        $this->assertTrue($scheduledEvent->withoutOverlapping, 'Event withoutOverlapping is not enabled.');
+    }
+
+    /**
+     * Test 18: Artisan command with --queue dispatches EnrichAwaitingVesselJob to queue.
+     */
+    public function test_18_command_with_queue_dispatches_jobs(): void
+    {
+        Queue::fake();
+
+        $v1 = $this->createAwaitingVessel(['mmsi' => '525000001', 'last_seen_at' => now()->subMinutes(10)]);
+        $v2 = $this->createAwaitingVessel(['mmsi' => '525000002', 'last_seen_at' => now()->subMinutes(20)]);
+
+        $exitCode = $this->artisan('vessels:enrich-awaiting', [
+            '--limit' => 10,
+            '--active-only' => true,
+            '--queue' => true,
+        ])->run();
+
+        $this->assertEquals(0, $exitCode);
+
+        Queue::assertPushed(EnrichAwaitingVesselJob::class, 2);
+        Queue::assertPushed(EnrichAwaitingVesselJob::class, function ($job) use ($v1) {
+            return $job->vesselId === $v1->id;
+        });
+        Queue::assertPushed(EnrichAwaitingVesselJob::class, function ($job) use ($v2) {
+            return $job->vesselId === $v2->id;
+        });
+    }
+
+    /**
+     * Test 19: Job retry configuration, exponential backoff, and WithoutOverlapping middleware.
+     */
+    public function test_19_job_retry_backoff_and_middleware(): void
+    {
+        $vessel = $this->createAwaitingVessel();
+        $job = new EnrichAwaitingVesselJob($vessel->id);
+
+        $this->assertEquals(3, $job->tries);
+        $this->assertEquals(60, $job->timeout);
+        $this->assertEquals([60, 300, 900], $job->backoff());
+
+        $middleware = $job->middleware();
+        $this->assertNotEmpty($middleware);
+        $this->assertInstanceOf(\Illuminate\Queue\Middleware\WithoutOverlapping::class, $middleware[0]);
+    }
+
+    /**
+     * Test 20: Duplicate execution prevention via cache lock.
+     */
+    public function test_20_duplicate_job_skipped_when_lock_held(): void
+    {
+        $vessel = $this->createAwaitingVessel();
+
+        // Simulate an already active lock held by another worker
+        $lockKey = 'awaiting_enrich_job_lock_' . $vessel->id;
+        $this->assertTrue(\Illuminate\Support\Facades\Cache::add($lockKey, true, 300));
+
+        // Dispatch job: it should skip processing gracefully without changing status to searching
+        $job = new EnrichAwaitingVesselJob($vessel->id);
+        $manager = app(VesselEnrichmentManager::class);
+        $job->handle($manager);
+
+        $vessel->refresh();
+        $this->assertEquals('not_started', $vessel->enrichment_status);
+
+        \Illuminate\Support\Facades\Cache::forget($lockKey);
+    }
+
+    /**
+     * Test 21: Per-provider rate limiting stops throttled provider while allowing others to proceed.
+     */
+    public function test_21_per_provider_rate_limiting(): void
+    {
+        RateLimiter::clear('enrichment_rate_limit_gfw');
+
+        $vessel = $this->createAwaitingVessel(['mmsi' => '525999888']);
+
+        $gfwProvider = new class implements EnrichmentProviderInterface {
+            public function getName(): string { return 'gfw'; }
+            public function isConfigured(): bool { return true; }
+            public function enrich(Vessel $v): array {
+                return [
+                    'provider' => 'gfw',
+                    'status' => 'MATCH_FOUND',
+                    'external_record_id' => 'cand-1',
+                    'confidence_score' => 0.9,
+                    'attributes' => ['name' => 'RATE TEST SHIP'],
+                    'raw_payload' => [],
+                    'message' => 'ok',
+                ];
+            }
+        };
+
+        $flagProvider = new class implements EnrichmentProviderInterface {
+            public function getName(): string { return 'flag_registry'; }
+            public function isConfigured(): bool { return true; }
+            public function enrich(Vessel $v): array {
+                return [
+                    'provider' => 'flag_registry',
+                    'status' => 'MATCH_FOUND',
+                    'external_record_id' => 'mid-id',
+                    'confidence_score' => 1.0,
+                    'attributes' => ['flag_state' => 'ID'],
+                    'raw_payload' => [],
+                    'message' => 'ok',
+                ];
+            }
+        };
+
+        // Simulate GFW rate limit hit by maxing out attempts
+        $limit = (int) config('maritime.providers.gfw.rate_limit_per_minute', 60);
+        for ($i = 0; $i < $limit; $i++) {
+            RateLimiter::hit('enrichment_rate_limit_gfw', 60);
+        }
+
+        $manager = new VesselEnrichmentManager();
+        $manager->setProviders([$gfwProvider, $flagProvider]);
+
+        $result = $manager->enrichVessel($vessel, dryRun: false);
+
+        // GFW should report PROVIDER_UNAVAILABLE due to rate limit
+        $this->assertEquals('PROVIDER_UNAVAILABLE', $result['provider_results']['gfw']['status']);
+        $this->assertStringContainsString('rate limit reached', $result['provider_results']['gfw']['message']);
+
+        // Flag registry should NOT be affected and should match
+        $this->assertEquals('MATCH_FOUND', $result['provider_results']['flag_registry']['status']);
+
+        // Vessel flag_state was still enriched from the non-throttled provider
+        $vessel->refresh();
+        $this->assertEquals('ID', $vessel->flag_state);
+
+        RateLimiter::clear('enrichment_rate_limit_gfw');
     }
 }
