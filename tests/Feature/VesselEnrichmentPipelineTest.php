@@ -724,7 +724,8 @@ class VesselEnrichmentPipelineTest extends TestCase
         $vessel = $this->createAwaitingVessel();
         $job = new EnrichAwaitingVesselJob($vessel->id);
 
-        $this->assertEquals(3, $job->tries);
+        $this->assertEquals(5, $job->tries);
+        $this->assertEquals(3, $job->maxExceptions);
         $this->assertEquals(60, $job->timeout);
         $this->assertEquals([60, 300, 900], $job->backoff());
 
@@ -907,5 +908,165 @@ class VesselEnrichmentPipelineTest extends TestCase
         $this->assertEquals('enriched', $vessel->enrichment_status);
         $this->assertNull($vessel->static_data_received_at, 'static_data_received_at MUST remain null.');
         $this->assertEquals('AWAITING', $vessel->ais_static_status, 'AIS static status MUST remain strictly AWAITING.');
+    }
+
+    /**
+     * Test 25: Dispatch failure restores previous vessel status and avoids leaving it searching.
+     */
+    public function test_25_dispatch_failure_reverts_status(): void
+    {
+        $vessel = $this->createAwaitingVessel([
+            'mmsi' => '525000040',
+            'last_seen_at' => now()->subMinutes(10),
+            'enrichment_status' => 'not_started',
+        ]);
+
+        // Mock Queue to simulate exception during dispatch
+        Queue::shouldReceive('push')
+            ->andThrow(new \RuntimeException('Database queue broker unreachable'));
+
+        $command = app(\App\Console\Commands\EnrichAwaitingVesselsCommand::class);
+        $manager = app(VesselEnrichmentManager::class);
+
+        $exitCode = $this->artisan('vessels:enrich-awaiting', [
+            '--limit' => 1,
+            '--active-only' => true,
+            '--queue' => true,
+        ])->run();
+
+        $vessel->refresh();
+        $this->assertEquals('not_started', $vessel->enrichment_status, 'Status must revert to not_started on dispatch failure.');
+    }
+
+    /**
+     * Test 26: Permanent failure triggers failed() callback and updates status to provider_unavailable.
+     */
+    public function test_26_permanent_failure_updates_status_via_failed_callback(): void
+    {
+        $vessel = $this->createAwaitingVessel([
+            'mmsi' => '525000050',
+            'enrichment_status' => 'searching',
+        ]);
+
+        $job = new EnrichAwaitingVesselJob($vessel->id);
+        $job->failed(new \RuntimeException('Connection dropped permanently across all retries'));
+
+        $vessel->refresh();
+        $this->assertEquals('provider_unavailable', $vessel->enrichment_status);
+
+        $failedJob = EnrichmentJob::where('vessel_id', $vessel->id)->where('status', 'failed')->first();
+        $this->assertNotNull($failedJob);
+        $this->assertStringContainsString('Connection dropped permanently', $failedJob->error_message);
+    }
+
+    /**
+     * Test 27: Stale searching recovery recovers vessels stuck in searching state for > 60 minutes with no queue job.
+     */
+    public function test_27_stale_searching_recovery_recovers_abandoned_vessels(): void
+    {
+        // Vessel stuck in searching since 90 minutes ago
+        $vessel = $this->createAwaitingVessel([
+            'mmsi' => '525000060',
+            'enrichment_status' => 'searching',
+        ]);
+        $vessel->updated_at = now()->subMinutes(90);
+        $vessel->save();
+
+        $command = app(\App\Console\Commands\EnrichAwaitingVesselsCommand::class);
+        $recovered = $command->recoverStaleSearchingVessels(staleMinutes: 60);
+
+        $this->assertGreaterThanOrEqual(1, $recovered);
+
+        $vessel->refresh();
+        $this->assertEquals('not_started', $vessel->enrichment_status, 'Vessel must be recovered back to not_started.');
+
+        $audit = EnrichmentJob::where('vessel_id', $vessel->id)->where('status', 'failed')->first();
+        $this->assertNotNull($audit);
+        $this->assertStringContainsString('Stale searching state recovered', $audit->error_message);
+    }
+
+    /**
+     * Test 28: Stale searching recovery ignores vessels that still have active queue jobs.
+     */
+    public function test_28_stale_searching_recovery_ignores_vessels_with_active_jobs(): void
+    {
+        $vessel = $this->createAwaitingVessel([
+            'mmsi' => '525000070',
+            'enrichment_status' => 'searching',
+        ]);
+        $vessel->updated_at = now()->subMinutes(90);
+        $vessel->save();
+
+        // Simulate an active job in the jobs table
+        \Illuminate\Support\Facades\DB::table('jobs')->insert([
+            'queue' => 'default',
+            'payload' => json_encode(['displayName' => 'App\\Jobs\\EnrichAwaitingVesselJob', 'data' => ['vesselId' => $vessel->id]]),
+            'attempts' => 1,
+            'reserved_at' => null,
+            'available_at' => time(),
+            'created_at' => time(),
+        ]);
+
+        $command = app(\App\Console\Commands\EnrichAwaitingVesselsCommand::class);
+        $recovered = $command->recoverStaleSearchingVessels(staleMinutes: 60);
+
+        $this->assertEquals(0, $recovered, 'Vessel with active job must NOT be recovered.');
+
+        $vessel->refresh();
+        $this->assertEquals('searching', $vessel->enrichment_status, 'Status must remain searching while job is active.');
+    }
+
+    /**
+     * Test 29: Stale recovery does not alter AIS static status.
+     */
+    public function test_29_stale_recovery_does_not_change_ais_static_status(): void
+    {
+        $vessel = $this->createAwaitingVessel([
+            'mmsi' => '525000080',
+            'enrichment_status' => 'searching',
+            'static_data_received_at' => null,
+        ]);
+        $vessel->updated_at = now()->subMinutes(120);
+        $vessel->save();
+
+        $command = app(\App\Console\Commands\EnrichAwaitingVesselsCommand::class);
+        $command->recoverStaleSearchingVessels(staleMinutes: 60);
+
+        $vessel->refresh();
+        $this->assertEquals('not_started', $vessel->enrichment_status);
+        $this->assertNull($vessel->static_data_received_at);
+        $this->assertEquals('AWAITING', $vessel->ais_static_status);
+    }
+
+    /**
+     * Test 30: Observations and previous enrichment history are not deleted during recovery.
+     */
+    public function test_30_observations_and_history_preserved_during_recovery(): void
+    {
+        $vessel = $this->createAwaitingVessel([
+            'mmsi' => '525000090',
+            'enrichment_status' => 'searching',
+        ]);
+        $vessel->updated_at = now()->subMinutes(90);
+        $vessel->save();
+
+        // Add pre-existing observation
+        VesselAttributeObservation::create([
+            'vessel_id' => $vessel->id,
+            'source_name' => 'flag_registry',
+            'attribute_name' => 'flag_state',
+            'attribute_value' => 'ID',
+            'confidence_score' => 1.0,
+            'is_conflicting' => false,
+            'retrieved_at' => now()->subHours(2),
+        ]);
+
+        $command = app(\App\Console\Commands\EnrichAwaitingVesselsCommand::class);
+        $command->recoverStaleSearchingVessels(staleMinutes: 60);
+
+        // Verify observation still intact
+        $obs = VesselAttributeObservation::where('vessel_id', $vessel->id)->first();
+        $this->assertNotNull($obs);
+        $this->assertEquals('ID', $obs->attribute_value);
     }
 }

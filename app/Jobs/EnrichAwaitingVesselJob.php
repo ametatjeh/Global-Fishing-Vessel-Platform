@@ -18,7 +18,8 @@ class EnrichAwaitingVesselJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 3;
+    public int $tries = 5;
+    public int $maxExceptions = 3;
     public int $timeout = 60;
 
     public function backoff(): array
@@ -102,6 +103,30 @@ class EnrichAwaitingVesselJob implements ShouldQueue
             $vessel?->update(['enrichment_status' => 'provider_unavailable']);
             throw $e;
         }
+    }
+
+    /**
+     * Handle permanent job failure when all retries are exhausted.
+     */
+    public function failed(?\Throwable $exception): void
+    {
+        $vessel = Vessel::find($this->vesselId);
+        $vesselStatus = $vessel?->enrichment_status;
+
+        Log::error("EnrichAwaitingVesselJob: Job permanently failed / retry exhausted for vessel {$this->vesselId} [Current Status: {$vesselStatus}]: " . ($exception?->getMessage() ?? 'Unknown error'));
+
+        if ($vessel && $vessel->enrichment_status === 'searching') {
+            $vessel->update(['enrichment_status' => 'provider_unavailable']);
+        }
+
+        EnrichmentJob::create([
+            'vessel_id' => $this->vesselId,
+            'status' => 'failed',
+            'error_message' => 'Job permanently failed after retry exhaustion: ' . ($exception?->getMessage() ?? 'Max attempts exceeded'),
+            'scheduled_at' => now(),
+            'started_at' => now(),
+            'completed_at' => now(),
+        ]);
     }
 }
 

@@ -3,9 +3,12 @@
 namespace App\Console\Commands;
 
 use App\Jobs\EnrichAwaitingVesselJob;
+use App\Models\EnrichmentJob;
 use App\Models\Vessel;
 use App\Services\Enrichment\VesselEnrichmentManager;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class EnrichAwaitingVesselsCommand extends Command
 {
@@ -17,7 +20,8 @@ class EnrichAwaitingVesselsCommand extends Command
                             {--rate-limit=1 : Delay in seconds between requests for rate limiting}
                             {--dry-run : Perform simulation without modifying database}
                             {--force : Force re-enrichment of already processed vessels}
-                            {--queue : Dispatch as background queue jobs}';
+                            {--queue : Dispatch as background queue jobs}
+                            {--recover-stale : Recover stale searching vessels without active queue jobs}';
 
     protected $description = 'Enrich vessels awaiting AIS static data using multi-source maritime intelligence';
 
@@ -44,6 +48,12 @@ class EnrichAwaitingVesselsCommand extends Command
             ];
         }
         $this->table(['Provider Source', 'Status'], $provRows);
+
+        if ($this->option('recover-stale')) {
+            $recovered = $this->recoverStaleSearchingVessels(staleMinutes: 30);
+            $this->info(" Stale recovery complete. Total recovered: {$recovered}");
+            return Command::SUCCESS;
+        }
 
         if ($vesselTarget) {
             return $this->handleSingleVessel($enrichmentManager, $vesselTarget, $isDryRun);
@@ -114,6 +124,9 @@ class EnrichAwaitingVesselsCommand extends Command
         bool $isDryRun,
         bool $isQueue
     ): int {
+        // 0. Pre-flight self-healing: Recover any genuinely stale 'searching' vessels
+        $this->recoverStaleSearchingVessels();
+
         $query = Vessel::query();
 
         if (!$force) {
@@ -150,25 +163,54 @@ class EnrichAwaitingVesselsCommand extends Command
         if ($isQueue) {
             $startTime = microtime(true);
             $dispatched = 0;
+            $failedDispatches = 0;
+
             foreach ($vessels as $v) {
-                // Mark immediately as searching to prevent re-dispatch on subsequent scheduler runs
-                $v->update(['enrichment_status' => 'searching']);
-                EnrichAwaitingVesselJob::dispatch($v->id, force: $force);
-                $dispatched++;
+                $previousStatus = $v->enrichment_status;
+
+                try {
+                    if ($isDryRun) {
+                        $dispatched++;
+                        continue;
+                    }
+
+                    // Mark as searching before dispatching to queue
+                    $v->update(['enrichment_status' => 'searching']);
+
+                    EnrichAwaitingVesselJob::dispatch($v->id, force: $force);
+                    $dispatched++;
+                } catch (\Throwable $e) {
+                    $failedDispatches++;
+                    // Instantly restore previous status on dispatch failure
+                    $v->update(['enrichment_status' => $previousStatus]);
+
+                    \Illuminate\Support\Facades\Log::error("EnrichAwaitingVesselsCommand: Failed to dispatch job for vessel {$v->id}. Restored status to '{$previousStatus}': " . $e->getMessage(), [
+                        'vessel_id' => $v->id,
+                        'mmsi' => $v->mmsi,
+                        'previous_status' => $previousStatus,
+                        'exception' => $e->getMessage(),
+                    ]);
+                }
             }
+
             $durationMs = round((microtime(true) - $startTime) * 1000, 2);
             $this->info(" Successfully dispatched {$dispatched} background enrichment jobs to queue (dispatch took {$durationMs}ms).");
+
+            if ($failedDispatches > 0) {
+                $this->error(" Failed to dispatch {$failedDispatches} jobs. Previous vessel status(es) successfully restored.");
+            }
 
             \Illuminate\Support\Facades\Log::info("EnrichAwaitingVesselsCommand: Batch queue dispatch completed.", [
                 'scheduled' => true,
                 'dispatched_count' => $dispatched,
+                'failed_dispatches' => $failedDispatches,
                 'batch_limit' => $limit,
                 'active_only' => $activeOnly,
                 'total_eligible' => $totalEligible,
                 'dispatch_duration_ms' => $durationMs,
             ]);
 
-            return Command::SUCCESS;
+            return $failedDispatches > 0 && $dispatched === 0 ? Command::FAILURE : Command::SUCCESS;
         }
 
         $startTime = microtime(true);
@@ -229,6 +271,68 @@ class EnrichAwaitingVesselsCommand extends Command
         ]);
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Safely recover vessels that have been stuck in 'searching' state without active queue jobs.
+     *
+     * @param int $staleMinutes Threshold in minutes to consider searching state stale (default: 60)
+     * @return int Number of recovered vessels
+     */
+    public function recoverStaleSearchingVessels(int $staleMinutes = 60): int
+    {
+        $staleThreshold = now()->subMinutes($staleMinutes);
+
+        // Find candidate vessels that have been in searching state longer than the threshold
+        $candidates = Vessel::where('enrichment_status', 'searching')
+            ->where('updated_at', '<=', $staleThreshold)
+            ->get();
+
+        if ($candidates->isEmpty()) {
+            return 0;
+        }
+
+        $recovered = 0;
+
+        foreach ($candidates as $vessel) {
+            // Check if an active/pending/reserved job genuinely exists in the queue table for this vessel
+            $hasActiveQueueJob = DB::table('jobs')
+                ->where('payload', 'like', "%{$vessel->id}%")
+                ->exists();
+
+            if ($hasActiveQueueJob) {
+                // Job is still legitimately in queue or running, do NOT touch!
+                continue;
+            }
+
+            // Vessel is genuinely lost/stale. Recover gracefully to 'not_started'.
+            $vessel->update([
+                'enrichment_status' => 'not_started',
+            ]);
+
+            \Illuminate\Support\Facades\Log::warning("EnrichAwaitingVesselsCommand: Recovered stale searching vessel {$vessel->id} [MMSI: {$vessel->mmsi}]. Reset status from 'searching' to 'not_started'.", [
+                'vessel_id' => $vessel->id,
+                'mmsi' => $vessel->mmsi,
+                'stale_since' => $vessel->updated_at?->toIso8601String(),
+            ]);
+
+            EnrichmentJob::create([
+                'vessel_id' => $vessel->id,
+                'status' => 'failed',
+                'error_message' => "Stale searching state recovered: no active queue job found after {$staleMinutes} minutes.",
+                'scheduled_at' => $vessel->updated_at ?? now(),
+                'started_at' => $vessel->updated_at ?? now(),
+                'completed_at' => now(),
+            ]);
+
+            $recovered++;
+        }
+
+        if ($recovered > 0 && $this->output !== null) {
+            $this->warn(" [RECOVERY] Safely recovered {$recovered} stale 'searching' vessel(s) with no active queue jobs.");
+        }
+
+        return $recovered;
     }
 
     protected function outputBanner(): void
