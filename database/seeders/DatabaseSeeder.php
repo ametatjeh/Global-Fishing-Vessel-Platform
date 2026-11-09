@@ -24,7 +24,9 @@ class DatabaseSeeder extends Seeder
                 'password' => Hash::make('Password123!'),
                 'role' => 'super_admin',
                 'organization' => 'Global Maritime Security Operations Center',
+                'is_active' => true,
                 'email_verified_at' => now(),
+                'password_set_at' => now(),
             ]
         );
 
@@ -35,7 +37,9 @@ class DatabaseSeeder extends Seeder
                 'password' => Hash::make('Password123!'),
                 'role' => 'analyst',
                 'organization' => 'Fisheries Intelligence Unit',
+                'is_active' => true,
                 'email_verified_at' => now(),
+                'password_set_at' => now(),
             ]
         );
 

@@ -31,7 +31,9 @@ class UserFactory extends Factory
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
             'role' => 'analyst',
+            'organization' => 'Maritime Intelligence Agency',
             'is_active' => true,
+            'password_set_at' => now(),
         ];
     }
 
@@ -42,6 +44,55 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
+        ]);
+    }
+
+    public function superAdmin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'super_admin',
+        ]);
+    }
+
+    public function admin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'admin',
+        ]);
+    }
+
+    public function researchLead(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'research_lead',
+        ]);
+    }
+
+    public function researcher(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'researcher',
+        ]);
+    }
+
+    public function analyst(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'analyst',
+        ]);
+    }
+
+    public function institutionalResearcher(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'institutional_researcher',
+        ]);
+    }
+
+    public function inactive(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'is_active' => false,
         ]);
     }
 }

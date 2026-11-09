@@ -39,11 +39,15 @@ return new class extends Migration
             $table->timestamp('created_at')->index();
         });
 
-        // Add role to users table if not exists
+        // Add role & organization to users table if not already present
         if (!Schema::hasColumn('users', 'role')) {
             Schema::table('users', function (Blueprint $table) {
-                $table->string('role')->default('analyst')->after('email'); // super_admin, admin, analyst, officer, viewer
-                $table->string('organization')->nullable()->after('role');
+                $table->string('role')->default('analyst')->index();
+            });
+        }
+        if (!Schema::hasColumn('users', 'organization')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->string('organization')->nullable();
             });
         }
     }
@@ -52,11 +56,5 @@ return new class extends Migration
     {
         Schema::dropIfExists('audit_logs');
         Schema::dropIfExists('investigations');
-
-        if (Schema::hasColumn('users', 'role')) {
-            Schema::table('users', function (Blueprint $table) {
-                $table->dropColumn(['role', 'organization']);
-            });
-        }
     }
 };

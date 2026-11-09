@@ -407,7 +407,9 @@ class MapLayerApiController extends Controller
      */
     public function vesselTrack(Request $request, string $id): JsonResponse
     {
-        $vessel = Vessel::where('id', $id)->orWhere('mmsi', $id)->first();
+        $vessel = \Illuminate\Support\Str::isUuid($id)
+            ? Vessel::where('id', $id)->first()
+            : Vessel::where('mmsi', $id)->first();
 
         if (!$vessel) {
             return response()->json([
