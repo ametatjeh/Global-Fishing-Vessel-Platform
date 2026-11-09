@@ -190,15 +190,15 @@ class VesselTableColumnsAuditTest extends TestCase
             'vessel_type' => 'sar',
         ]);
 
-        $this->assertSame('Search and Rescue', $vessel->display_vessel_type);
+        $this->assertSame('SEARCH AND RESCUE', $vessel->display_vessel_type);
 
         $tableRes = $this->actingAs($this->user)->get('/vessels');
         $tableRes->assertStatus(200);
-        $tableRes->assertSee('Search and Rescue');
+        $tableRes->assertSee('SEARCH AND RESCUE');
 
         $detailRes = $this->actingAs($this->user)->get("/vessels/{$vessel->id}");
         $detailRes->assertStatus(200);
-        $detailRes->assertSee('Search and Rescue');
+        $detailRes->assertSee('SEARCH AND RESCUE');
     }
 
     public function test_vessel_type_displays_unknown_when_null_or_empty(): void
@@ -210,15 +210,15 @@ class VesselTableColumnsAuditTest extends TestCase
             'vessel_type' => 'unknown',
         ]);
 
-        $this->assertSame('Unknown', $vessel->display_vessel_type);
+        $this->assertSame('AWAITING STATIC DATA', $vessel->display_vessel_type);
 
         $tableRes = $this->actingAs($this->user)->get('/vessels');
         $tableRes->assertStatus(200);
-        $tableRes->assertSee('Unknown');
+        $tableRes->assertSee('AWAITING STATIC DATA');
 
         $detailRes = $this->actingAs($this->user)->get("/vessels/{$vessel->id}");
         $detailRes->assertStatus(200);
-        $detailRes->assertSee('Unknown');
+        $detailRes->assertSee('AWAITING STATIC DATA');
     }
 
     public function test_ais_position_without_shiptype_does_not_overwrite_valid_classification(): void
@@ -246,7 +246,7 @@ class VesselTableColumnsAuditTest extends TestCase
 
         $vessel->refresh();
         $this->assertSame('fishing', $vessel->vessel_type);
-        $this->assertSame('Fishing', $vessel->display_vessel_type);
+        $this->assertSame('FISHING', $vessel->display_vessel_type);
     }
 
     public function test_older_ais_static_message_does_not_overwrite_newer_classification(): void
@@ -264,7 +264,7 @@ class VesselTableColumnsAuditTest extends TestCase
 
         $vessel = Vessel::where('mmsi', '525444555')->firstOrFail();
         $this->assertSame('tug', $vessel->vessel_type);
-        $this->assertSame('Tug', $vessel->display_vessel_type);
+        $this->assertSame('TUG', $vessel->display_vessel_type);
 
         // 2. An older static message arrives delayed from yesterday with type 50 (Pilot)
         $olderTime = Carbon::now()->subDays(2);
@@ -278,7 +278,7 @@ class VesselTableColumnsAuditTest extends TestCase
         $vessel->refresh();
         // Classification must remain 'tug' because the incoming message was older!
         $this->assertSame('tug', $vessel->vessel_type);
-        $this->assertSame('Tug', $vessel->display_vessel_type);
+        $this->assertSame('TUG', $vessel->display_vessel_type);
     }
 
     public function test_gfw_cannot_classify_vessel_as_cargo_or_tanker(): void
@@ -400,19 +400,19 @@ class VesselTableColumnsAuditTest extends TestCase
             'mmsi' => '525000030',
             'vessel_type' => '30',
         ]);
-        $this->assertSame('Fishing', $v1->display_vessel_type);
+        $this->assertSame('FISHING', $v1->display_vessel_type);
 
         $v2 = Vessel::create([
             'name' => 'VESSEL CODE 70',
             'mmsi' => '525000070',
             'vessel_type' => '70',
         ]);
-        $this->assertSame('Cargo', $v2->display_vessel_type);
+        $this->assertSame('CARGO', $v2->display_vessel_type);
 
         $tableRes = $this->actingAs($this->user)->get('/vessels');
         $tableRes->assertStatus(200);
-        $tableRes->assertSee('Fishing');
-        $tableRes->assertSee('Cargo');
+        $tableRes->assertSee('FISHING');
+        $tableRes->assertSee('CARGO');
     }
 
     /**

@@ -2122,6 +2122,77 @@ export class GlobalMapController {
         }, 300);
     }
 
+    getViewportBBoxString() {
+        if (!this.map) return null;
+        try {
+            const bounds = this.map.getBounds();
+            if (!bounds) return null;
+            let west = bounds.getWest();
+            let south = bounds.getSouth();
+            let east = bounds.getEast();
+            let north = bounds.getNorth();
+
+            // When zoomed out to global view, clamp to valid coordinates
+            if (east - west >= 360) {
+                west = -180;
+                east = 180;
+            } else {
+                west = Math.max(-180, Math.min(180, west));
+                east = Math.max(-180, Math.min(180, east));
+            }
+            south = Math.max(-90, Math.min(90, south));
+            north = Math.max(-90, Math.min(90, north));
+
+            return `${west.toFixed(4)},${south.toFixed(4)},${east.toFixed(4)},${north.toFixed(4)}`;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    toggleLayer(layerKey, visible) {
+        this.activeLayers[layerKey] = visible;
+
+        const layerMap = {
+            aseanEez: [
+                'asean-eez-fill-layer',
+                'asean-eez-polygon-outline-layer',
+                'asean-eez-line-agreed',
+                'asean-eez-line-undelimited',
+                'asean-eez-line-disputed',
+                'asean-eez-line-joint',
+                'asean-eez-line-unknown'
+            ],
+            australiaEez: [
+                'australia-eez-fill-layer',
+                'australia-eez-polygon-outline-layer',
+                'australia-eez-line-treaty',
+                'australia-eez-line-200nm',
+                'australia-eez-line-median'
+            ],
+            encounters: ['encounters-circle-layer'],
+            vessels: [
+                'vessels-oriented-layer',
+                'vessels-circle-layer'
+            ],
+            darkVessels: ['dark-vessels-circle-layer'],
+            sarScenes: ['sar-scenes-fill-layer', 'sar-scenes-line-layer'],
+        };
+
+        const targetIds = layerMap[layerKey] || [];
+        targetIds.forEach((id) => {
+            if (this.map && this.map.getLayer(id)) {
+                this.map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
+            }
+        });
+
+        if (visible) {
+            this.fetchLayerData(layerKey);
+        }
+
+        this.ensureLayerOrder();
+        this.updateActiveLayerCount();
+    }
+
     refreshDynamicActiveLayers() {
         const dynamicLayers = ['vessels', 'darkVessels', 'encounters', 'sarScenes'];
         dynamicLayers.forEach((key) => {

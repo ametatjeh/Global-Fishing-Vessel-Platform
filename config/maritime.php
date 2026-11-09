@@ -142,6 +142,7 @@ return [
             'filter_mmsi' => env('AIS_FILTER_MMSI')
                 ? explode(',', env('AIS_FILTER_MMSI'))
                 : null,
+            'connect_timeout' => (int) env('AIS_CONNECT_TIMEOUT', 10),
             'socket_timeout' => (int) env('AIS_SOCKET_TIMEOUT', 15),
             'reconnect_delay_seconds' => (int) env('AIS_RECONNECT_DELAY', 5),
             'max_reconnect_attempts' => (int) env('AIS_MAX_RECONNECT_ATTEMPTS', 10),

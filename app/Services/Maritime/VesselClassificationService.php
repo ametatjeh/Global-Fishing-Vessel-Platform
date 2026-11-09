@@ -12,29 +12,33 @@ class VesselClassificationService
     public const TAXONOMY = [
         'fishing'           => 'Fishing',
         'towing'            => 'Towing',
-        'dredging'          => 'Dredging',
-        'diving'            => 'Diving',
-        'military'          => 'Military',
+        'dredging'          => 'Dredging / Underwater Operations',
+        'diving'            => 'Diving Operations',
+        'military'          => 'Military Operations',
         'sailing'           => 'Sailing',
         'pleasure'          => 'Pleasure Craft',
         'high_speed_craft'  => 'High Speed Craft',
-        'pilot'             => 'Pilot',
+        'pilot'             => 'Pilot Vessel',
         'sar'               => 'Search and Rescue',
         'tug'               => 'Tug',
         'port_tender'       => 'Port Tender',
         'anti_pollution'    => 'Anti-pollution',
         'law_enforcement'   => 'Law Enforcement',
-        'medical'           => 'Medical',
-        'non_combatant'     => 'Non-combatant',
+        'medical'           => 'Medical Transport',
         'passenger'         => 'Passenger',
         'cargo'             => 'Cargo',
         'tanker'            => 'Tanker',
         'other'             => 'Other',
+        'not_available'     => 'Not Available',
+        'unmapped'          => 'Unmapped AIS Code',
+        'awaiting_static'   => 'Awaiting Static Data',
+        'unknown'           => 'Unknown',
+        // aliases
+        'patrol'            => 'Law Enforcement',
         'carrier'           => 'Carrier',
         'support'           => 'Support',
-        'patrol'            => 'Patrol',
         'research'          => 'Research',
-        'unknown'           => 'Unknown',
+        'non_combatant'     => 'Other',
     ];
 
     protected GfwApiService $gfwApi;
@@ -76,6 +80,12 @@ class VesselClassificationService
 
         $code = (int) $code;
 
+        if ($code === 0) {
+            return 'not_available';
+        }
+        if ($code >= 20 && $code <= 29) {
+            return 'high_speed_craft';
+        }
         if ($code === 30) {
             return 'fishing';
         }
@@ -116,13 +126,13 @@ class VesselClassificationService
             return 'anti_pollution';
         }
         if ($code === 55) {
-            return 'patrol';
+            return 'law_enforcement';
         }
         if ($code === 58) {
             return 'medical';
         }
         if ($code === 59) {
-            return 'unknown';
+            return 'other';
         }
         if ($code >= 60 && $code <= 69) {
             return 'passenger';
@@ -133,11 +143,11 @@ class VesselClassificationService
         if ($code >= 80 && $code <= 89) {
             return 'tanker';
         }
-        if ($code >= 90 && $code <= 98) {
+        if ($code >= 90 && $code <= 99) {
             return 'other';
         }
 
-        return 'unknown';
+        return 'unmapped';
     }
 
     /**
@@ -160,8 +170,10 @@ class VesselClassificationService
             'dredger' => 'dredging',
             'supply' => 'support',
             'tender' => 'port_tender',
-            'patrol_vessel' => 'patrol',
+            'patrol', 'patrol_vessel' => 'law_enforcement',
             'carrier', 'bunker' => 'carrier',
+            'medical_transport' => 'medical',
+            'non_combatant' => 'other',
             default => 'unknown',
         };
     }

@@ -29,7 +29,28 @@ class VesselController extends Controller
         }
 
         if ($type = $request->input('vessel_type')) {
-            $query->where('vessel_type', $type);
+            if ($type === 'awaiting_static') {
+                $query->where(function ($q) {
+                    $q->where(function ($sq) {
+                        $sq->whereNull('vessel_type')->orWhere('vessel_type', 'unknown');
+                    })
+                    ->whereNull('ais_ship_type_code')
+                    ->whereNull('static_data_received_at');
+                });
+            } elseif ($type === 'not_available') {
+                $query->where(function ($q) {
+                    $q->where('vessel_type', 'not_available')
+                      ->orWhere('ais_ship_type_code', 0);
+                });
+            } elseif ($type === 'unmapped') {
+                $query->where('vessel_type', 'unmapped');
+            } elseif ($type === 'patrol' || $type === 'law_enforcement') {
+                $query->whereIn('vessel_type', ['law_enforcement', 'patrol']);
+            } elseif ($type === 'medical' || $type === 'medical_transport') {
+                $query->whereIn('vessel_type', ['medical', 'medical_transport']);
+            } else {
+                $query->where('vessel_type', $type);
+            }
         }
 
         // 1. Flag Country Filter (supports specific ISO code or 'unknown')

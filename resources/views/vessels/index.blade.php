@@ -90,17 +90,29 @@
                     class="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-400 font-sans cursor-pointer transition">
                     <option value="">All Types (Semua Tipe)</option>
                     <option value="fishing" {{ request('vessel_type') === 'fishing' ? 'selected' : '' }}>Fishing (Penangkap Ikan)</option>
-                    <option value="carrier" {{ request('vessel_type') === 'carrier' ? 'selected' : '' }}>Carrier (Pengangkut/Reefer)</option>
-                    <option value="support" {{ request('vessel_type') === 'support' ? 'selected' : '' }}>Support (Pendukung/Bunker)</option>
-                    <option value="passenger" {{ request('vessel_type') === 'passenger' ? 'selected' : '' }}>Passenger (Penumpang/Yacht)</option>
-                    <option value="patrol" {{ request('vessel_type') === 'patrol' ? 'selected' : '' }}>Patrol (Pengawas/SAR)</option>
-                    <option value="tug" {{ request('vessel_type') === 'tug' ? 'selected' : '' }}>Tug (Kapal Tunda)</option>
-                    <option value="pleasure" {{ request('vessel_type') === 'pleasure' ? 'selected' : '' }}>Pleasure (Rekreasi/Layar)</option>
-                    <option value="research" {{ request('vessel_type') === 'research' ? 'selected' : '' }}>Research (Riset Ilmiah)</option>
                     <option value="cargo" {{ request('vessel_type') === 'cargo' ? 'selected' : '' }}>Cargo (Kargo Barang)</option>
                     <option value="tanker" {{ request('vessel_type') === 'tanker' ? 'selected' : '' }}>Tanker (Minyak/Gas)</option>
+                    <option value="towing" {{ request('vessel_type') === 'towing' ? 'selected' : '' }}>Towing (Penarik)</option>
+                    <option value="tug" {{ request('vessel_type') === 'tug' ? 'selected' : '' }}>Tug (Kapal Tunda)</option>
+                    <option value="passenger" {{ request('vessel_type') === 'passenger' ? 'selected' : '' }}>Passenger (Penumpang)</option>
+                    <option value="high_speed_craft" {{ request('vessel_type') === 'high_speed_craft' ? 'selected' : '' }}>High Speed Craft (HSC)</option>
+                    <option value="pleasure" {{ request('vessel_type') === 'pleasure' ? 'selected' : '' }}>Pleasure Craft (Rekreasi)</option>
+                    <option value="sailing" {{ request('vessel_type') === 'sailing' ? 'selected' : '' }}>Sailing (Kapal Layar)</option>
+                    <option value="pilot" {{ request('vessel_type') === 'pilot' ? 'selected' : '' }}>Pilot Vessel (Pandu)</option>
+                    <option value="sar" {{ request('vessel_type') === 'sar' ? 'selected' : '' }}>Search and Rescue (SAR)</option>
+                    <option value="port_tender" {{ request('vessel_type') === 'port_tender' ? 'selected' : '' }}>Port Tender</option>
+                    <option value="law_enforcement" {{ in_array(request('vessel_type'), ['law_enforcement', 'patrol']) ? 'selected' : '' }}>Law Enforcement (Patroli)</option>
+                    <option value="military" {{ request('vessel_type') === 'military' ? 'selected' : '' }}>Military (Militer)</option>
+                    <option value="dredging" {{ request('vessel_type') === 'dredging' ? 'selected' : '' }}>Dredging / Underwater Ops</option>
+                    <option value="diving" {{ request('vessel_type') === 'diving' ? 'selected' : '' }}>Diving Operations</option>
+                    <option value="anti_pollution" {{ request('vessel_type') === 'anti_pollution' ? 'selected' : '' }}>Anti-pollution</option>
+                    <option value="medical" {{ in_array(request('vessel_type'), ['medical', 'medical_transport']) ? 'selected' : '' }}>Medical Transport</option>
+                    <option value="carrier" {{ request('vessel_type') === 'carrier' ? 'selected' : '' }}>Carrier (Reefer)</option>
+                    <option value="support" {{ request('vessel_type') === 'support' ? 'selected' : '' }}>Support (Pendukung)</option>
                     <option value="other" {{ request('vessel_type') === 'other' ? 'selected' : '' }}>Other (Lainnya)</option>
-                    <option value="unknown" {{ request('vessel_type') === 'unknown' ? 'selected' : '' }}>Unknown (Belum Diketahui)</option>
+                    <option value="not_available" {{ request('vessel_type') === 'not_available' ? 'selected' : '' }}>Not Available (Kode 0)</option>
+                    <option value="awaiting_static" {{ request('vessel_type') === 'awaiting_static' ? 'selected' : '' }}>Awaiting Static Data</option>
+                    <option value="unmapped" {{ request('vessel_type') === 'unmapped' ? 'selected' : '' }}>Unmapped AIS Code</option>
                 </select>
             </div>
 
@@ -215,7 +227,11 @@
                         <td class="py-2.5 px-4 whitespace-nowrap font-medium">
                             @php
                                 $typeKey = strtolower($vessel->vessel_type ?? 'unknown');
-                                if (is_numeric($typeKey)) {
+                                if ($vessel->ais_ship_type_code === 0 || $typeKey === 'not_available') {
+                                    $typeKey = 'not_available';
+                                } elseif ((empty($vessel->vessel_type) || $typeKey === 'unknown') && $vessel->ais_ship_type_code === null && empty($vessel->static_data_received_at)) {
+                                    $typeKey = 'awaiting_static';
+                                } elseif (is_numeric($typeKey)) {
                                     $typeKey = \App\Services\Maritime\VesselClassificationService::mapAisCodeToTaxonomy((int) $typeKey);
                                 }
                                 $typeBadgeClass = match($typeKey) {
@@ -223,12 +239,16 @@
                                     'carrier', 'support', 'port_tender' => 'bg-amber-500/15 text-amber-300 border-amber-500/30',
                                     'passenger' => 'bg-sky-500/15 text-sky-300 border-sky-500/30',
                                     'patrol', 'law_enforcement', 'military' => 'bg-rose-500/15 text-rose-300 border-rose-500/30',
-                                    'tug', 'towing' => 'bg-orange-500/15 text-orange-300 border-orange-500/30',
+                                    'tug', 'towing', 'dredging', 'diving' => 'bg-orange-500/15 text-orange-300 border-orange-500/30',
                                     'pleasure', 'sailing' => 'bg-violet-500/15 text-violet-300 border-violet-500/30',
                                     'research' => 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
-                                    'sar' => 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+                                    'sar', 'medical' => 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
                                     'high_speed_craft' => 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30',
-                                    'cargo', 'tanker' => 'bg-red-950 text-red-400 border-red-500/40',
+                                    'cargo' => 'bg-blue-500/15 text-blue-300 border-blue-500/30',
+                                    'tanker' => 'bg-purple-500/15 text-purple-300 border-purple-500/30',
+                                    'not_available' => 'bg-slate-800 text-slate-400 border-slate-700',
+                                    'awaiting_static' => 'bg-slate-800/80 text-amber-300/80 border-amber-500/20',
+                                    'unmapped' => 'bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/30',
                                     default => 'bg-slate-800 text-slate-400 border-slate-700',
                                 };
                             @endphp

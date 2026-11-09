@@ -42,6 +42,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
 
         $startTime = microtime(true);
         $errstr = '';
+        $diagnostics = [];
 
         if ($forceTlsConnected !== null) {
             $connected = $forceTlsConnected;
@@ -49,7 +50,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 $errstr = 'Connection timeout / host unreachable';
             }
         } else {
-            [$connected, $errstr] = $this->probeTls('stream.aisstream.io', 443, 5);
+            [$connected, $errstr, $diagnostics] = $this->probeTls('stream.aisstream.io', 443, 5);
         }
 
         $latency = round((microtime(true) - $startTime) * 1000, 2);
@@ -63,6 +64,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 'message' => $errorMsg,
                 'latency_ms' => $latency,
                 'timestamp' => now()->toISOString(),
+                'diagnostics' => $diagnostics ?: null,
             ];
         }
 
@@ -132,29 +134,92 @@ class AisStreamAdapter implements ProviderAdapterInterface
             'message' => $message,
             'latency_ms' => $latency,
             'timestamp' => now()->toISOString(),
+            'diagnostics' => array_merge($diagnostics ?: [], [
+                'worker_alive' => $isWorkerAlive,
+                'telemetry_status' => \Illuminate\Support\Facades\Cache::get('ais_stream_telemetry_status'),
+                'last_connected_at' => \Illuminate\Support\Facades\Cache::get('ais_stream_last_connected_at'),
+                'subscription_confirmed_at' => \Illuminate\Support\Facades\Cache::get('ais_stream_subscription_confirmed_at'),
+                'last_message_at' => \Illuminate\Support\Facades\Cache::get('ais_stream_last_message_at'),
+                'last_position_at' => \Illuminate\Support\Facades\Cache::get('ais_stream_last_position_at'),
+                'database_latest_observed_at' => $latestPos?->observed_at?->toIso8601String(),
+                'counters' => $this->getMetrics(),
+            ]),
         ];
     }
 
     /**
-     * Probe TLS connectivity to the external endpoint.
+     * Multi-stage probe to diagnose connectivity to the external endpoint:
+     * Stage 1: DNS Resolution
+     * Stage 2: TCP Transport Connect (Layer 4)
+     * Stage 3: TLS Handshake & Certificate Verification (Layer 5/6)
+     *
+     * @return array [bool $connected, string $errstr, array $stageDiagnostics]
      */
-    protected function probeTls(string $host = 'stream.aisstream.io', int $port = 443, int $timeout = 5): array
+    public function probeTls(string $host = 'stream.aisstream.io', int $port = 443, int $timeout = 5): array
     {
-        $errno = 0;
-        $errstr = '';
-        $connected = false;
+        $diagnostics = [
+            'host' => $host,
+            'port' => $port,
+            'resolved_ip' => null,
+            'dns_ok' => false,
+            'tcp_ok' => false,
+            'tls_ok' => false,
+            'stage_failed' => null,
+            'error_detail' => null,
+        ];
 
-        try {
-            $fp = @fsockopen("ssl://{$host}", $port, $errno, $errstr, $timeout);
-            if ($fp) {
-                $connected = true;
-                fclose($fp);
+        // Stage 1: DNS resolution
+        if (filter_var($host, FILTER_VALIDATE_IP)) {
+            $ip = $host;
+            $diagnostics['resolved_ip'] = $ip;
+            $diagnostics['dns_ok'] = true;
+        } else {
+            $ip = @gethostbyname($host);
+            if ($ip === $host || !filter_var($ip, FILTER_VALIDATE_IP)) {
+                $diagnostics['stage_failed'] = 'DNS_RESOLUTION';
+                $diagnostics['error_detail'] = "DNS resolution failed for host '{$host}'.";
+                return [false, $diagnostics['error_detail'], $diagnostics];
             }
-        } catch (\Throwable $e) {
-            $errstr = $e->getMessage();
+            $diagnostics['resolved_ip'] = $ip;
+            $diagnostics['dns_ok'] = true;
         }
 
-        return [$connected, $errstr];
+        // Stage 2: TCP Transport socket connect (Layer 4)
+        $errno = 0;
+        $errstr = '';
+        $context = stream_context_create([
+            'ssl' => [
+                'peer_name' => $host,
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+            ],
+        ]);
+
+        $t0 = microtime(true);
+        $fp = @stream_socket_client("tcp://{$host}:{$port}", $errno, $errstr, $timeout, STREAM_CLIENT_CONNECT, $context);
+        $tcpElapsed = round((microtime(true) - $t0) * 1000, 1);
+
+        if (!$fp) {
+            $diagnostics['stage_failed'] = 'TCP_CONNECT_TIMEOUT';
+            $cleanErr = $errstr ?: "Connection timed out after {$tcpElapsed}ms";
+            $diagnostics['error_detail'] = "TCP connection to {$host} ({$ip}:{$port}) timed out or failed [Error {$errno}: {$cleanErr}]. Layer 4 unreachable.";
+            return [false, $diagnostics['error_detail'], $diagnostics];
+        }
+
+        $diagnostics['tcp_ok'] = true;
+
+        // Stage 3: TLS Handshake & Certificate Verification (Layer 5/6)
+        $tlsResult = @stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
+        fclose($fp);
+
+        if ($tlsResult !== true) {
+            $diagnostics['stage_failed'] = 'TLS_HANDSHAKE';
+            $diagnostics['error_detail'] = "TLS handshake / certificate validation failed against {$host} ({$ip}:{$port}).";
+            return [false, $diagnostics['error_detail'], $diagnostics];
+        }
+
+        $diagnostics['tls_ok'] = true;
+        return [true, '', $diagnostics];
     }
 
     protected function updateProviderStatus(string $status, ?string $error = null, ?float $latency = null): void
@@ -178,13 +243,215 @@ class AisStreamAdapter implements ProviderAdapterInterface
     }
 
     /**
+     * Sanitize error message to scrub any API tokens or credentials.
+     */
+    public function sanitizeErrorMessage(string $message): string
+    {
+        if (!empty($this->apiKey)) {
+            $message = str_replace($this->apiKey, '[REDACTED_AIS_KEY]', $message);
+        }
+        return preg_replace('/(api[-_]?key|token|secret|password)=([^&\s]+)/i', '$1=[REDACTED]', $message);
+    }
+
+    /**
+     * Increment structured diagnostic metric counter in Cache.
+     */
+    public function incrementMetric(string $key, int $amount = 1): int
+    {
+        $cacheKey = "ais_stream_metric_{$key}";
+        $val = (int) Cache::get($cacheKey, 0) + $amount;
+        Cache::put($cacheKey, $val, 86400 * 7);
+        return $val;
+    }
+
+    /**
+     * Retrieve all current telemetry counters.
+     */
+    public function getMetrics(): array
+    {
+        $keys = [
+            'total_connection_attempts',
+            'successful_connections',
+            'subscription_confirmations',
+            'messages_received',
+            'position_reports_received',
+            'position_reports_processed',
+            'positions_persisted',
+            'invalid_messages',
+            'decompression_errors',
+            'database_errors',
+            'reconnects',
+        ];
+
+        $metrics = [];
+        foreach ($keys as $k) {
+            $metrics[$k] = (int) Cache::get("ais_stream_metric_{$k}", 0);
+        }
+        return $metrics;
+    }
+
+    /**
+     * Reset telemetry metrics (useful for isolated tests).
+     */
+    public function resetMetrics(): void
+    {
+        $keys = [
+            'total_connection_attempts',
+            'successful_connections',
+            'subscription_confirmations',
+            'messages_received',
+            'position_reports_received',
+            'position_reports_processed',
+            'positions_persisted',
+            'invalid_messages',
+            'decompression_errors',
+            'database_errors',
+            'reconnects',
+        ];
+        foreach ($keys as $k) {
+            Cache::forget("ais_stream_metric_{$k}");
+        }
+    }
+
+    /**
+     * Read exact N bytes from stream handling network chunking and socket timeouts.
+     */
+    public function readExactBytes($fp, int $bytes): ?string
+    {
+        $buffer = '';
+        while (strlen($buffer) < $bytes) {
+            $remaining = $bytes - strlen($buffer);
+            $chunk = @fread($fp, $remaining);
+            if ($chunk === '' || $chunk === false) {
+                $meta = @stream_get_meta_data($fp);
+                if ($meta && ($meta['timed_out'] || $meta['eof'])) {
+                    return null;
+                }
+                if (@feof($fp)) {
+                    return null;
+                }
+                usleep(5000);
+                continue;
+            }
+            $buffer .= $chunk;
+        }
+        return $buffer;
+    }
+
+    /**
+     * Read a single RFC 6455 WebSocket frame from stream socket.
+     */
+    public function readWebSocketFrame($fp, int $timeoutSeconds = 15): ?array
+    {
+        $h1 = $this->readExactBytes($fp, 1);
+        if ($h1 === null) return null;
+        $b1 = ord($h1);
+        $fin = ($b1 & 0x80) !== 0;
+        $rsv1 = ($b1 & 0x40) !== 0;
+        $opcode = $b1 & 0x0F;
+
+        $h2 = $this->readExactBytes($fp, 1);
+        if ($h2 === null) return null;
+        $b2 = ord($h2);
+        $isMasked = ($b2 & 0x80) !== 0;
+        $payloadLen = $b2 & 0x7F;
+
+        if ($payloadLen === 126) {
+            $ext = $this->readExactBytes($fp, 2);
+            if ($ext === null) return null;
+            $payloadLen = unpack('n', $ext)[1];
+        } elseif ($payloadLen === 127) {
+            $ext = $this->readExactBytes($fp, 8);
+            if ($ext === null) return null;
+            $payloadLen = unpack('J', $ext)[1];
+        }
+
+        $maskKey = $isMasked ? $this->readExactBytes($fp, 4) : '';
+        if ($isMasked && $maskKey === null) return null;
+
+        $payload = '';
+        if ($payloadLen > 0) {
+            $payload = $this->readExactBytes($fp, $payloadLen);
+            if ($payload === null) return null;
+        }
+
+        if ($isMasked && $payloadLen > 0) {
+            for ($i = 0; $i < $payloadLen; $i++) {
+                $payload[$i] = $payload[$i] ^ $maskKey[$i % 4];
+            }
+        }
+
+        return [
+            'fin' => $fin,
+            'rsv1' => $rsv1,
+            'opcode' => $opcode,
+            'payload' => $payload,
+        ];
+    }
+
+    /**
+     * Send an RFC 6455 WebSocket frame with client masking.
+     */
+    public function sendWebSocketFrame($fp, string $payload, int $opcode = 0x1, bool $masked = true): bool
+    {
+        $len = strlen($payload);
+        $mask = $masked ? random_bytes(4) : '';
+        $maskBit = $masked ? 0x80 : 0x00;
+
+        if ($len < 126) {
+            $header = chr(0x80 | ($opcode & 0x0F)) . chr($maskBit | $len);
+        } elseif ($len < 65536) {
+            $header = chr(0x80 | ($opcode & 0x0F)) . chr($maskBit | 126) . pack('n', $len);
+        } else {
+            $header = chr(0x80 | ($opcode & 0x0F)) . chr($maskBit | 127) . pack('J', $len);
+        }
+
+        if ($masked) {
+            $maskedPayload = '';
+            for ($i = 0; $i < $len; $i++) {
+                $maskedPayload .= $payload[$i] ^ $mask[$i % 4];
+            }
+            $written = @fwrite($fp, $header . $mask . $maskedPayload);
+        } else {
+            $written = @fwrite($fp, $header . $payload);
+        }
+
+        return $written !== false;
+    }
+
+    /**
+     * Decompress RFC 7692 permessage-deflate compressed WebSocket payload.
+     */
+    public function decompressPayload(string $compressedPayload): ?string
+    {
+        try {
+            $inflator = @inflate_init(ZLIB_ENCODING_RAW);
+            if ($inflator) {
+                $result = @inflate_add($inflator, $compressedPayload . "\x00\x00\xff\xff");
+                if ($result !== false && strlen($result) > 0) {
+                    return $result;
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        try {
+            $res = @gzuncompress($compressedPayload);
+            if ($res !== false) return $res;
+        } catch (\Throwable $e) {}
+
+        return null;
+    }
+
+    /**
      * Consume real-time WebSocket stream from aisstream.io
      *
      * @param int $maxMessages Maximum frames to collect before gracefully closing
      * @param int $timeoutSeconds Socket read timeout in seconds
+     * @param int $connectTimeout Socket connect timeout in seconds
+     * @param resource|null $streamSocket Optional pre-connected stream socket for testing
      * @return array
      */
-    public function consumeStream(int $maxMessages = 10, int $timeoutSeconds = 15): array
+    public function consumeStream(int $maxMessages = 10, int $timeoutSeconds = 15, int $connectTimeout = 10, $streamSocket = null): array
     {
         if (!$this->isConfigured()) {
             return [
@@ -197,7 +464,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
         }
 
         // Prevent collision if Node.js background worker is actively streaming
-        $nodeWorkerAlive = \Illuminate\Support\Facades\Cache::get('ais_stream_node_worker_alive');
+        $nodeWorkerAlive = Cache::get('ais_stream_node_worker_alive');
         if ($nodeWorkerAlive) {
             return [
                 'status' => 'busy',
@@ -210,7 +477,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
 
         // Prevent uncontrolled duplicate stream workers from flooding provider
         $lockTtl = ($maxMessages <= 0) ? 300 : max(60, $timeoutSeconds * 2);
-        $lock = \Illuminate\Support\Facades\Cache::lock('ais_stream_active_worker', $lockTtl);
+        $lock = Cache::lock('ais_stream_active_worker', $lockTtl);
         if (!$lock->get()) {
             return [
                 'status' => 'busy',
@@ -229,9 +496,16 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 'api_url' => 'wss://stream.aisstream.io/v0/stream',
                 'auth_type' => 'bearer_token',
                 'is_enabled' => true,
-                'health_status' => 'connected',
+                'health_status' => 'connecting',
             ]
         );
+
+        $provider->update([
+            'health_status' => 'connecting',
+            'last_health_check_at' => now(),
+        ]);
+        Cache::put('ais_stream_telemetry_status', 'connecting', 120);
+        $this->incrementMetric('total_connection_attempts');
 
         $run = ProviderIngestionRun::create([
             'data_provider_id' => $provider->id,
@@ -243,36 +517,115 @@ class AisStreamAdapter implements ProviderAdapterInterface
         $host = 'stream.aisstream.io';
         $port = 443;
         $path = '/v0/stream';
-        $context = stream_context_create([
-            'ssl' => [
-                'verify_peer' => true,
-                'verify_peer_name' => true,
-            ]
-        ]);
+        $fp = null;
 
-        $fp = @stream_socket_client('ssl://' . $host . ':' . $port, $errno, $errstr, 10, STREAM_CLIENT_CONNECT, $context);
-        if (!$fp) {
-            $lock->release();
-            $errorMsg = "Gagal membuka soket TLS ke $host: $errstr";
-            $run->update(['status' => 'failed', 'error_message' => $errorMsg, 'completed_at' => now()]);
-            return [
-                'status' => 'error',
-                'fetched' => 0,
-                'inserted' => 0,
-                'skipped' => 0,
-                'errors' => [$errorMsg],
-            ];
+        if ($streamSocket !== null) {
+            $fp = $streamSocket;
+        } else {
+            // Stage 1: DNS Resolution
+            Log::info("[AISStream][Stage 1/5] Resolving DNS for {$host}...");
+            $ip = @gethostbyname($host);
+            if ($ip === $host || !filter_var($ip, FILTER_VALIDATE_IP)) {
+                $lock->release();
+                Cache::put('ais_stream_telemetry_status', 'error', 120);
+                $errMsg = "DNS resolution gagal untuk {$host}. Host tidak dapat ditemukan.";
+                Log::error("[AISStream][Stage 1/5 FAILED] {$errMsg}");
+                $provider->update(['health_status' => 'unreachable', 'last_error_message' => $errMsg]);
+                $run->update(['status' => 'failed', 'error_message' => $errMsg, 'completed_at' => now()]);
+                return [
+                    'status' => 'error',
+                    'stage' => 'dns_resolution',
+                    'fetched' => 0,
+                    'inserted' => 0,
+                    'skipped' => 0,
+                    'errors' => [$errMsg],
+                ];
+            }
+            Log::info("[AISStream][Stage 1/5 OK] DNS resolved {$host} -> {$ip}");
+
+            // Stage 2: TCP Transport Connect (Layer 4)
+            Log::info("[AISStream][Stage 2/5] Membuka soket TCP Layer 4 ke {$host} ({$ip}:{$port}) timeout {$connectTimeout}s...");
+            $context = stream_context_create([
+                'ssl' => [
+                    'peer_name' => $host,
+                    'verify_peer' => true,
+                    'verify_peer_name' => true,
+                ],
+            ]);
+
+            $errno = 0;
+            $errstr = '';
+            $t0 = microtime(true);
+            $fp = @stream_socket_client("tcp://{$host}:{$port}", $errno, $errstr, $connectTimeout, STREAM_CLIENT_CONNECT, $context);
+            $tcpElapsed = round((microtime(true) - $t0) * 1000, 1);
+
+            if (!$fp) {
+                $lock->release();
+                Cache::put('ais_stream_telemetry_status', 'error', 120);
+                $cleanErr = $errstr ?: "Connection timed out after {$tcpElapsed}ms";
+                $errMsg = "Gagal membuka soket TCP ke {$host} ({$ip}:{$port}) [Error {$errno}: {$cleanErr}]. Layer 4 unreachable.";
+                Log::error("[AISStream][Stage 2/5 FAILED] {$errMsg}");
+                $provider->update([
+                    'health_status' => 'unreachable',
+                    'last_error_message' => $errMsg,
+                    'rate_limit_info' => array_merge($provider->rate_limit_info ?? [], [
+                        'last_connect_failure' => [
+                            'stage' => 'tcp_transport',
+                            'host' => $host,
+                            'ip' => $ip,
+                            'errno' => $errno,
+                            'error' => $cleanErr,
+                            'failed_at' => now()->toIso8601String(),
+                        ],
+                    ]),
+                ]);
+                $run->update(['status' => 'failed', 'error_message' => $errMsg, 'completed_at' => now()]);
+                return [
+                    'status' => 'error',
+                    'stage' => 'tcp_transport',
+                    'fetched' => 0,
+                    'inserted' => 0,
+                    'skipped' => 0,
+                    'errors' => [$errMsg],
+                ];
+            }
+            Log::info("[AISStream][Stage 2/5 OK] Soket TCP Layer 4 berhasil terhubung dalam {$tcpElapsed}ms.");
+
+            // Stage 3: TLS Handshake & Certificate Verification (Layer 5/6)
+            Log::info("[AISStream][Stage 3/5] Melakukan TLS handshake dan verifikasi sertifikat SSL...");
+            $crypto = @stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
+            if ($crypto !== true) {
+                fclose($fp);
+                $lock->release();
+                Cache::put('ais_stream_telemetry_status', 'error', 120);
+                $errMsg = "Gagal negosiasi TLS atau validasi sertifikat SSL ke {$host} ({$ip}:{$port}).";
+                Log::error("[AISStream][Stage 3/5 FAILED] {$errMsg}");
+                $provider->update(['health_status' => 'unreachable', 'last_error_message' => $errMsg]);
+                $run->update(['status' => 'failed', 'error_message' => $errMsg, 'completed_at' => now()]);
+                return [
+                    'status' => 'error',
+                    'stage' => 'tls_handshake',
+                    'fetched' => 0,
+                    'inserted' => 0,
+                    'skipped' => 0,
+                    'errors' => [$errMsg],
+                ];
+            }
+            Log::info("[AISStream][Stage 3/5 OK] TLS handshake berhasil terverifikasi secara aman.");
         }
 
-        // Send RFC 6455 WebSocket handshake request
+        // Stage 4: WebSocket HTTP 101 Switching Protocols Upgrade
+        Log::info("[AISStream][Stage 4/5] Mengirim RFC 6455 WebSocket Upgrade request...");
         $secKey = base64_encode(random_bytes(16));
+        $expectedAccept = base64_encode(sha1($secKey . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11', true));
         $handshake = [
-            "GET $path HTTP/1.1",
-            "Host: $host",
+            "GET {$path} HTTP/1.1",
+            "Host: {$host}",
             "Upgrade: websocket",
             "Connection: Upgrade",
-            "Sec-WebSocket-Key: $secKey",
+            "Sec-WebSocket-Key: {$secKey}",
             "Sec-WebSocket-Version: 13",
+            "Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits",
             "User-Agent: GFVIP-Platform/1.0",
         ];
         fwrite($fp, implode("\r\n", $handshake) . "\r\n\r\n");
@@ -285,24 +638,70 @@ class AisStreamAdapter implements ProviderAdapterInterface
         }
 
         if (!str_contains($respHeaders, '101 Switching Protocols')) {
-            fclose($fp);
+            if (is_resource($fp)) fclose($fp);
             $lock->release();
-            $errorMsg = 'WebSocket handshake ditolak oleh stream.aisstream.io (bukan 101 Switching Protocols)';
-            $run->update(['status' => 'failed', 'error_message' => $errorMsg, 'completed_at' => now()]);
+            Cache::put('ais_stream_telemetry_status', 'error', 120);
+            $firstHeaderLine = strtok($respHeaders, "\r\n") ?: 'No response headers';
+            $errMsg = "WebSocket handshake ditolak oleh {$host} (Bukan 101 Switching Protocols: {$firstHeaderLine}).";
+            Log::error("[AISStream][Stage 4/5 FAILED] {$errMsg}");
+            $provider->update(['health_status' => 'unreachable', 'last_error_message' => $errMsg]);
+            $run->update(['status' => 'failed', 'error_message' => $errMsg, 'completed_at' => now()]);
             return [
                 'status' => 'error',
+                'stage' => 'websocket_upgrade',
                 'fetched' => 0,
                 'inserted' => 0,
                 'skipped' => 0,
-                'errors' => [$errorMsg],
+                'errors' => [$errMsg],
             ];
         }
 
-        // Build configurable subscription payload
+        // Verify Sec-WebSocket-Accept if present in response
+        if (preg_match('/Sec-WebSocket-Accept:\s*(\S+)/i', $respHeaders, $acceptMatches)) {
+            $actualAccept = trim($acceptMatches[1]);
+            if ($actualAccept !== $expectedAccept) {
+                if (is_resource($fp)) fclose($fp);
+                $lock->release();
+                Cache::put('ais_stream_telemetry_status', 'error', 120);
+                $errMsg = "WebSocket Sec-WebSocket-Accept tidak cocok (RFC 6455 verification failed).";
+                Log::error("[AISStream][Stage 4/5 FAILED] {$errMsg}");
+                $provider->update(['health_status' => 'unreachable', 'last_error_message' => $errMsg]);
+                $run->update(['status' => 'failed', 'error_message' => $errMsg, 'completed_at' => now()]);
+                return [
+                    'status' => 'error',
+                    'stage' => 'websocket_upgrade',
+                    'fetched' => 0,
+                    'inserted' => 0,
+                    'skipped' => 0,
+                    'errors' => [$errMsg],
+                ];
+            }
+        }
+
+        $this->incrementMetric('successful_connections');
+        Log::info("[AISStream][Stage 4/5 OK] WebSocket berhasil di-upgrade (HTTP 101 Switching Protocols).");
+
+        // Stage 5: Subscription Payload & Telemetry Streaming
+        Log::info("[AISStream][Stage 5/5] Mengirim subscription frame dan memulai streaming telemetri...");
+        $provider->update([
+            'health_status' => 'awaiting_telemetry',
+            'last_error_message' => null,
+        ]);
+        Cache::put('ais_stream_telemetry_status', 'awaiting_telemetry', 120);
+        Cache::put('ais_stream_last_connected_at', now()->toIso8601String());
+        Cache::put('ais_stream_active_worker_alive', now()->toIso8601String(), 120);
+
+        // Build subscription payload
         $subConfig = [
             'APIKey' => $this->apiKey,
             'BoundingBoxes' => config('maritime.providers.ais_stream.bounding_boxes', [[[-90.0, -180.0], [90.0, 180.0]]]),
-            'FilterMessageTypes' => config('maritime.providers.ais_stream.filter_message_types', ['PositionReport']),
+            'FilterMessageTypes' => config('maritime.providers.ais_stream.filter_message_types', [
+                'PositionReport',
+                'ShipStaticData',
+                'StandardClassBPositionReport',
+                'ExtendedClassBPositionReport',
+                'StaticDataReport',
+            ]),
         ];
 
         $filterMmsi = config('maritime.providers.ais_stream.filter_mmsi');
@@ -311,23 +710,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
         }
 
         $subPayload = json_encode($subConfig);
-
-        $len = strlen($subPayload);
-        $mask = random_bytes(4);
-        $masked = '';
-        for ($i = 0; $i < $len; $i++) {
-            $masked .= $subPayload[$i] ^ $mask[$i % 4];
-        }
-
-        if ($len < 126) {
-            $header = chr(0x81) . chr(0x80 | $len) . $mask;
-        } elseif ($len < 65536) {
-            $header = chr(0x81) . chr(0x80 | 126) . pack('n', $len) . $mask;
-        } else {
-            $header = chr(0x81) . chr(0x80 | 127) . pack('J', $len) . $mask;
-        }
-
-        fwrite($fp, $header . $masked);
+        $this->sendWebSocketFrame($fp, $subPayload, 0x1, true);
 
         stream_set_timeout($fp, $timeoutSeconds);
 
@@ -337,100 +720,115 @@ class AisStreamAdapter implements ProviderAdapterInterface
         $errors = [];
         $lastHeartbeat = time();
 
+        $fragmentBuffer = '';
+        $messageOpcode = null;
+        $messageCompressed = false;
+
         try {
             while ($maxMessages <= 0 || $fetched < $maxMessages) {
                 // Heartbeat / lock extension every 30 seconds for continuous runs
                 if (time() - $lastHeartbeat >= 30) {
                     $lastHeartbeat = time();
-                    // Keep cache lock fresh
-                    \Illuminate\Support\Facades\Cache::put('ais_stream_active_worker_alive', now()->toIso8601String(), 120);
+                    Cache::put('ais_stream_active_worker_alive', now()->toIso8601String(), 120);
+                    // Send client keepalive ping
+                    $this->sendWebSocketFrame($fp, 'keepalive', 0x9, true);
                 }
 
-                $h1 = fread($fp, 1);
-                if ($h1 === '' || $h1 === false) break;
-                $b1 = ord($h1);
-                $fin = ($b1 & 0x80) !== 0;
-                $opcode = $b1 & 0x0F;
-
-                $h2 = fread($fp, 1);
-                if ($h2 === '' || $h2 === false) break;
-                $b2 = ord($h2);
-                $isMasked = ($b2 & 0x80) !== 0;
-                $payloadLen = $b2 & 0x7F;
-
-                if ($payloadLen === 126) {
-                    $ext = fread($fp, 2);
-                    if (strlen($ext) < 2) break;
-                    $payloadLen = unpack('n', $ext)[1];
-                } elseif ($payloadLen === 127) {
-                    $ext = fread($fp, 8);
-                    if (strlen($ext) < 8) break;
-                    $payloadLen = unpack('J', $ext)[1];
-                }
-
-                $maskKey = $isMasked ? fread($fp, 4) : '';
-                $payload = '';
-                while (strlen($payload) < $payloadLen) {
-                    $chunk = fread($fp, min(4096, $payloadLen - strlen($payload)));
-                    if ($chunk === '' || $chunk === false) break;
-                    $payload .= $chunk;
-                }
-
-                if ($isMasked) {
-                    for ($i = 0; $i < strlen($payload); $i++) {
-                        $payload[$i] = $payload[$i] ^ $maskKey[$i % 4];
-                    }
-                }
-
-                // Handle RFC 6455 Control Frames
-                if ($opcode === 0x8) {
-                    // Close frame received from server: respond with Close frame and terminate cleanly
-                    $closeMask = random_bytes(4);
-                    $closeFrame = chr(0x88) . chr(0x80) . $closeMask;
-                    @fwrite($fp, $closeFrame);
+                $frame = $this->readWebSocketFrame($fp, $timeoutSeconds);
+                if ($frame === null) {
                     break;
                 }
 
+                $opcode = $frame['opcode'];
+                $fin = $frame['fin'];
+                $rsv1 = $frame['rsv1'];
+                $payload = $frame['payload'];
+
+                // Control frame: Close (0x8)
+                if ($opcode === 0x8) {
+                    $this->sendWebSocketFrame($fp, pack('n', 1000), 0x8, true);
+                    Log::info('[AISStream] Server Close frame diterima. Menutup soket secara normal.');
+                    break;
+                }
+
+                // Control frame: Ping (0x9)
                 if ($opcode === 0x9) {
-                    // Ping frame received from server: respond with Pong (Opcode 0xA) keeping connection alive
-                    $pongMask = random_bytes(4);
-                    $pongPayload = $payload;
-                    $pLen = strlen($pongPayload);
-                    $pongMasked = '';
-                    for ($pi = 0; $pi < $pLen; $pi++) {
-                        $pongMasked .= $pongPayload[$pi] ^ $pongMask[$pi % 4];
-                    }
-                    $pongHeader = chr(0x8A) . chr(0x80 | ($pLen & 0x7F)) . $pongMask;
-                    @fwrite($fp, $pongHeader . $pongMasked);
+                    $this->sendWebSocketFrame($fp, $payload, 0xA, true); // Pong reply
                     continue;
                 }
 
-                // Opcode 0x1 is Text frame (JSON)
-                $json = json_decode($payload, true);
+                // Control frame: Pong (0xA)
+                if ($opcode === 0xA) {
+                    continue;
+                }
+
+                // Data frames: Text (0x1), Binary (0x2), Continuation (0x0)
+                if ($opcode === 0x1 || $opcode === 0x2) {
+                    $messageOpcode = $opcode;
+                    $messageCompressed = $rsv1;
+                    $fragmentBuffer = $payload;
+                } elseif ($opcode === 0x0) {
+                    $fragmentBuffer .= $payload;
+                } else {
+                    continue;
+                }
+
+                if (!$fin) {
+                    continue;
+                }
+
+                // Assembled message
+                $fullPayload = $fragmentBuffer;
+                $fragmentBuffer = '';
+
+                if ($messageCompressed) {
+                    $decompressed = $this->decompressPayload($fullPayload);
+                    if ($decompressed === null) {
+                        $skipped++;
+                        $this->incrementMetric('decompression_errors');
+                        Log::warning('[AISStream] Gagal mendekompresi payload pesan WebSocket (RFC 7692).');
+                        continue;
+                    }
+                    $fullPayload = $decompressed;
+                }
+
+                $json = json_decode($fullPayload, true);
                 if (!$json) {
                     $skipped++;
+                    $this->incrementMetric('invalid_messages');
                     continue;
                 }
 
                 $fetched++;
+                $this->incrementMetric('messages_received');
+                Cache::put('ais_stream_last_message_at', now()->toIso8601String());
+
                 $frameResult = $this->parseAndIngestRawFrame($json);
                 if ($frameResult['status'] === 'inserted') {
                     $inserted++;
+                    $this->incrementMetric('positions_persisted');
+                    Cache::put('ais_stream_last_position_at', now()->toIso8601String());
+                    Cache::put('ais_stream_telemetry_status', 'streaming', 120);
+                    $provider->update(['health_status' => 'streaming']);
+                } elseif ($frameResult['status'] === 'error') {
+                    $errors[] = $frameResult['error'] ?? 'Frame error';
                 } else {
                     $skipped++;
                 }
             }
         } catch (\Throwable $e) {
-            $errors[] = $e->getMessage();
-            Log::error('AIS Stream Reader Exception: ' . $e->getMessage());
+            $errors[] = $this->sanitizeErrorMessage($e->getMessage());
+            Log::error('AIS Stream Reader Exception: ' . $this->sanitizeErrorMessage($e->getMessage()));
         } finally {
             if (is_resource($fp)) {
                 fclose($fp);
             }
             $lock->release();
-            \Illuminate\Support\Facades\Cache::forget('ais_stream_active_worker_alive');
+            Cache::forget('ais_stream_active_worker_alive');
+            Cache::put('ais_stream_telemetry_status', 'disconnected', 120);
         }
 
+        $allMetrics = $this->getMetrics();
         $run->update([
             'status' => empty($errors) ? 'completed' : 'partially_failed',
             'items_fetched' => $fetched,
@@ -442,6 +840,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 'new_positions_or_updates' => $inserted,
                 'skipped_or_duplicates' => $skipped,
                 'errors_count' => count($errors),
+                'counters' => $allMetrics,
             ]),
         ]);
 
@@ -450,8 +849,9 @@ class AisStreamAdapter implements ProviderAdapterInterface
             'session_messages_received' => $fetched,
             'session_inserted' => $inserted,
             'session_skipped' => $skipped,
-            'total_positions_in_db' => \Illuminate\Support\Facades\Cache::remember('vessel_positions_count_metric', 300, fn() => VesselPosition::count()),
-            'total_vessels_in_db' => \Illuminate\Support\Facades\Cache::remember('vessels_count_metric', 300, fn() => Vessel::count()),
+            'counters' => $allMetrics,
+            'total_positions_in_db' => Cache::remember('vessel_positions_count_metric', 300, fn() => VesselPosition::count()),
+            'total_vessels_in_db' => Cache::remember('vessels_count_metric', 300, fn() => Vessel::count()),
         ];
 
         if ($inserted > 0) {
@@ -478,40 +878,88 @@ class AisStreamAdapter implements ProviderAdapterInterface
 
     public function sync(array $options = []): array
     {
-        return $this->consumeStream($options['limit'] ?? 10, $options['timeout'] ?? 15);
+        return $this->consumeStream(
+            $options['limit'] ?? 10,
+            $options['timeout'] ?? 15,
+            $options['connect_timeout'] ?? 10
+        );
     }
 
     /**
      * Parse and ingest a single raw AIS frame or normalized item.
      *
      * @param array $json
-     * @return array ['status' => 'inserted'|'skipped', 'type' => string, 'model' => mixed]
+     * @return array ['status' => 'inserted'|'skipped'|'error', 'type' => string, 'model' => mixed, 'error' => ?string]
      */
     public function parseAndIngestRawFrame(array $json): array
     {
         $msgType = $json['MessageType'] ?? null;
+        $meta = $json['MetaData'] ?? [];
+        $messageObj = $json['Message'] ?? [];
 
         // Handle SubscriptionConfirmation frame
         if ($msgType === 'SubscriptionConfirmation') {
-            Log::info('AISStream SubscriptionConfirmation received: ' . json_encode($json['Message'] ?? []));
+            $compEnabled = (bool) ($messageObj['CompressionEnabled'] ?? false);
+            Log::info("[AISStream] SubscriptionConfirmation diterima (CompressionEnabled: " . ($compEnabled ? 'true' : 'false') . ").");
+            $this->incrementMetric('subscription_confirmations');
+            Cache::put('ais_stream_subscription_confirmed_at', now()->toIso8601String(), 86400);
+            Cache::put('ais_stream_telemetry_status', 'awaiting_telemetry', 120);
+
+            $provider = DataProvider::where('slug', $this->providerSlug)->first();
+            if ($provider) {
+                $pMeta = $provider->rate_limit_info ?? [];
+                $pMeta['compression_enabled'] = $compEnabled;
+                $pMeta['last_subscription_confirmed_at'] = now()->toIso8601String();
+                $provider->update([
+                    'health_status' => 'awaiting_telemetry',
+                    'rate_limit_info' => $pMeta,
+                ]);
+            }
+
             return ['status' => 'skipped', 'type' => 'SubscriptionConfirmation', 'model' => null];
         }
 
-        $meta = $json['MetaData'] ?? [];
-        $messageObj = $json['Message'] ?? [];
+        // Handle server error frames
+        if (in_array($msgType, ['Error', 'AuthenticationError', 'SubscriptionError'])) {
+            $errorDetail = $messageObj['Error'] ?? $messageObj['Message'] ?? $json['Message'] ?? 'Subscription error';
+            $safeError = is_string($errorDetail) ? $this->sanitizeErrorMessage($errorDetail) : 'AISStream error received';
+            Log::error("[AISStream] {$msgType} frame received from server: {$safeError}");
+            $this->incrementMetric('invalid_messages');
+            return ['status' => 'error', 'type' => $msgType, 'model' => null, 'error' => $safeError];
+        }
 
         // 1. Standard Position Reports (PositionReport, StandardClassBPositionReport)
         if (in_array($msgType, ['PositionReport', 'StandardClassBPositionReport'])) {
             $posData = $messageObj[$msgType] ?? [];
             $mmsi = (string) ($meta['MMSI'] ?? $posData['UserID'] ?? '');
-            $lat = $meta['latitude'] ?? $posData['Latitude'] ?? null;
-            $lng = $meta['longitude'] ?? $posData['Longitude'] ?? null;
+            $lat = $meta['Latitude'] ?? $meta['latitude'] ?? $posData['Latitude'] ?? $posData['latitude'] ?? null;
+            $lng = $meta['Longitude'] ?? $meta['longitude'] ?? $posData['Longitude'] ?? $posData['longitude'] ?? null;
             $sog = $posData['Sog'] ?? null;
             $cog = $posData['Cog'] ?? null;
             $heading = $posData['TrueHeading'] ?? null;
             $shipName = trim(trim((string) ($meta['ShipName'] ?? $posData['Name'] ?? '')), '@');
             $timeUtc = $meta['time_utc'] ?? now()->toIso8601String();
             $shipType = $posData['ShipType'] ?? null;
+
+            $rawNavStatus = $posData['NavigationalStatus'] ?? $meta['NavigationalStatus'] ?? null;
+            $navStatus = 'under_way';
+            if ($rawNavStatus !== null) {
+                $navStatus = match ((int) $rawNavStatus) {
+                    0 => 'under_way_engine',
+                    1 => 'at_anchor',
+                    2 => 'not_under_command',
+                    3 => 'restricted_manoeuvrability',
+                    4 => 'constrained_by_draught',
+                    5 => 'moored',
+                    6 => 'aground',
+                    7 => 'engaged_in_fishing',
+                    8 => 'under_way_sailing',
+                    14 => 'ais_sart',
+                    default => 'under_way',
+                };
+            }
+
+            $this->incrementMetric('position_reports_received');
 
             $position = $this->ingestPositionMessage([
                 'mmsi' => $mmsi,
@@ -520,11 +968,16 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 'speed_over_ground' => $sog,
                 'course_over_ground' => $cog,
                 'true_heading' => $heading,
+                'nav_status' => $navStatus,
                 'vessel_name' => $shipName ?: ('VESSEL-' . $mmsi),
                 'ship_type' => $shipType,
                 'timestamp' => $timeUtc,
                 'raw_payload' => $json,
             ]);
+
+            if ($position) {
+                $this->incrementMetric('position_reports_processed');
+            }
 
             return [
                 'status' => $position ? 'inserted' : 'skipped',
@@ -537,8 +990,8 @@ class AisStreamAdapter implements ProviderAdapterInterface
         if ($msgType === 'ExtendedClassBPositionReport') {
             $report = $messageObj['ExtendedClassBPositionReport'] ?? [];
             $mmsi = (string) ($meta['MMSI'] ?? $report['UserID'] ?? '');
-            $lat = $meta['latitude'] ?? $report['Latitude'] ?? null;
-            $lng = $meta['longitude'] ?? $report['Longitude'] ?? null;
+            $lat = $meta['Latitude'] ?? $meta['latitude'] ?? $report['Latitude'] ?? $report['latitude'] ?? null;
+            $lng = $meta['Longitude'] ?? $meta['longitude'] ?? $report['Longitude'] ?? $report['longitude'] ?? null;
             $sog = $report['Sog'] ?? null;
             $cog = $report['Cog'] ?? null;
             $heading = $report['TrueHeading'] ?? null;
@@ -547,7 +1000,10 @@ class AisStreamAdapter implements ProviderAdapterInterface
             $shipType = $report['Type'] ?? $report['ShipType'] ?? $meta['ShipType'] ?? null;
 
             $dim = $report['Dimension'] ?? [];
-            $lengthM = (isset($dim['A'], $dim['B'])) ? (float) ($dim['A'] + $dim['B']) : null;
+            $lengthM = (isset($dim['A'], $dim['B']) && ($dim['A'] + $dim['B']) > 0) ? (float) ($dim['A'] + $dim['B']) : null;
+            $beamM = (isset($dim['C'], $dim['D']) && ($dim['C'] + $dim['D']) > 0) ? (float) ($dim['C'] + $dim['D']) : null;
+
+            $this->incrementMetric('position_reports_received');
 
             // STEP 1: Always ingest static metadata first (preserved even if position is rejected or invalid)
             $staticResult = $this->ingestStaticMessage([
@@ -555,6 +1011,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 'vessel_name' => $shipName,
                 'ship_type' => $shipType,
                 'length_meters' => $lengthM,
+                'beam_meters' => $beamM,
                 'timestamp' => $timeUtc,
                 'raw_payload' => $json,
             ]);
@@ -572,6 +1029,10 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 'timestamp' => $timeUtc,
                 'raw_payload' => $json,
             ]);
+
+            if ($position) {
+                $this->incrementMetric('position_reports_processed');
+            }
 
             return [
                 'status' => ($position || $staticResult) ? 'inserted' : 'skipped',
@@ -622,7 +1083,8 @@ class AisStreamAdapter implements ProviderAdapterInterface
             $timeUtc = $meta['time_utc'] ?? now()->toIso8601String();
 
             $dim = $staticData['Dimension'] ?? [];
-            $lengthM = (isset($dim['A'], $dim['B'])) ? (float) ($dim['A'] + $dim['B']) : null;
+            $lengthM = (isset($dim['A'], $dim['B']) && ($dim['A'] + $dim['B']) > 0) ? (float) ($dim['A'] + $dim['B']) : null;
+            $beamM = (isset($dim['C'], $dim['D']) && ($dim['C'] + $dim['D']) > 0) ? (float) ($dim['C'] + $dim['D']) : null;
 
             $vessel = $this->ingestStaticMessage([
                 'mmsi' => $mmsi,
@@ -631,6 +1093,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 'imo' => $imo,
                 'ship_type' => $shipType,
                 'length_meters' => $lengthM,
+                'beam_meters' => $beamM,
                 'timestamp' => $timeUtc,
                 'raw_payload' => $json,
             ]);
@@ -651,6 +1114,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
             $callSign = null;
             $shipType = null;
             $lengthM = null;
+            $beamM = null;
 
             if (!empty($staticReport['ReportA']['Name'])) {
                 $shipName = trim(trim((string) $staticReport['ReportA']['Name']), '@');
@@ -658,9 +1122,13 @@ class AisStreamAdapter implements ProviderAdapterInterface
             if (!empty($staticReport['ReportB'])) {
                 $rb = $staticReport['ReportB'];
                 $callSign = trim(trim((string) ($rb['CallSign'] ?? '')), '@');
-                $shipType = $rb['ShipType'] ?? null;
-                if (isset($rb['Dimension']['A'], $rb['Dimension']['B'])) {
-                    $lengthM = (float) ($rb['Dimension']['A'] + $rb['Dimension']['B']);
+                $shipType = $rb['ShipType'] ?? $rb['Type'] ?? null;
+                $dim = $rb['Dimension'] ?? [];
+                if (isset($dim['A'], $dim['B']) && ($dim['A'] + $dim['B']) > 0) {
+                    $lengthM = (float) ($dim['A'] + $dim['B']);
+                }
+                if (isset($dim['C'], $dim['D']) && ($dim['C'] + $dim['D']) > 0) {
+                    $beamM = (float) ($dim['C'] + $dim['D']);
                 }
             }
 
@@ -670,6 +1138,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 'callsign' => $callSign,
                 'ship_type' => $shipType,
                 'length_meters' => $lengthM,
+                'beam_meters' => $beamM,
                 'timestamp' => $timeUtc,
                 'raw_payload' => $json,
             ]);
@@ -786,11 +1255,13 @@ class AisStreamAdapter implements ProviderAdapterInterface
             if ($t === 'sar' || $t === 'search_and_rescue') return 'sar';
             if ($t === 'port_tender') return 'port_tender';
             if ($t === 'anti_pollution') return 'anti_pollution';
-            if ($t === 'law_enforcement') return 'law_enforcement';
+            if ($t === 'law_enforcement' || $t === 'patrol') return 'law_enforcement';
             if ($t === 'high_speed_craft' || $t === 'hsc') return 'high_speed_craft';
-            if ($t === 'non_combatant') return 'non_combatant';
-            if ($t === 'medical') return 'medical';
+            if ($t === 'non_combatant') return 'other';
+            if ($t === 'medical' || $t === 'medical_transport') return 'medical';
             if ($t === 'pleasure_craft') return 'pleasure';
+            if ($t === 'not_available') return 'not_available';
+            if ($t === 'unmapped') return 'unmapped';
 
             if (in_array($t, [
                 'fishing',
@@ -807,15 +1278,14 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 'port_tender',
                 'anti_pollution',
                 'law_enforcement',
-                'patrol',
                 'medical',
-                'non_combatant',
                 'passenger',
                 'cargo',
                 'tanker',
                 'other',
+                'not_available',
+                'unmapped',
                 'carrier',
-                'bunker',
                 'support',
                 'research',
                 'unknown'
@@ -825,7 +1295,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
             if (is_numeric($t)) {
                 $type = (int) $t;
             } else {
-                return 'unknown';
+                return 'unmapped';
             }
         }
 
@@ -835,7 +1305,16 @@ class AisStreamAdapter implements ProviderAdapterInterface
 
         $code = (int) $type;
 
+        if ($code === 0) {
+            return 'not_available';
+        }
+
         // ITU-R M.1371 / IMO AIS Ship Type Codes:
+        // 20-29: High Speed Craft (WIG / HSC)
+        if ($code >= 20 && $code <= 29) {
+            return 'high_speed_craft';
+        }
+
         // 30: Fishing
         if ($code === 30) {
             return 'fishing';
@@ -901,14 +1380,9 @@ class AisStreamAdapter implements ProviderAdapterInterface
             return 'anti_pollution';
         }
 
-        // 55: Law enforcement / Patrol craft
+        // 55: Law enforcement
         if ($code === 55) {
-            return 'patrol';
-        }
-
-        // 56, 57: Local vessel / unknown
-        if ($code === 56 || $code === 57) {
-            return 'unknown';
+            return 'law_enforcement';
         }
 
         // 58: Medical transport
@@ -918,7 +1392,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
 
         // 59: Non-combatant ship / States not parties to armed conflict
         if ($code === 59) {
-            return 'non_combatant';
+            return 'other';
         }
 
         // 60–69: Passenger ships
@@ -936,13 +1410,13 @@ class AisStreamAdapter implements ProviderAdapterInterface
             return 'tanker';
         }
 
-        // 90–98: Other types of ship (99 is unknown / no info)
-        if ($code >= 90 && $code <= 98) {
+        // 90–99: Other types of ship
+        if ($code >= 90 && $code <= 99) {
             return 'other';
         }
 
-        // Default: Strictly 'unknown' rather than guessing
-        return 'unknown';
+        // Unrecognized numeric code
+        return 'unmapped';
     }
 
     /**
@@ -959,12 +1433,6 @@ class AisStreamAdapter implements ProviderAdapterInterface
 
         $existingVessel = Vessel::where('mmsi', $cleanMmsi)->first();
 
-        // SECTION C: Strictly reject static updates for known cargo/tanker prohibited MMSIs
-        // UNLESS the vessel already exists in our registry and requires conflict detection / status resolution.
-        if (\App\Models\ProhibitedVessel::isProhibited($cleanMmsi) && !$existingVessel) {
-            return null;
-        }
-
         $shipName = !empty($message['vessel_name']) ? trim(trim((string) $message['vessel_name']), '@') : null;
         $callSign = !empty($message['callsign']) ? strtoupper(trim(trim((string) $message['callsign']), '@')) : null;
         $rawImo = !empty($message['imo']) ? preg_replace('/\D/', '', (string) $message['imo']) : null;
@@ -975,32 +1443,18 @@ class AisStreamAdapter implements ProviderAdapterInterface
         $classificationSource = null;
         $aisTypeCode = null;
 
-        // Register in ProhibitedVessel so worker will block PositionReports.
-        // For new vessels, drop static packet (return null) so non-fishing vessels are not stored.
-        // For existing registered vessels, proceed so backend records conflict and updates provenance.
         if ($rawShipType !== null && $rawShipType !== '') {
-            $normalized = self::normalizeVesselType($rawShipType);
-            if (in_array($normalized, ['cargo', 'tanker', 'pleasure'])) {
-                \App\Models\ProhibitedVessel::firstOrCreate(
-                    ['mmsi' => $cleanMmsi],
-                    [
-                        'reason' => 'cargo_tanker_pleasure_policy',
-                        'original_name' => $shipName,
-                        'original_type' => $normalized,
-                    ]
-                );
-
-                if (!$existingVessel) {
-                    return null;
-                }
-            }
-            $vesselType = $normalized;
-            $classificationSource = 'AIS_STATIC_MESSAGE_SHIPTYPE';
             $aisTypeCode = is_numeric($rawShipType) ? (int) $rawShipType : null;
+            $vesselType = self::normalizeVesselType($rawShipType);
+            $classificationSource = 'AIS_STATIC_MESSAGE_SHIPTYPE';
         }
 
         $length = isset($message['length_meters']) && is_numeric($message['length_meters']) && (float) $message['length_meters'] > 0
             ? (float) $message['length_meters']
+            : null;
+
+        $beam = isset($message['beam_meters']) && is_numeric($message['beam_meters']) && (float) $message['beam_meters'] > 0
+            ? (float) $message['beam_meters']
             : null;
 
         $observedAt = isset($message['observed_at'])
@@ -1017,12 +1471,18 @@ class AisStreamAdapter implements ProviderAdapterInterface
             ]
         );
 
-        return DB::transaction(function () use ($cleanMmsi, $shipName, $callSign, $cleanImo, $vesselType, $classificationSource, $aisTypeCode, $length, $observedAt, $provider, $message) {
+        return DB::transaction(function () use ($cleanMmsi, $shipName, $callSign, $cleanImo, $vesselType, $classificationSource, $aisTypeCode, $length, $beam, $observedAt, $provider, $message) {
             $initialMeta = [];
             if ($classificationSource) {
                 $initialMeta['classification_source'] = $classificationSource;
                 $initialMeta['ais_ship_type_code'] = $aisTypeCode;
                 $initialMeta['classified_at'] = $observedAt->toIso8601String();
+            }
+            $initialMeta['static_data_received_at'] = $observedAt->toIso8601String();
+
+            $initialVesselType = $vesselType ?: 'unknown';
+            if ($aisTypeCode === 0) {
+                $initialVesselType = 'not_available';
             }
 
             $vessel = Vessel::firstOrCreate(
@@ -1030,22 +1490,28 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 [
                     'name' => $shipName ?: ('VESSEL-' . $cleanMmsi),
                     'flag_state' => $message['flag'] ?? null,
-                    'vessel_type' => $vesselType ?: 'unknown',
+                    'vessel_type' => $initialVesselType,
                     'callsign' => $callSign,
                     'imo' => $cleanImo,
                     'length_meters' => $length,
+                    'beam_meters' => $beam,
                     'source_provider_id' => $provider->id,
                     'verification_status' => 'provider_reported',
                     'classification_source' => $classificationSource,
                     'ais_ship_type_code' => $aisTypeCode,
                     'classified_at' => $classificationSource ? $observedAt : null,
+                    'static_data_received_at' => $observedAt,
                     'first_seen_at' => $observedAt,
                     'last_seen_at' => $observedAt,
                     'metadata' => !empty($initialMeta) ? $initialMeta : null,
                 ]
             );
 
-            $updates = [];
+            $updates = [
+                'static_data_received_at' => $observedAt,
+            ];
+
+            // Only update identity if valid and not empty (empty data must NOT overwrite valid data)
             if ($shipName && (empty($vessel->name) || str_starts_with($vessel->name, 'VESSEL-'))) {
                 $updates['name'] = $shipName;
             }
@@ -1055,7 +1521,22 @@ class AisStreamAdapter implements ProviderAdapterInterface
             if ($cleanImo && empty($vessel->imo)) {
                 $updates['imo'] = $cleanImo;
             }
-            if ($vesselType && $vesselType !== 'unknown') {
+            if ($length && empty($vessel->length_meters)) {
+                $updates['length_meters'] = $length;
+            }
+            if ($beam && empty($vessel->beam_meters)) {
+                $updates['beam_meters'] = $beam;
+            }
+
+            // ShipType 0 must NOT overwrite valid existing vessel_type or existing valid ais code
+            if ($aisTypeCode === 0) {
+                if (empty($vessel->vessel_type) || $vessel->vessel_type === 'unknown') {
+                    $updates['vessel_type'] = 'not_available';
+                    $updates['classification_source'] = $classificationSource ?: 'AIS_STATIC_MESSAGE_SHIPTYPE';
+                    $updates['ais_ship_type_code'] = 0;
+                    $updates['classified_at'] = $observedAt;
+                }
+            } elseif ($vesselType && $vesselType !== 'unknown') {
                 $isOlder = false;
                 $existingClassifiedAt = $vessel->classified_at
                     ?? (!empty($vessel->metadata['classified_at']) ? \Carbon\Carbon::parse($vessel->metadata['classified_at']) : null);
@@ -1069,8 +1550,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
                         || in_array($vessel->verification_status, ['verified', 'reclassified'], true);
 
                     if ($isAnalystVerified) {
-                        // Rule 7 & 8: New AIS metadata that contradicts an analyst decision triggers
-                        // conflict review (under_review) and sets the new AIS code without erasing previous decision.
+                        // Conflict review if analyst verified
                         if (strtolower((string) $vesselType) !== strtolower((string) $vessel->vessel_type)) {
                             $updates['ais_ship_type_code'] = $aisTypeCode;
                             $updates['verification_status'] = 'under_review';
@@ -1083,11 +1563,13 @@ class AisStreamAdapter implements ProviderAdapterInterface
                                 'source' => $classificationSource ?: 'AIS_STATIC_MESSAGE_SHIPTYPE',
                                 'retained_analyst_type' => $vessel->vessel_type,
                             ];
+                            $meta['static_data_received_at'] = $observedAt->toIso8601String();
                             $updates['metadata'] = $meta;
                         } else {
                             $updates['ais_ship_type_code'] = $aisTypeCode;
                         }
-                    } elseif (empty($vessel->vessel_type) || $vessel->vessel_type === 'unknown' || $classificationSource) {
+                    } else {
+                        // Standard static data updates identity and vessel_type automatically
                         $updates['vessel_type'] = $vesselType;
                         $updates['classification_source'] = $classificationSource ?: 'AIS_STATIC_MESSAGE_SHIPTYPE';
                         $updates['ais_ship_type_code'] = $aisTypeCode;
@@ -1097,12 +1579,10 @@ class AisStreamAdapter implements ProviderAdapterInterface
                         $meta['classification_source'] = $classificationSource ?: 'AIS_STATIC_MESSAGE_SHIPTYPE';
                         $meta['ais_ship_type_code'] = $aisTypeCode;
                         $meta['classified_at'] = $observedAt->toIso8601String();
+                        $meta['static_data_received_at'] = $observedAt->toIso8601String();
                         $updates['metadata'] = $meta;
                     }
                 }
-            }
-            if ($length && empty($vessel->length_meters)) {
-                $updates['length_meters'] = $length;
             }
 
             if (!$vessel->last_seen_at || $observedAt->gt($vessel->last_seen_at)) {
@@ -1154,11 +1634,6 @@ class AisStreamAdapter implements ProviderAdapterInterface
 
         // Standard maritime MMSI is 9 digits, allow 7-9 for special coastal/auxiliary craft
         if (strlen($cleanMmsi) < 7 || strlen($cleanMmsi) > 9) {
-            return null;
-        }
-
-        // SECTION C: Strictly reject positions from MMSIs known as cargo or tanker
-        if (\App\Models\ProhibitedVessel::isProhibited($cleanMmsi)) {
             return null;
         }
 
@@ -1228,22 +1703,11 @@ class AisStreamAdapter implements ProviderAdapterInterface
 
         $rawShipType = $message['ship_type'] ?? null;
         $vesselType = 'unknown';
+        $aisTypeCode = null;
 
         if ($rawShipType !== null && $rawShipType !== '') {
-            $normalized = self::normalizeVesselType($rawShipType);
-            // SECTION C: Strictly reject storing cargo, tanker, or pleasure vessels on AIS pipeline
-            if (in_array($normalized, ['cargo', 'tanker', 'pleasure'])) {
-                \App\Models\ProhibitedVessel::firstOrCreate(
-                    ['mmsi' => $cleanMmsi],
-                    [
-                        'reason' => 'cargo_tanker_pleasure_policy',
-                        'original_name' => $shipName,
-                        'original_type' => $normalized,
-                    ]
-                );
-                return null;
-            }
-            $vesselType = $normalized;
+            $aisTypeCode = is_numeric($rawShipType) ? (int) $rawShipType : null;
+            $vesselType = self::normalizeVesselType($rawShipType);
         }
 
         $provider = DataProvider::firstOrCreate(
@@ -1256,7 +1720,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
             ]
         );
 
-        return DB::transaction(function () use ($message, $cleanMmsi, $cleanImo, $cleanCallsign, $shipName, $vesselType, $lat, $lng, $sog, $cog, $heading, $observedAt, $provider) {
+        return DB::transaction(function () use ($message, $cleanMmsi, $cleanImo, $cleanCallsign, $shipName, $vesselType, $aisTypeCode, $lat, $lng, $sog, $cog, $heading, $observedAt, $provider) {
             $vessel = Vessel::firstOrCreate(
                 ['mmsi' => $cleanMmsi],
                 [
@@ -1267,6 +1731,8 @@ class AisStreamAdapter implements ProviderAdapterInterface
                     'imo' => $cleanImo,
                     'source_provider_id' => $provider->id,
                     'verification_status' => 'provider_reported',
+                    'ais_ship_type_code' => $aisTypeCode,
+                    'static_data_received_at' => null,
                     'first_seen_at' => $observedAt,
                     'last_seen_at' => $observedAt,
                 ]
@@ -1282,6 +1748,9 @@ class AisStreamAdapter implements ProviderAdapterInterface
             }
             if ($vesselType !== 'unknown' && ($vessel->vessel_type === 'unknown' || empty($vessel->vessel_type))) {
                 $vesselUpdates['vessel_type'] = $vesselType;
+                if ($aisTypeCode !== null && $vessel->ais_ship_type_code === null) {
+                    $vesselUpdates['ais_ship_type_code'] = $aisTypeCode;
+                }
             }
             if ($shipName && (empty($vessel->name) || str_starts_with($vessel->name, 'VESSEL-'))) {
                 $vesselUpdates['name'] = $shipName;

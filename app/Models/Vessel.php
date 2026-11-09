@@ -25,6 +25,7 @@ class Vessel extends Model
         'last_seen_at' => 'datetime',
         'last_enriched_at' => 'datetime',
         'classified_at' => 'datetime',
+        'static_data_received_at' => 'datetime',
         'ais_ship_type_code' => 'integer',
         'metadata' => 'array',
     ];
@@ -211,21 +212,64 @@ class Vessel extends Model
 
     /**
      * Get synchronized human-readable vessel type label based on AIS taxonomy.
+     * Replaces ambiguous UNKNOWN with explicit status labels:
+     * - Valid categories: FISHING, CARGO, TANKER, etc.
+     * - Code 0: NOT AVAILABLE
+     * - Not yet received static data: AWAITING STATIC DATA
+     * - Unmapped / unrecognized code: UNMAPPED AIS CODE
      */
     public function getDisplayVesselTypeAttribute(): string
     {
-        $raw = strtolower(trim((string) $this->vessel_type));
-        if (empty($raw) || $raw === 'unknown') {
-            return 'Unknown';
+        $type = strtolower(trim((string) $this->vessel_type));
+        $code = $this->ais_ship_type_code;
+
+        // If explicitly 'not_available' or (code 0 with unknown/empty vessel_type)
+        if ($type === 'not_available' || (($type === 'unknown' || empty($type)) && $code === 0)) {
+            return 'NOT AVAILABLE';
         }
 
-        if (is_numeric($raw)) {
-            $mappedKey = \App\Services\Maritime\VesselClassificationService::mapAisCodeToTaxonomy((int) $raw);
-            return \App\Services\Maritime\VesselClassificationService::TAXONOMY[$mappedKey] ?? 'Unknown';
+        // Unmapped code
+        if ($type === 'unmapped') {
+            return 'UNMAPPED AIS CODE';
         }
 
-        return \App\Services\Maritime\VesselClassificationService::TAXONOMY[$raw]
-            ?? ucwords(str_replace('_', ' ', $raw));
+        // Awaiting static data (only position report received so far)
+        if ((empty($type) || $type === 'unknown') && $code === null && empty($this->static_data_received_at)) {
+            return 'AWAITING STATIC DATA';
+        }
+
+        if (is_numeric($type)) {
+            $type = \App\Services\Maritime\VesselClassificationService::mapAisCodeToTaxonomy((int) $type);
+        }
+
+        return match ($type) {
+            'fishing' => 'FISHING',
+            'towing' => 'TOWING',
+            'dredging' => 'DREDGING / UNDERWATER OPS',
+            'diving' => 'DIVING OPERATIONS',
+            'military' => 'MILITARY OPERATIONS',
+            'sailing' => 'SAILING',
+            'pleasure' => 'PLEASURE CRAFT',
+            'high_speed_craft' => 'HIGH SPEED CRAFT',
+            'pilot' => 'PILOT VESSEL',
+            'sar' => 'SEARCH AND RESCUE',
+            'tug' => 'TUG',
+            'port_tender' => 'PORT TENDER',
+            'anti_pollution' => 'ANTI-POLLUTION',
+            'law_enforcement', 'patrol' => 'LAW ENFORCEMENT',
+            'medical' => 'MEDICAL TRANSPORT',
+            'passenger' => 'PASSENGER',
+            'cargo' => 'CARGO',
+            'tanker' => 'TANKER',
+            'other', 'non_combatant' => 'OTHER',
+            'carrier' => 'CARRIER',
+            'support' => 'SUPPORT',
+            'research' => 'RESEARCH',
+            'not_available' => 'NOT AVAILABLE',
+            'unmapped' => 'UNMAPPED AIS CODE',
+            'awaiting_static', 'unknown' => 'AWAITING STATIC DATA',
+            default => strtoupper(str_replace('_', ' ', $type)),
+        };
     }
 
     /**
