@@ -50,6 +50,7 @@ export class GlobalMapController {
 
         this.debounceTimer = null;
         this.hashDebounceTimer = null;
+        this.layerAbortControllers = {};
         this.currentPopup = null;
         this.basemapErrorNotified = false;
         this.isStyleLoaded = false;
@@ -2117,62 +2118,17 @@ export class GlobalMapController {
     handleViewportChange() {
         clearTimeout(this.debounceTimer);
         this.debounceTimer = setTimeout(() => {
-            this.refreshAllActiveLayers();
+            this.refreshDynamicActiveLayers();
         }, 300);
     }
 
-    getViewportBBoxString() {
-        if (!this.map) return null;
-        try {
-            const bounds = this.map.getBounds();
-            return `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
-        } catch (e) {
-            return null;
-        }
-    }
-
-    toggleLayer(layerKey, visible) {
-        this.activeLayers[layerKey] = visible;
-
-        const layerMap = {
-            aseanEez: [
-                'asean-eez-fill-layer',
-                'asean-eez-polygon-outline-layer',
-                'asean-eez-line-agreed',
-                'asean-eez-line-undelimited',
-                'asean-eez-line-disputed',
-                'asean-eez-line-joint',
-                'asean-eez-line-unknown'
-            ],
-            australiaEez: [
-                'australia-eez-fill-layer',
-                'australia-eez-polygon-outline-layer',
-                'australia-eez-line-treaty',
-                'australia-eez-line-200nm',
-                'australia-eez-line-median'
-            ],
-            encounters: ['encounters-circle-layer'],
-            vessels: [
-                'vessels-oriented-layer',
-                'vessels-circle-layer'
-            ],
-            darkVessels: ['dark-vessels-circle-layer'],
-            sarScenes: ['sar-scenes-fill-layer', 'sar-scenes-line-layer'],
-        };
-
-        const targetIds = layerMap[layerKey] || [];
-        targetIds.forEach((id) => {
-            if (this.map && this.map.getLayer(id)) {
-                this.map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
+    refreshDynamicActiveLayers() {
+        const dynamicLayers = ['vessels', 'darkVessels', 'encounters', 'sarScenes'];
+        dynamicLayers.forEach((key) => {
+            if (this.activeLayers[key]) {
+                this.fetchLayerData(key);
             }
         });
-
-        if (visible) {
-            this.fetchLayerData(layerKey);
-        }
-
-        this.ensureLayerOrder();
-        this.updateActiveLayerCount();
     }
 
     refreshAllActiveLayers() {
@@ -2205,6 +2161,15 @@ export class GlobalMapController {
 
         const sourceId = sources[layerKey];
         if (!sourceId || !this.map || !this.map.getSource(sourceId)) return;
+
+        // Cancel previous pending request for this layer to prevent out-of-order race conditions
+        if (this.layerAbortControllers && this.layerAbortControllers[layerKey]) {
+            this.layerAbortControllers[layerKey].abort();
+        }
+        const controller = new AbortController();
+        if (this.layerAbortControllers) {
+            this.layerAbortControllers[layerKey] = controller;
+        }
 
         if (!options.silent) {
             this.setLoadingBadge(layerKey, true);
@@ -2252,7 +2217,7 @@ export class GlobalMapController {
                 requestUrl += (requestUrl.includes('?') ? '&' : '?') + qs;
             }
 
-            const res = await fetch(requestUrl);
+            const res = await fetch(requestUrl, { signal: controller.signal });
             if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
             const geojson = await res.json();
 
@@ -2277,13 +2242,19 @@ export class GlobalMapController {
             this.updateLayerCountBadge(layerKey, geojson.features ? geojson.features.length : 0);
             this.ensureLayerOrder();
         } catch (err) {
+            if (err.name === 'AbortError') {
+                return; // Superseded by a newer request, silent exit
+            }
             console.error(`[GlobalMapController] Error loading layer ${layerKey}:`, err);
             if (!options.silent) {
                 this.showLayerError(layerKey);
             }
         } finally {
-            if (!options.silent) {
-                this.setLoadingBadge(layerKey, false);
+            if (this.layerAbortControllers && this.layerAbortControllers[layerKey] === controller) {
+                delete this.layerAbortControllers[layerKey];
+                if (!options.silent) {
+                    this.setLoadingBadge(layerKey, false);
+                }
             }
         }
     }

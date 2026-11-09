@@ -88,12 +88,12 @@ class VesselController extends Controller
             }
         }
 
-        $perPageParam = $request->query('per_page', 50);
-        if ($perPageParam === 'all' || $perPageParam === 'semua') {
+        $perPageInput = strtolower(trim((string) $request->query('per_page', '50')));
+        if ($perPageInput === 'all' || $perPageInput === 'semua') {
             $totalCount = (clone $query)->count();
             $perPage = max(1, $totalCount);
         } else {
-            $perPage = (int) $perPageParam;
+            $perPage = (int) $perPageInput;
             if (!in_array($perPage, [10, 25, 50, 100], true)) {
                 $perPage = 50;
             }

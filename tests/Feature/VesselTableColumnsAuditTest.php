@@ -565,23 +565,45 @@ class VesselTableColumnsAuditTest extends TestCase
             ]);
         }
 
-        // Test per_page = 10
+        // Test per_page = 10 (Page 1)
         $res10 = $this->actingAs($this->user)->get('/vessels?per_page=10');
         $res10->assertOk();
         $this->assertCount(10, $res10->viewData('vessels'));
         $res10->assertSee('value="10" selected', false);
+        $res10->assertSee('Showing <span class="font-medium text-slate-200">1–10</span> of <span class="font-medium text-slate-200">35</span> vessels', false);
+
+        // Test Navigation: Page 2 of per_page = 10
+        $res10Page2 = $this->actingAs($this->user)->get('/vessels?per_page=10&page=2');
+        $res10Page2->assertOk();
+        $this->assertCount(10, $res10Page2->viewData('vessels'));
+        $this->assertEquals('VESSEL_011', $res10Page2->viewData('vessels')->first()->name);
+        $this->assertEquals('VESSEL_020', $res10Page2->viewData('vessels')->last()->name);
+        $res10Page2->assertSee('Showing <span class="font-medium text-slate-200">11–20</span> of <span class="font-medium text-slate-200">35</span> vessels', false);
+        // Verify Next and Prev links exist
+        $res10Page2->assertSee('page=1');
+        $res10Page2->assertSee('page=3');
+
+        // Test Last Page (Page 4: items 31-35)
+        $res10Page4 = $this->actingAs($this->user)->get('/vessels?per_page=10&page=4');
+        $res10Page4->assertOk();
+        $this->assertCount(5, $res10Page4->viewData('vessels'));
+        $this->assertEquals('VESSEL_031', $res10Page4->viewData('vessels')->first()->name);
+        $this->assertEquals('VESSEL_035', $res10Page4->viewData('vessels')->last()->name);
+        $res10Page4->assertSee('Showing <span class="font-medium text-slate-200">31–35</span> of <span class="font-medium text-slate-200">35</span> vessels', false);
 
         // Test per_page = 25
         $res25 = $this->actingAs($this->user)->get('/vessels?per_page=25');
         $res25->assertOk();
         $this->assertCount(25, $res25->viewData('vessels'));
         $res25->assertSee('value="25" selected', false);
+        $res25->assertSee('Showing <span class="font-medium text-slate-200">1–25</span> of <span class="font-medium text-slate-200">35</span> vessels', false);
 
         // Test per_page = 50 (should show all 35 without page 2)
         $res50 = $this->actingAs($this->user)->get('/vessels?per_page=50');
         $res50->assertOk();
         $this->assertCount(35, $res50->viewData('vessels'));
         $res50->assertSee('value="50" selected', false);
+        $res50->assertSee('Showing <span class="font-medium text-slate-200">1–35</span> of <span class="font-medium text-slate-200">35</span> vessels', false);
 
         // Test per_page = 100
         $res100 = $this->actingAs($this->user)->get('/vessels?per_page=100');
@@ -589,17 +611,39 @@ class VesselTableColumnsAuditTest extends TestCase
         $this->assertCount(35, $res100->viewData('vessels'));
         $res100->assertSee('value="100" selected', false);
 
-        // Test per_page = all (Semua)
+        // Test per_page = all (All / Semua)
         $resAll = $this->actingAs($this->user)->get('/vessels?per_page=all');
         $resAll->assertOk();
         $this->assertCount(35, $resAll->viewData('vessels'));
         $resAll->assertSee('value="all" selected', false);
-        $resAll->assertSee('Semua');
+        $resAll->assertSee('All (Semua)');
+        $resAll->assertSee('Showing <span class="font-medium text-slate-200">1–35</span> of <span class="font-medium text-slate-200">35</span> vessels', false);
 
         // Test per_page = semua (alias)
         $resSemua = $this->actingAs($this->user)->get('/vessels?per_page=semua');
         $resSemua->assertOk();
         $this->assertCount(35, $resSemua->viewData('vessels'));
         $resSemua->assertSee('value="all" selected', false);
+
+        // Test Search + per_page retention in pagination links
+        $resSearch = $this->actingAs($this->user)->get('/vessels?search=VESSEL_&per_page=10');
+        $resSearch->assertOk();
+        $this->assertCount(10, $resSearch->viewData('vessels'));
+        $resSearch->assertSee('search=VESSEL_');
+        $resSearch->assertSee('per_page=10');
+
+        // Test Filter + per_page retention in pagination links
+        $resFilter = $this->actingAs($this->user)->get('/vessels?vessel_type=fishing&per_page=10');
+        $resFilter->assertOk();
+        $this->assertCount(10, $resFilter->viewData('vessels'));
+        $resFilter->assertSee('vessel_type=fishing');
+        $resFilter->assertSee('per_page=10');
+
+        // Test Empty State (0 results)
+        $resEmpty = $this->actingAs($this->user)->get('/vessels?search=NONEXISTENT_XYZ_123');
+        $resEmpty->assertOk();
+        $this->assertCount(0, $resEmpty->viewData('vessels'));
+        $resEmpty->assertSee('Showing <span class="font-medium text-slate-200">0</span> vessels', false);
+        $resEmpty->assertSee('Belum ada kapal yang terdaftar');
     }
 }

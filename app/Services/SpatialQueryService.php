@@ -900,8 +900,7 @@ class SpatialQueryService
         }
 
         if ($vesselFiltersActive) {
-            $matchedVesselIds = $vesselQuery->pluck('id');
-            $posQuery->whereIn('vessel_id', $matchedVesselIds);
+            $posQuery->whereIn('vessel_id', $vesselQuery->select('id'));
         }
 
         // Apply position-level filters: SOG, COG, Heading status, Freshness, Date
