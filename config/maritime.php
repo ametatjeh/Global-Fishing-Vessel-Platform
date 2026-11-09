@@ -148,6 +148,14 @@ return [
             'max_reconnect_attempts' => (int) env('AIS_MAX_RECONNECT_ATTEMPTS', 10),
             'batch_size' => (int) env('AIS_BATCH_SIZE', 50),
         ],
+        'fao_global_record' => [
+            'name' => 'FAO Global Record of Fishing Vessels',
+            'base_url' => env('FAO_GLOBAL_RECORD_URL', 'https://www.fao.org/global-record/api/v1'),
+            'api_key' => env('FAO_GLOBAL_RECORD_API_KEY', null),
+            'timeout' => (int) env('FAO_GLOBAL_RECORD_TIMEOUT', 15),
+            'cache_ttl' => (int) env('FAO_GLOBAL_RECORD_CACHE_TTL', 604800),
+            'license_type' => 'FAO Open Access Terms / CC-BY-NC-SA 3.0 IGO',
+        ],
     ],
 
     /*
