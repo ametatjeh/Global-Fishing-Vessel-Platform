@@ -239,14 +239,14 @@ class MapVesselVisibilityAndIntegrityTest extends TestCase
             'MetaData' => [
                 'MMSI' => (int) $mmsi,
                 'ShipName' => 'KM STREAMED DIRECT',
-                'Latitude' => -6.2000,
+                'Latitude' => -5.8000,
                 'Longitude' => 106.8166,
                 'time_utc' => now()->toIso8601String(),
             ],
             'Message' => [
                 'PositionReport' => [
                     'UserID' => (int) $mmsi,
-                    'Latitude' => -6.2000,
+                    'Latitude' => -5.8000,
                     'Longitude' => 106.8166,
                     'Sog' => 12.3,
                     'Cog' => 180.0,

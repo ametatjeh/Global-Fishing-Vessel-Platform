@@ -1665,6 +1665,9 @@ class AisStreamAdapter implements ProviderAdapterInterface
             return null;
         }
 
+        // Global Land Detection: Check if coordinates fall inside global land polygons
+        $isOnLand = app(\App\Services\GlobalLandValidationService::class)->isOnLand($lat, $lng);
+
         // Validate SOG / COG / Heading sentinel values
         $sog = isset($message['speed_over_ground']) && is_numeric($message['speed_over_ground'])
             ? (float) $message['speed_over_ground']
@@ -1733,7 +1736,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
             ]
         );
 
-        return DB::transaction(function () use ($message, $cleanMmsi, $cleanImo, $cleanCallsign, $shipName, $vesselType, $aisTypeCode, $lat, $lng, $sog, $cog, $heading, $observedAt, $provider) {
+        return DB::transaction(function () use ($message, $cleanMmsi, $cleanImo, $cleanCallsign, $shipName, $vesselType, $aisTypeCode, $lat, $lng, $sog, $cog, $heading, $observedAt, $provider, $isOnLand) {
             $vessel = Vessel::firstOrCreate(
                 ['mmsi' => $cleanMmsi],
                 [
@@ -1747,7 +1750,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
                     'ais_ship_type_code' => $aisTypeCode,
                     'static_data_received_at' => null,
                     'first_seen_at' => $observedAt,
-                    'last_seen_at' => $observedAt,
+                    'last_seen_at' => $isOnLand ? null : $observedAt,
                 ]
             );
 
@@ -1769,9 +1772,13 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 $vesselUpdates['name'] = $shipName;
             }
 
-            // Strictly guard last_seen_at: historical packets must NOT regress latest position
-            if (!$vessel->last_seen_at || $observedAt->gt($vessel->last_seen_at)) {
-                $vesselUpdates['last_seen_at'] = $observedAt;
+            // Strictly guard last_seen_at:
+            // 1. Never update last_seen_at with land coordinates (quarantined)
+            // 2. Historical packets must NOT regress latest position
+            if (!$isOnLand) {
+                if (!$vessel->last_seen_at || $observedAt->gt($vessel->last_seen_at)) {
+                    $vesselUpdates['last_seen_at'] = $observedAt;
+                }
             }
 
             if (!empty($vesselUpdates)) {
@@ -1808,7 +1815,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
             }
 
             try {
-                // Save new position
+                // Save new position with land classification and quality score
                 $position = VesselPosition::create([
                     'vessel_id' => $vessel->id,
                     'latitude' => $lat,
@@ -1820,8 +1827,9 @@ class AisStreamAdapter implements ProviderAdapterInterface
                     'observed_at' => $observedAt,
                     'received_at' => now(),
                     'source_provider_id' => $provider->id,
-                    'data_quality_score' => $message['quality_score'] ?? 1.0,
+                    'data_quality_score' => $isOnLand ? 0.0 : ($message['quality_score'] ?? 1.0),
                     'is_gap_indicator' => false,
+                    'is_on_land' => $isOnLand,
                     'raw_payload' => $message['raw_payload'] ?? $message,
                 ]);
             } catch (\Illuminate\Database\QueryException $e) {

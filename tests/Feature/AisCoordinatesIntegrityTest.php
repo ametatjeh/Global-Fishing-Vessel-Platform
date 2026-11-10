@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\DataProvider;
 use App\Models\SatelliteDetection;
 use App\Models\SatelliteScene;
+use App\Models\User;
 use App\Models\Vessel;
 use App\Models\VesselEncounter;
 use App\Models\VesselPosition;
@@ -246,7 +247,7 @@ class AisCoordinatesIntegrityTest extends TestCase
      */
     public function test_07_historical_track_geojson_order(): void
     {
-        $user = \App\Models\User::factory()->create();
+        $user = User::factory()->create();
 
         $v = Vessel::create(['name' => 'TRACK VESSEL', 'mmsi' => '525000007', 'vessel_type' => 'fishing']);
 
@@ -291,3 +292,4 @@ class AisCoordinatesIntegrityTest extends TestCase
         $this->assertEquals(-5.9, $lineCoords[1][1]);
     }
 }
+

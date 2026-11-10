@@ -21,6 +21,7 @@ class VesselPosition extends Model
         'heading_degrees' => 'float',
         'data_quality_score' => 'float',
         'is_gap_indicator' => 'boolean',
+        'is_on_land' => 'boolean',
         'observed_at' => 'datetime',
         'received_at' => 'datetime',
         'raw_payload' => 'array',

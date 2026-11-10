@@ -264,10 +264,10 @@ class MapLayerApiTest extends TestCase
     {
         $mmsi = '525443322';
 
-        // 1. Ingest newer position (12:00)
+        // 1. Ingest newer sea position (12:00 in Java Sea)
         $this->postJson('/api/telemetry/ais', [
             'mmsi' => $mmsi,
-            'latitude' => -7.1000,
+            'latitude' => -5.5000,
             'longitude' => 110.2000,
             'timestamp' => '2026-10-19T12:00:00Z',
         ])->assertStatus(200);
@@ -276,10 +276,10 @@ class MapLayerApiTest extends TestCase
         $this->assertNotNull($vessel);
         $this->assertEquals('2026-10-19 12:00:00', $vessel->last_seen_at->format('Y-m-d H:i:s'));
 
-        // 2. Ingest older/delayed historical position (09:00)
+        // 2. Ingest older/delayed historical sea position (09:00 in Java Sea)
         $this->postJson('/api/telemetry/ais', [
             'mmsi' => $mmsi,
-            'latitude' => -7.5000,
+            'latitude' => -5.6000,
             'longitude' => 110.1000,
             'timestamp' => '2026-10-19T09:00:00Z',
         ])->assertStatus(200);

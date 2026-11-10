@@ -834,12 +834,14 @@ class SpatialQueryService
         // Base query on vessel_positions to leverage indexes on lat/lng/observed_at
         // Exclude quarantined or invalid coordinate records (data_quality_score <= 0.0)
         // Strictly exclude default (0, 0) unacquired GPS sentinel positions
+        // Strictly exclude positions detected on land
         $posQuery = VesselPosition::query()
             ->where(function ($q) {
                 $q->whereNull('data_quality_score')
                   ->orWhere('data_quality_score', '>', 0.0);
             })
-            ->whereRaw('NOT (latitude = 0.0 AND longitude = 0.0)');
+            ->whereRaw('NOT (latitude = 0.0 AND longitude = 0.0)')
+            ->where('is_on_land', false);
 
         if ($bbox && count($bbox) === 4) {
             $minLng = (float) $bbox[0];
@@ -991,16 +993,14 @@ class SpatialQueryService
                 ->whereIn('id', $positionIds)
                 ->get();
         } else {
-            // SQLite / generic fallback
-            $positionIds = (clone $posQuery)
-                ->selectRaw('MAX(id) as id')
-                ->groupBy('vessel_id')
-                ->limit($limit)
-                ->pluck('id');
-
-            $positions = VesselPosition::with(['vessel', 'sourceProvider'])
-                ->whereIn('id', $positionIds)
-                ->get();
+            // SQLite / test fallback: precisely select latest valid sea position per vessel by observed_at DESC
+            $positions = (clone $posQuery)
+                ->with(['vessel', 'sourceProvider'])
+                ->orderBy('observed_at', 'desc')
+                ->get()
+                ->unique('vessel_id')
+                ->take($limit)
+                ->values();
         }
 
         $features = [];
@@ -1010,7 +1010,7 @@ class SpatialQueryService
 
             $lat = (float) $pos->latitude;
             $lng = (float) $pos->longitude;
-            if (!is_finite($lat) || !is_finite($lng) || $lat < -90.0 || $lat > 90.0 || $lng < -180.0 || $lng > 180.0 || ($lat === 0.0 && $lng === 0.0)) {
+            if (!is_finite($lat) || !is_finite($lng) || $lat < -90.0 || $lat > 90.0 || $lng < -180.0 || $lng > 180.0 || ($lat === 0.0 && $lng === 0.0) || $pos->is_on_land) {
                 continue;
             }
 
