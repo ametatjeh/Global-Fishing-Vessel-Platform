@@ -1,7 +1,7 @@
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border-t border-slate-800 bg-slate-900/60 text-xs text-slate-400">
     <!-- Left: Per page selector -->
     <div class="flex items-center gap-2">
-        <span class="text-slate-400">Tampilkan / Show</span>
+        <span class="text-slate-400">Show</span>
         @php
             $rawPerPage = request('per_page');
             $isAll = in_array(strtolower((string)$rawPerPage), ['all', 'semua'], true);
@@ -13,15 +13,15 @@
             <option value="25" {{ $selectedPerPage === 25 ? 'selected' : '' }}>25</option>
             <option value="50" {{ $selectedPerPage === 50 ? 'selected' : '' }}>50</option>
             <option value="100" {{ $selectedPerPage === 100 ? 'selected' : '' }}>100</option>
-            <option value="all" {{ $selectedPerPage === 'all' ? 'selected' : '' }}>All (Semua)</option>
+            <option value="all" {{ $selectedPerPage === 'all' ? 'selected' : '' }}>All</option>
         </select>
-        <span class="text-slate-400">baris per halaman / rows per page</span>
+        <span class="text-slate-400">rows per page</span>
     </div>
 
     <!-- Right: Summary & Pagination Links -->
     <div class="flex flex-col sm:flex-row sm:items-center gap-3">
         <div class="text-slate-400 font-sans">
-            <span class="sr-only">Menampilkan hasil</span>
+            <span class="sr-only">Showing results</span>
             @if($paginator->total() > 0)
                 Showing <span class="font-medium text-slate-200">{{ $paginator->firstItem() }}–{{ $paginator->lastItem() }}</span> of <span class="font-medium text-slate-200">{{ $paginator->total() }}</span> vessels
             @else

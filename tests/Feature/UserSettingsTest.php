@@ -35,10 +35,10 @@ class UserSettingsTest extends TestCase
         $response = $this->actingAs($user)->get('/settings/profile');
 
         $response->assertStatus(200);
-        $response->assertSee('Pengaturan Profil Pengguna');
+        $response->assertSee('User Profile Settings');
         $response->assertSee('Kapten Laut Analyst');
         $response->assertSee('kapten@maritime-intel.org');
-        $response->assertSee('Foto Profil');
+        $response->assertSee('Profile Photo');
     }
 
     public function test_user_can_update_profile_name(): void
@@ -53,7 +53,7 @@ class UserSettingsTest extends TestCase
         ]);
 
         $response->assertRedirect();
-        $response->assertSessionHas('status', 'Nama profil berhasil diperbarui.');
+        $response->assertSessionHas('status', 'Profile name updated successfully.');
 
         $this->assertDatabaseHas('users', [
             'id' => $user->id,
@@ -86,7 +86,7 @@ class UserSettingsTest extends TestCase
         ]);
 
         $response->assertRedirect();
-        $response->assertSessionHas('status', 'Foto profil berhasil diperbarui.');
+        $response->assertSessionHas('status', 'Profile photo updated successfully.');
 
         $user->refresh();
         $this->assertNotNull($user->avatar_path);
@@ -128,7 +128,7 @@ class UserSettingsTest extends TestCase
         ]);
 
         $response->assertRedirect();
-        $response->assertSessionHas('status', 'Profil dan foto profil berhasil diperbarui.');
+        $response->assertSessionHas('status', 'Profile details and photo updated successfully.');
 
         $user->refresh();
         $this->assertEquals('Renamed Captain', $user->name);
@@ -161,7 +161,7 @@ class UserSettingsTest extends TestCase
         $response = $this->actingAs($user)->get('/settings/profile');
         $response->assertStatus(200);
         $response->assertSee($user->avatar_path);
-        $response->assertSee('Foto Kustom Aktif');
+        $response->assertSee('Custom Photo Active');
     }
 
     public function test_avatar_upload_rejects_pdf_file(): void

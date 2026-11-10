@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header_title', 'User Settings — Profil & Identitas Pengguna')
+@section('header_title', 'User Settings — User Profile & Identity')
 
 @section('content')
 <div class="max-w-4xl space-y-6">
@@ -10,17 +10,17 @@
         <div>
             <div class="flex items-center gap-2">
                 <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30 uppercase">
-                    Manajemen Akun
+                    Account Management
                 </span>
                 <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700 uppercase">
                     Role: {{ strtoupper($user->role ?? 'ANALYST') }}
                 </span>
             </div>
             <h2 class="text-xl sm:text-2xl font-bold text-white tracking-wide uppercase mt-1">
-                Pengaturan Profil Pengguna
+                User Profile Settings
             </h2>
             <p class="text-xs text-slate-400 mt-0.5">
-                Kelola nama tampilan, foto profil kustom, dan status kredensial Single Sign-On (Google SSO).
+                Manage your display name, profile photo, and Single Sign-On (Google SSO) integration.
             </p>
         </div>
 
@@ -35,7 +35,7 @@
     @if($errors->any())
     <div class="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs space-y-1">
         <strong class="font-bold flex items-center gap-1.5">
-            <span>⚠️</span> Terdapat kendala pada input:
+            <span>⚠️</span> Please check the form errors:
         </strong>
         <ul class="list-disc pl-5 space-y-0.5">
             @foreach($errors->all() as $error)
@@ -50,7 +50,7 @@
         <!-- Column 1: Avatar Management -->
         <div class="glass-panel p-5 rounded-2xl border border-slate-800 space-y-5 shadow-xl flex flex-col items-center text-center">
             <h3 class="text-xs font-bold uppercase tracking-wider text-teal-300 border-b border-slate-800 w-full pb-2">
-                Foto Profil
+                Profile Photo
             </h3>
 
             <!-- Avatar Container -->
@@ -59,7 +59,7 @@
                     <img id="avatarPreview" src="{{ $user->avatar_url }}" alt="{{ $user->name }}" class="w-full h-full object-cover">
                 </div>
                 <div class="absolute inset-0 rounded-full bg-slate-950/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center cursor-pointer" onclick="document.getElementById('avatarInput').click();">
-                    <span class="text-xs text-teal-300 font-medium">Ubah Foto</span>
+                    <span class="text-xs text-teal-300 font-medium">Change Photo</span>
                 </div>
             </div>
 
@@ -68,11 +68,11 @@
                 <div class="text-[11px] text-slate-400 font-mono">{{ $user->email }}</div>
                 @if($user->avatar_path)
                     <div class="inline-flex items-center gap-1 text-[10px] text-teal-400 font-mono bg-teal-500/10 px-2 py-0.5 rounded-full border border-teal-500/20">
-                        <span>✓</span> Foto Kustom Aktif
+                        <span>✓</span> Custom Photo Active
                     </div>
                 @else
                     <div class="inline-flex items-center gap-1 text-[10px] text-slate-400 font-mono bg-slate-800 px-2 py-0.5 rounded-full">
-                        <span>👤</span> Avatar Default Sistem
+                        <span>👤</span> Default System Avatar
                     </div>
                 @endif
             </div>
@@ -85,26 +85,26 @@
                 <div class="flex flex-col gap-2">
                     <button type="button" onclick="document.getElementById('avatarInput').click();" class="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs border border-slate-700 transition flex items-center justify-center gap-1.5 cursor-pointer">
                         <span>📁</span>
-                        <span>Pilih Berkas Foto</span>
+                        <span>Select Image File</span>
                     </button>
 
                     <button type="submit" id="btnSaveAvatar" disabled class="w-full py-2 px-3 rounded-xl bg-teal-500 hover:bg-teal-400 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-slate-950 font-bold text-xs uppercase tracking-wider transition shadow-md shadow-teal-500/20 cursor-pointer">
-                        Unggah Foto
+                        Upload Photo
                     </button>
                 </div>
 
                 <p class="text-[10px] text-slate-400 leading-tight">
-                    Format: JPEG, PNG, WebP &bull; Maks. 2 MB.<br>Verifikasi integritas MIME dilakukan di server.
+                    Formats: JPEG, PNG, WebP &bull; Max. 2 MB.<br>MIME integrity is verified on server.
                 </p>
             </form>
 
             @if($user->avatar_path)
-            <form action="{{ route('profile.avatar.destroy') }}" method="POST" class="w-full pt-1" onsubmit="return confirm('Apakah Anda yakin ingin menghapus foto profil kustom dan kembali ke avatar default?');">
+            <form action="{{ route('profile.avatar.destroy') }}" method="POST" class="w-full pt-1" onsubmit="return confirm('Are you sure you want to remove your custom photo and return to the default avatar?');">
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="w-full py-1.5 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 font-semibold text-[11px] border border-rose-500/30 transition flex items-center justify-center gap-1 cursor-pointer">
                     <span>🗑️</span>
-                    <span>Hapus Foto Profil</span>
+                    <span>Remove Profile Photo</span>
                 </button>
             </form>
             @endif
@@ -118,9 +118,9 @@
                 <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-teal-300 flex items-center gap-2">
                         <span>👤</span>
-                        <span>Informasi Profil Akun</span>
+                        <span>Profile Information</span>
                     </h3>
-                    <span class="text-[10px] text-slate-400 font-mono">ID Pengguna: #{{ $user->id }}</span>
+                    <span class="text-[10px] text-slate-400 font-mono">User ID: #{{ $user->id }}</span>
                 </div>
 
                 <form id="profileUpdateForm" action="{{ route('profile.update') }}" method="POST" enctype="multipart/form-data" class="space-y-4 text-xs">
@@ -130,43 +130,43 @@
 
                     <div>
                         <label for="name" class="block font-semibold text-slate-300 mb-1">
-                            Nama Lengkap / Panggilan Operasional <span class="text-rose-400">*</span>
+                            Full Name / Operational Call Sign <span class="text-rose-400">*</span>
                         </label>
                         <input type="text" id="name" name="name" value="{{ old('name', $user->name) }}" required
                             class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition text-xs font-medium">
-                        <p class="text-[10px] text-slate-400 mt-1">Nama ini ditampilkan di bilah navigasi, audit log forensik, dan laporan investigasi.</p>
+                        <p class="text-[10px] text-slate-400 mt-1">This name is displayed in the navigation bar, audit trails, and investigation reports.</p>
                     </div>
 
                     <div>
-                        <label class="block font-semibold text-slate-300 mb-1">Alamat Email Dinas</label>
+                        <label class="block font-semibold text-slate-300 mb-1">Official Email Address</label>
                         <div class="flex items-center gap-2">
                             <input type="email" value="{{ $user->email }}" readonly disabled
                                 class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-400 font-mono text-xs cursor-not-allowed">
                             @if($user->email_verified_at)
                                 <span class="shrink-0 px-2.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono font-semibold flex items-center gap-1">
-                                    <span>✓</span> Terverifikasi
+                                    <span>✓</span> Verified
                                 </span>
                             @endif
                         </div>
-                        <p class="text-[10px] text-slate-400 mt-1">Email dinas terdaftar sebagai kunci identifikasi unik sistem.</p>
+                        <p class="text-[10px] text-slate-400 mt-1">Email is registered as a unique system identifier.</p>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                         <div>
-                            <label class="block font-semibold text-slate-300 mb-1">Hak Akses / Peran Sistem</label>
+                            <label class="block font-semibold text-slate-300 mb-1">Access Level / System Role</label>
                             <input type="text" value="{{ strtoupper($user->role ?? 'ANALYST') }}" readonly disabled
-                                class="w-full px-3.5 py-2 rounded-xl bg-slate-950/80 border border-slate-800 text-teal-400 font-mono text-xs font-bold uppercase cursor-not-allowed">
+                                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-teal-400 font-mono text-xs font-bold uppercase cursor-not-allowed">
                         </div>
                         <div>
-                            <label class="block font-semibold text-slate-300 mb-1">Organisasi / Divisi</label>
+                            <label class="block font-semibold text-slate-300 mb-1">Organization / Division</label>
                             <input type="text" value="{{ $user->organization ?? 'Maritime Operations' }}" readonly disabled
-                                class="w-full px-3.5 py-2 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-300 text-xs cursor-not-allowed">
+                                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-300 text-xs cursor-not-allowed">
                         </div>
                     </div>
 
                     <div class="pt-2 flex justify-end">
                         <button type="submit" class="py-2.5 px-5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-teal-500/20 cursor-pointer">
-                            Simpan Perubahan
+                            Save Changes
                         </button>
                     </div>
                 </form>
@@ -177,7 +177,7 @@
                 <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-300 flex items-center gap-2">
                         <span>🔐</span>
-                        <span>Integrasi Single Sign-On (Google SSO)</span>
+                        <span>Single Sign-On (Google SSO) Integration</span>
                     </h3>
                     <span class="text-[10px] font-mono text-slate-400">OAuth 2.0</span>
                 </div>
@@ -193,12 +193,12 @@
                             </svg>
                         </div>
                         <div>
-                            <div class="font-bold text-white">Akun Google Workspace / Gmail</div>
+                            <div class="font-bold text-white">Google Workspace / Gmail Account</div>
                             <div class="text-[11px] text-slate-400">
                                 @if($user->google_id)
-                                    ID Tertaut: <code class="text-teal-300 font-mono">{{ substr($user->google_id, 0, 8) }}••••••••</code>
+                                    Linked ID: <code class="text-teal-300 font-mono">{{ substr($user->google_id, 0, 8) }}••••••••</code>
                                 @else
-                                    Akun Google belum ditautkan ke profil ini.
+                                    Google account is not linked to this profile.
                                 @endif
                             </div>
                         </div>
@@ -208,11 +208,11 @@
                         @if($user->google_id)
                             <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
                                 <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                                Terhubung
+                                Connected
                             </span>
                         @else
                             <a href="{{ route('auth.google.redirect') }}" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 transition text-xs font-medium">
-                                <span>Hubungkan Google</span>
+                                <span>Connect Google</span>
                                 <span>→</span>
                             </a>
                         @endif
@@ -220,27 +220,27 @@
                 </div>
 
                 <div class="text-[10px] text-slate-400 leading-relaxed">
-                    Catatan Keamanan: Menautkan Google SSO memungkinkan autentikasi cepat tanpa memasukkan kata sandi lokal. Kredensial kata sandi lokal Anda tetap tersimpan aman dan tidak ditimpa.
+                    Security Notice: Linking Google SSO allows rapid authentication without entering a local password. Your local password remains intact and secure.
                 </div>
             </div>
 
-            <!-- Card 3: Password Management (Ubah Password / Buat Password Lokal) -->
+            <!-- Card 3: Password Management -->
             <div class="glass-panel p-5 rounded-2xl border border-slate-800 space-y-5 shadow-xl">
                 <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-teal-300 flex items-center gap-2">
                         <span>🔒</span>
-                        <span>{{ $user->hasSetPassword() ? 'Ubah Kata Sandi' : 'Buat Kata Sandi Lokal' }}</span>
+                        <span>{{ $user->hasSetPassword() ? 'Change Password' : 'Create Local Password' }}</span>
                     </h3>
                     <span class="text-[10px] font-mono {{ $user->hasSetPassword() ? 'text-teal-400 bg-teal-500/10 border border-teal-500/20' : 'text-amber-300 bg-amber-500/10 border border-amber-500/20' }} px-2 py-0.5 rounded">
-                        {{ $user->hasSetPassword() ? 'Kredensial Aktif' : 'Belum Ditetapkan' }}
+                        {{ $user->hasSetPassword() ? 'Active Credentials' : 'Not Configured' }}
                     </span>
                 </div>
 
                 <div class="text-[11px] text-slate-400 leading-relaxed">
                     @if($user->hasSetPassword())
-                        Untuk menjaga keamanan akun dinas Anda, gunakan kata sandi yang kuat dengan minimal 8 karakter. Anda harus memasukkan kata sandi saat ini untuk melakukan perubahan.
+                        To maintain operational security, choose a strong password with at least 8 characters. You must provide your current password to apply changes.
                     @else
-                        Akun Anda terdaftar melalui Google SSO dan belum memiliki kata sandi lokal mandiri. Tetapkan kata sandi lokal di bawah ini agar Anda dapat masuk melalui email &amp; kata sandi selain Google SSO.
+                        Your account was registered via Google SSO and does not yet have an independent local password. Set a local password below so you can sign in using email &amp; password as well.
                     @endif
                 </div>
 
@@ -251,12 +251,12 @@
                     @if($user->hasSetPassword())
                     <div>
                         <label for="current_password" class="block font-semibold text-slate-300 mb-1">
-                            Kata Sandi Saat Ini <span class="text-rose-400">*</span>
+                            Current Password <span class="text-rose-400">*</span>
                         </label>
                         <div class="relative">
                             <input type="password" id="current_password" name="current_password" required autocomplete="current-password"
                                 class="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-900 border @error('current_password') border-rose-500 focus:border-rose-400 focus:ring-rose-400 @else border-slate-700 focus:border-teal-400 focus:ring-teal-400 @enderror text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 transition text-xs font-mono">
-                            <button type="button" onclick="togglePasswordVisibility('current_password', this)" aria-label="Tampilkan kata sandi"
+                            <button type="button" onclick="togglePasswordVisibility('current_password', this)" aria-label="Toggle password visibility"
                                 class="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-teal-300 transition cursor-pointer">
                                 <svg class="icon-eye w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -278,12 +278,12 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label for="password" class="block font-semibold text-slate-300 mb-1">
-                                Kata Sandi Baru <span class="text-rose-400">*</span>
+                                New Password <span class="text-rose-400">*</span>
                             </label>
                             <div class="relative">
                                 <input type="password" id="password" name="password" required autocomplete="new-password" minlength="8"
                                     class="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-900 border @error('password') border-rose-500 focus:border-rose-400 focus:ring-rose-400 @else border-slate-700 focus:border-teal-400 focus:ring-teal-400 @enderror text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 transition text-xs font-mono">
-                                <button type="button" onclick="togglePasswordVisibility('password', this)" aria-label="Tampilkan kata sandi"
+                                <button type="button" onclick="togglePasswordVisibility('password', this)" aria-label="Toggle password visibility"
                                     class="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-teal-300 transition cursor-pointer">
                                     <svg class="icon-eye w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -299,18 +299,18 @@
                                     <span>⚠️</span> {{ $message }}
                                 </p>
                             @else
-                                <p class="text-[10px] text-slate-400 mt-1">Minimal 8 karakter.</p>
+                                <p class="text-[10px] text-slate-400 mt-1">Minimum 8 characters.</p>
                             @enderror
                         </div>
 
                         <div>
                             <label for="password_confirmation" class="block font-semibold text-slate-300 mb-1">
-                                Konfirmasi Kata Sandi Baru <span class="text-rose-400">*</span>
+                                Confirm New Password <span class="text-rose-400">*</span>
                             </label>
                             <div class="relative">
                                 <input type="password" id="password_confirmation" name="password_confirmation" required autocomplete="new-password" minlength="8"
                                     class="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-900 border @error('password_confirmation') border-rose-500 focus:border-rose-400 focus:ring-rose-400 @else border-slate-700 focus:border-teal-400 focus:ring-teal-400 @enderror text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 transition text-xs font-mono">
-                                <button type="button" onclick="togglePasswordVisibility('password_confirmation', this)" aria-label="Tampilkan kata sandi"
+                                <button type="button" onclick="togglePasswordVisibility('password_confirmation', this)" aria-label="Toggle password visibility"
                                     class="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-teal-300 transition cursor-pointer">
                                     <svg class="icon-eye w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -326,14 +326,14 @@
                                     <span>⚠️</span> {{ $message }}
                                 </p>
                             @else
-                                <p class="text-[10px] text-slate-400 mt-1">Ulangi kata sandi baru secara identik.</p>
+                                <p class="text-[10px] text-slate-400 mt-1">Re-enter your new password identically.</p>
                             @enderror
                         </div>
                     </div>
 
                     <div class="pt-2 flex justify-end">
                         <button type="submit" class="py-2.5 px-5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-teal-500/20 cursor-pointer">
-                            {{ $user->hasSetPassword() ? 'Simpan Kata Sandi' : 'Tetapkan Kata Sandi Lokal' }}
+                            {{ $user->hasSetPassword() ? 'Save Password' : 'Create Local Password' }}
                         </button>
                     </div>
                 </form>
@@ -361,7 +361,7 @@ function handleAvatarSelected(event) {
 
     // Client-side validation: max 2 MB
     if (file.size > 2 * 1024 * 1024) {
-        alert('Ukuran berkas melebihi 2 MB. Silakan pilih foto dengan ukuran lebih kecil.');
+        alert('File size exceeds 2 MB. Please select a smaller photo.');
         input.value = '';
         btnSave.disabled = true;
         return;
@@ -370,7 +370,7 @@ function handleAvatarSelected(event) {
     // Client-side MIME validation
     const allowed = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowed.includes(file.type)) {
-        alert('Format file tidak didukung. Gunakan format JPEG, PNG, atau WebP.');
+        alert('Unsupported file format. Please select a JPEG, PNG, or WebP image.');
         input.value = '';
         btnSave.disabled = true;
         return;
@@ -382,7 +382,7 @@ function handleAvatarSelected(event) {
         preview.src = e.target.result;
         btnSave.disabled = false;
 
-        // Also sync files with profileUpdateForm hidden input if user clicks 'Simpan Perubahan'
+        // Also sync files with profileUpdateForm hidden input if user clicks 'Save Changes'
         const profileInput = document.getElementById('profileFormAvatarInput');
         if (profileInput && typeof DataTransfer !== 'undefined') {
             const dt = new DataTransfer();
@@ -405,11 +405,11 @@ function togglePasswordVisibility(inputId, btn) {
         if (isPassword) {
             iconEye.classList.add('hidden');
             iconEyeSlash.classList.remove('hidden');
-            btn.setAttribute('aria-label', 'Sembunyikan kata sandi');
+            btn.setAttribute('aria-label', 'Hide password');
         } else {
             iconEye.classList.remove('hidden');
             iconEyeSlash.classList.add('hidden');
-            btn.setAttribute('aria-label', 'Tampilkan kata sandi');
+            btn.setAttribute('aria-label', 'Show password');
         }
     }
 }

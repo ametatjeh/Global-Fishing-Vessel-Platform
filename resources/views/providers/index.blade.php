@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header_title', 'Data Sources & Providers — Konfigurasi, Health Check & Lisensi')
+@section('header_title', 'Data Sources & Providers — Configuration, Health Check & Licensing')
 
 @section('content')
 <div class="space-y-6">
@@ -14,11 +14,11 @@
                 </span>
             </div>
             <p class="text-xs text-slate-400 mt-1">
-                Matriks integrasi provider eksternal: Global Fishing Watch, Copernicus Sentinel-1, AIS Live Telemetry, FAO, dan Marine Regions EEZ.
+                External provider integration matrix: Global Fishing Watch, Copernicus Sentinel-1 SAR, AIS Live Telemetry, FAO, and Marine Regions EEZ.
             </p>
         </div>
         <div class="text-right text-[11px] text-slate-400 font-mono">
-            <div>Waktu Pembaruan Data:</div>
+            <div>Data Last Updated:</div>
             <div class="text-slate-200 font-bold">{{ now()->format('Y-m-d H:i') }} UTC</div>
         </div>
     </div>
@@ -31,7 +31,7 @@
                 <div>
                     <h3 class="font-bold uppercase tracking-wider text-teal-300">Global Fishing Watch Data Attribution</h3>
                     <div class="text-[11px] text-slate-400">
-                        Sumber Data: <a href="https://globalfishingwatch.org" target="_blank" rel="noopener noreferrer" class="text-teal-400 hover:underline font-semibold">Global Fishing Watch (GFW)</a>
+                        Data Source: <a href="https://globalfishingwatch.org" target="_blank" rel="noopener noreferrer" class="text-teal-400 hover:underline font-semibold">Global Fishing Watch (GFW)</a>
                     </div>
                 </div>
             </div>
@@ -45,14 +45,14 @@
         </blockquote>
 
         <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300/90 text-[11px] leading-relaxed">
-            <strong>Pemberitahuan Estimasi Analisis Maritim:</strong> Aktivitas kapal yang ditampilkan merupakan estimasi atau hasil analisis berdasarkan sumber data, bukan bukti final pelanggaran. Seluruh fitur berbasis data GFW disediakan secara gratis tanpa paket langganan komersial, paywall, atau monetisasi data.
+            <strong>Notice: Displayed vessel activity represents estimates or analytical findings based on available data sources, not conclusive proof of infractions.</strong> All features based on GFW data are provided free of charge without commercial subscriptions, paywalls, or data monetization.
         </div>
     </div>
 
     <!-- Providers Table -->
     <div class="glass-panel rounded-2xl border border-slate-800 overflow-hidden shadow-xl p-5 space-y-4">
         <h3 class="text-xs font-bold uppercase tracking-wider text-teal-300 border-b border-slate-800 pb-2">
-            Status Operasional & Hak Penggunaan Provider
+            Operational Status &amp; Provider Licensing Rights
         </h3>
 
         <div class="space-y-4 text-xs">
@@ -80,7 +80,7 @@
                                 <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span> Authenticated
                             </span>
                         @elseif($provider->health_status === 'research_access_required')
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40" title="Token valid di gateway GFW, namun endpoint /events memerlukan izin Research Access">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40" title="Valid token on GFW gateway, but /events endpoint requires Research Access permissions">
                                 <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Access denied — Research Access required
                             </span>
                         @elseif($provider->health_status === 'unauthenticated')
@@ -127,7 +127,7 @@
 
                         <form action="{{ route('providers.health', $provider->slug) }}" method="POST">
                             @csrf
-                            <button type="submit" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700 font-semibold transition" title="Jalankan Health Check">
+                            <button type="submit" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700 font-semibold transition" title="Run Health Check">
                                 Test Health
                             </button>
                         </form>
@@ -136,30 +136,30 @@
 
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px]">
                     <div>
-                        <span class="text-slate-400">Lisensi Data:</span>
+                        <span class="text-slate-400">Data License:</span>
                         <div class="font-semibold text-slate-200">{{ $provider->license_type ?? 'Proprietary' }}</div>
                     </div>
                     <div>
-                        <span class="text-slate-400">Hak Komersial:</span>
+                        <span class="text-slate-400">Commercial Rights:</span>
                         <div>
                             @if($provider->commercial_use_allowed)
-                                <span class="text-teal-400 font-bold">Diizinkan</span>
+                                <span class="text-teal-400 font-bold">Permitted</span>
                             @else
-                                <span class="text-rose-400 font-bold">Non-Komersial Saja</span>
+                                <span class="text-rose-400 font-bold">Non-Commercial Only</span>
                             @endif
                         </div>
                     </div>
                     <div>
-                        <span class="text-slate-400">Hak Retensi & Redistribusi:</span>
+                        <span class="text-slate-400">Retention &amp; Redistribution:</span>
                         <div class="text-slate-300">
-                            {{ $provider->retention_allowed ? 'Retensi: Ya' : 'Retensi: Tidak' }} &bull;
-                            {{ $provider->redistribution_allowed ? 'Redistribusi: Ya' : 'Redistribusi: Terbatas' }}
+                            {{ $provider->retention_allowed ? 'Retention: Yes' : 'Retention: No' }} &bull;
+                            {{ $provider->redistribution_allowed ? 'Redistribution: Yes' : 'Redistribution: Restricted' }}
                         </div>
                     </div>
                     <div>
-                        <span class="text-slate-400">Sinkronisasi Terakhir:</span>
+                        <span class="text-slate-400">Last Synchronization:</span>
                         <div class="font-mono text-slate-300">
-                            {{ $provider->last_sync_at ? $provider->last_sync_at->diffForHumans() : 'Belum pernah' }}
+                            {{ $provider->last_sync_at ? $provider->last_sync_at->diffForHumans() : 'Never' }}
                         </div>
                     </div>
                 </div>
@@ -170,19 +170,19 @@
                 @endphp
                 <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px] font-mono">
                     <div>
-                        <span class="text-slate-400">Pesan Diterima:</span>
+                        <span class="text-slate-400">Messages Received:</span>
                         <div class="font-bold text-teal-300">{{ number_format($aisMeta['session_messages_received'] ?? $aisMeta['batch_messages_received'] ?? 0) }}</div>
                     </div>
                     <div>
-                        <span class="text-slate-400">Posisi & Update Baru:</span>
+                        <span class="text-slate-400">New Positions &amp; Updates:</span>
                         <div class="font-bold text-sky-300">{{ number_format($aisMeta['session_inserted'] ?? $aisMeta['batch_inserted'] ?? 0) }}</div>
                     </div>
                     <div>
-                        <span class="text-slate-400">Duplikat / Dilewati:</span>
+                        <span class="text-slate-400">Duplicates / Skipped:</span>
                         <div class="font-bold text-slate-300">{{ number_format($aisMeta['session_skipped'] ?? $aisMeta['batch_skipped'] ?? 0) }}</div>
                     </div>
                     <div>
-                        <span class="text-slate-400">Total Posisi di DB:</span>
+                        <span class="text-slate-400">Total Positions in DB:</span>
                         <div class="font-bold text-amber-300">{{ number_format($aisMeta['total_positions_in_db'] ?? \App\Models\VesselPosition::count()) }}</div>
                     </div>
                 </div>
@@ -190,7 +190,7 @@
 
                 @if($provider->last_error_message)
                 <div class="p-2.5 rounded-lg {{ $provider->health_status === 'research_access_required' ? 'bg-amber-950/40 border border-amber-500/30 text-amber-300' : 'bg-rose-950/40 border border-rose-500/30 text-rose-300' }} text-[11px]">
-                    <strong>Catatan Diagnostik:</strong> {{ $provider->last_error_message }}
+                    <strong>Diagnostic Note:</strong> {{ $provider->last_error_message }}
                 </div>
                 @endif
 
@@ -200,25 +200,25 @@
                         <svg class="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                         </svg>
-                        <span>Panduan Akses GFW: Permohonan Research Access Diperlukan</span>
+                        <span>GFW Access Notice: Research Access Required</span>
                     </div>
                     <p class="text-[11px] text-amber-300/90 leading-relaxed">
-                        Token API GFW Anda valid dan terotentikasi pada gateway publik (katalog <code>/datasets</code> berhasil diakses), namun endpoint <code>/events</code> (deteksi encounter & loitering kapal perikanan) memerlukan hak akses tingkat <strong>Research Access</strong> dari Global Fishing Watch.
+                        Your GFW API token is valid and authenticated against the public gateway (the <code>/datasets</code> catalog was successfully queried), but the <code>/events</code> endpoint (vessel encounter &amp; loitering detection) requires <strong>Research Access</strong> permissions from Global Fishing Watch.
                     </p>
                     <div class="flex flex-wrap items-center gap-3 pt-1">
                         <a href="https://globalfishingwatch.org/our-apis/tokens" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-semibold text-[11px] transition shadow">
-                            <span>Ajukan Izin Research Access di GFW Portal</span>
+                            <span>Apply for Research Access on GFW Portal</span>
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
                         </a>
                         <span class="text-[10px] text-amber-400/80">
-                            * Modul AIS Live Stream, Garis Batas ZEE Marine Regions, FAO Major Areas, dan Citra SAR Copernicus tetap beroperasi normal secara independen.
+                            * Live AIS telemetry stream, Marine Regions EEZ boundaries, FAO Major Fishing Areas, and Copernicus SAR radar modules continue to operate independently.
                         </span>
                     </div>
                 </div>
                 @endif
             </div>
             @empty
-            <div class="text-center py-6 text-slate-500">Tidak ada provider terdaftar.</div>
+            <div class="text-center py-6 text-slate-500">No registered data providers found.</div>
             @endforelse
         </div>
     </div>
@@ -226,7 +226,7 @@
     <!-- Ingestion Runs Audit History -->
     <div class="glass-panel rounded-2xl border border-slate-800 overflow-hidden shadow-xl p-5 space-y-4">
         <h3 class="text-xs font-bold uppercase tracking-wider text-white border-b border-slate-800 pb-2">
-            Riwayat Eksekusi Sinkronisasi & Ingestion Runs
+            Synchronization History &amp; Ingestion Runs
         </h3>
 
         <div class="overflow-x-auto text-xs">
@@ -234,11 +234,11 @@
                 <thead class="text-slate-400 uppercase text-[10px] border-b border-slate-800">
                     <tr>
                         <th class="py-2.5">Provider</th>
-                        <th class="py-2.5">Tipe Pekerjaan</th>
+                        <th class="py-2.5">Job Type</th>
                         <th class="py-2.5">Status</th>
                         <th class="py-2.5">Fetched / Inserted / Skipped</th>
-                        <th class="py-2.5">Mulai Ingestion</th>
-                        <th class="py-2.5">Selesai</th>
+                        <th class="py-2.5">Started At</th>
+                        <th class="py-2.5">Completed At</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-800/60">
@@ -260,7 +260,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="6" class="py-6 text-center text-slate-500">Belum ada riwayat proses sinkronisasi yang dijalankan.</td>
+                        <td colspan="6" class="py-6 text-center text-slate-500">No provider synchronization runs recorded yet.</td>
                     </tr>
                     @endforelse
                 </tbody>

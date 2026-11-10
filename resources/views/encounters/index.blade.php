@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header_title', 'Vessel Encounters — Deteksi Kedekatan Pasangan Kapal')
+@section('header_title', 'Vessel Encounters — Pair Proximity Detection')
 
 @section('content')
 <div class="space-y-6">
@@ -14,13 +14,13 @@
                 </span>
             </div>
             <p class="text-xs text-slate-400 mt-1">
-                Deteksi kedekatan temporal-spasial antara pasangan kapal (indikasi rendezvous penangkapan, support, bunker, atau carrier).
+                Temporal-spatial proximity detection between vessel pairs (indicating transshipment rendezvous, support, bunkering, or carrier interactions).
             </p>
         </div>
 
         <div class="flex items-center gap-2">
             <a href="{{ route('map.index') }}" class="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs transition shadow-lg shadow-teal-500/20">
-                Peta Layer Encounter
+                Encounter Map Layer
             </a>
         </div>
     </div>
@@ -29,14 +29,14 @@
     <div class="glass-panel p-4 rounded-xl border border-slate-800 text-xs text-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div class="space-y-0.5">
             <div class="text-[11px] text-slate-400">
-                Sumber Data: <a href="https://globalfishingwatch.org" target="_blank" rel="noopener noreferrer" class="text-teal-400 hover:underline font-semibold">Global Fishing Watch (GFW)</a> &amp; Observasi Native AIS
+                Data Sources: <a href="https://globalfishingwatch.org" target="_blank" rel="noopener noreferrer" class="text-teal-400 hover:underline font-semibold">Global Fishing Watch (GFW)</a> &amp; Native AIS Telemetry
             </div>
             <div class="text-[11px] text-amber-300/90 italic">
-                Pemberitahuan: Aktivitas kapal yang ditampilkan merupakan estimasi atau hasil analisis berdasarkan sumber data, bukan bukti final pelanggaran.
+                Notice: Displayed vessel activity represents estimates or analytical findings based on available data sources, not conclusive proof of infractions.
             </div>
         </div>
         <div class="text-[10px] text-slate-500 font-mono shrink-0">
-            Pembaruan: {{ now()->format('Y-m-d H:i') }} UTC
+            Last Updated: {{ now()->format('Y-m-d H:i') }} UTC
         </div>
     </div>
 
@@ -70,14 +70,14 @@
             <table class="w-full text-left min-w-[800px]">
                 <thead class="bg-slate-900/90 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
                     <tr>
-                        <th class="py-3 px-4">Kode Kejadian</th>
-                        <th class="py-3 px-4">Pasangan Kapal</th>
-                        <th class="py-3 px-4">Kategori Encounter</th>
-                        <th class="py-3 px-4">Metode Deteksi</th>
-                        <th class="py-3 px-4">Jarak Minimum</th>
-                        <th class="py-3 px-4">Durasi</th>
-                        <th class="py-3 px-4">Status Review</th>
-                        <th class="py-3 px-4 text-right">Aksi</th>
+                        <th class="py-3 px-4">Encounter Code</th>
+                        <th class="py-3 px-4">Vessel Pair</th>
+                        <th class="py-3 px-4">Encounter Category</th>
+                        <th class="py-3 px-4">Detection Method</th>
+                        <th class="py-3 px-4">Minimum Distance</th>
+                        <th class="py-3 px-4">Duration</th>
+                        <th class="py-3 px-4">Review Status</th>
+                        <th class="py-3 px-4 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-800/60">
@@ -88,8 +88,8 @@
                             <div class="text-[10px] text-slate-500 font-mono">{{ $enc->start_time->format('Y-m-d H:i') }} UTC</div>
                         </td>
                         <td class="py-3 px-4">
-                            <div class="font-semibold text-white">{{ $enc->vessel1?->name ?? 'Kapal 1' }}</div>
-                            <div class="font-semibold text-slate-300 mt-0.5">&bull; {{ $enc->vessel2?->name ?? 'Kapal 2' }}</div>
+                            <div class="font-semibold text-white">{{ $enc->vessel1?->name ?? 'Vessel 1' }}</div>
+                            <div class="font-semibold text-slate-300 mt-0.5">&bull; {{ $enc->vessel2?->name ?? 'Vessel 2' }}</div>
                         </td>
                         <td class="py-3 px-4">
                             <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-slate-800 border border-slate-700 text-slate-300">
@@ -97,13 +97,13 @@
                             </span>
                         </td>
                         <td class="py-3 px-4 text-slate-400 font-mono text-[11px]">
-                            {{ $enc->detection_method === 'native_ais' ? 'Algoritma Native' : 'GFW Events v3' }}
+                            {{ $enc->detection_method === 'native_ais' ? 'Native Algorithm' : 'GFW Events v3' }}
                         </td>
                         <td class="py-3 px-4 font-mono text-amber-300">
                             {{ $enc->min_distance_meters }} m
                         </td>
                         <td class="py-3 px-4 font-mono text-slate-300">
-                            {{ $enc->duration_minutes }} menit
+                            {{ $enc->duration_minutes }} mins
                         </td>
                         <td class="py-3 px-4">
                             <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono
@@ -113,7 +113,7 @@
                         </td>
                         <td class="py-3 px-4 text-right">
                             <a href="{{ route('encounters.show', $enc->id) }}" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700 font-semibold transition">
-                                Berkas
+                                Dossier
                             </a>
                         </td>
                     </tr>
@@ -121,7 +121,7 @@
                     <tr>
                         <td colspan="8" class="py-12 text-center text-slate-500">
                             <span class="text-4xl block mb-2">🤝</span>
-                            Belum ada kejadian encounter yang terdeteksi dari data AIS saat ini.
+                            No vessel encounters detected from current AIS telemetry.
                         </td>
                     </tr>
                     @endforelse

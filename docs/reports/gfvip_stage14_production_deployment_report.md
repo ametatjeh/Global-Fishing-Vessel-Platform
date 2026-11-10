@@ -1,6 +1,6 @@
 # GFVIP — TAHAP 14: PRODUCTION DEPLOYMENT READINESS, OBSERVABILITY & SECURITY HARDENING REPORT
 
-**Platform:** Global Fishing Vessel Intelligence Platform (GFVIP)  
+**Platform:** Global Fishing Vessel Tracking (GFVT)  
 **Location:** `C:\XPROJECT\global-fishing-vessel-intelligence`  
 **Stack:** Laravel 13.37.0, PHP 8.4.16, PostgreSQL 18.6, PostGIS 3.6.2, MapLibre GL JS, Windows Task Scheduler  
 **Audit & Verification Date:** 2026-10-22  

@@ -1,7 +1,7 @@
 # LAPORAN TEKNIS GFVIP TAHAP 12
 # OPERATIONAL VALIDATION, SCIENTIFIC ASSURANCE & PRODUCTION READINESS
 
-**Platform:** Global Fishing Vessel Intelligence Platform (GFVIP)  
+**Platform:** Global Fishing Vessel Tracking (GFVT)  
 **Lokasi Proyek:** `C:\XPROJECT\global-fishing-vessel-intelligence`  
 **Waktu Audit & Pengujian:** 20 Oktober 2026  
 **Status Evaluasi:** **PASS WITH LIMITATIONS**

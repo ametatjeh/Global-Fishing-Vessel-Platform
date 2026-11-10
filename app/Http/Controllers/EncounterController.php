@@ -67,6 +67,6 @@ class EncounterController extends Controller
         ]);
 
         return redirect()->route('encounters.show', $id)
-            ->with('status', "Status encounter berhasil diperbarui menjadi: {$encounter->status}");
+            ->with('status', "Vessel encounter status updated successfully to: {$encounter->status}");
     }
 }

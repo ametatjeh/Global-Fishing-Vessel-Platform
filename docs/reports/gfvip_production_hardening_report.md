@@ -1,7 +1,7 @@
 # LAPORAN TEKNIS GFVIP
 # PRODUCTION HARDENING & BACKUP AUTOMATION REPORT
 
-**Platform:** Global Fishing Vessel Intelligence Platform (GFVIP)  
+**Platform:** Global Fishing Vessel Tracking (GFVT)  
 **Direktori Proyek:** `C:\XPROJECT\global-fishing-vessel-intelligence`  
 **Waktu Eksekusi:** 20 Oktober 2026  
 **Status Evaluasi:** **PASS WITH LIMITATIONS**

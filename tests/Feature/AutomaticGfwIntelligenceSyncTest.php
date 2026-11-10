@@ -144,7 +144,7 @@ class AutomaticGfwIntelligenceSyncTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('Not Found in GFW');
-        $response->assertSee('Kapal Tidak Ditemukan dalam Katalog Publik Global Fishing Watch');
+        $response->assertSee('Vessel Not Found in Global Fishing Watch Public Catalog');
         $response->assertSee('public-global-vessel-identity:latest');
         $response->assertSee('9201013');
         $response->assertSee('227001001');
@@ -200,17 +200,17 @@ class AutomaticGfwIntelligenceSyncTest extends TestCase
         $response->assertSee('gfw-vessel-abc123');
 
         // All 7 Tabs
-        $response->assertSee('1. Identitas & Registrasi', false);
-        $response->assertSee('2. Aktivitas Penangkapan');
-        $response->assertSee('3. Encounter & Transshipment', false);
-        $response->assertSee('4. Loitering & Pelabuhan', false);
+        $response->assertSee('1. Identity & Registration', false);
+        $response->assertSee('2. Fishing Activity');
+        $response->assertSee('3. Encounters & Transshipment', false);
+        $response->assertSee('4. Loitering & Port Visits', false);
         $response->assertSee('5. AIS Gaps');
-        $response->assertSee('6. Otorisasi & RFMO', false);
-        $response->assertSee('7. Sumber Data & Disclaimer', false);
+        $response->assertSee('6. Authorizations & RFMO', false);
+        $response->assertSee('7. Data Sources & Disclaimer', false);
 
         // Disclaimers
         $response->assertSee('non-commercial research, educational, and public-interest purposes');
-        $response->assertSee('PEMBERITAHUAN HUKUM & ANALISIS', false);
+        $response->assertSee('LEGAL & MARITIME ANALYSIS NOTICE', false);
     }
 
     public function test_gfw_token_never_leaks_in_view_or_error_handling(): void

@@ -65,6 +65,6 @@ class SystemController extends Controller
         );
 
         return redirect()->route('settings.index')
-            ->with('status', "Status Offsite Backup Activation Gate berhasil diperbarui menjadi [{$validated['status']}]. Seluruh perubahan dicatat pada Audit Log.");
+            ->with('status', "Offsite Backup Activation Gate status updated successfully to [{$validated['status']}]. Changes recorded in Audit Trail.");
     }
 }

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header_title', 'Overview Dashboard — Pemantauan Maritim Global')
+@section('header_title', 'Overview Dashboard — Global Fishing Vessel Tracking')
 
 @section('content')
 <div class="space-y-6">
@@ -14,17 +14,14 @@
                     <span>Global Situation Room</span>
                 </div>
                 <h2 class="text-xl sm:text-2xl font-black text-white tracking-wide">
-                    Global Fishing Vessel Monitoring Platform
+                    Global Fishing Vessel Tracking
                 </h2>
-                <p class="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl leading-relaxed">
-                    Sistem pemantauan armada perikanan global dengan tiga pilar operasional: <strong>Live Vessel Monitoring</strong>, <strong>Maritime Compliance Monitoring</strong>, dan <strong>Unusual Vessel Activity</strong> berbasis fusi telemetri AIS, citra radar satelit SAR, serta batas yurisdiksi FAO dan EEZ.
-                </p>
             </div>
 
             <div class="flex items-center gap-3 shrink-0">
                 <a href="{{ route('map.index') }}" class="px-4 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-teal-500/20 flex items-center gap-2">
                     <span>🗺️</span>
-                    <span>Buka Peta Global</span>
+                    <span>Open Global Map</span>
                 </a>
             </div>
         </div>
@@ -35,21 +32,21 @@
         <!-- Metric 1: Total Vessels -->
         <div class="glass-panel p-4 rounded-xl border border-slate-800 space-y-2">
             <div class="flex items-center justify-between text-slate-400 text-xs">
-                <span class="font-semibold uppercase tracking-wider text-[10px]">Total Terdaftar</span>
+                <span class="font-semibold uppercase tracking-wider text-[10px]">Total Registered</span>
                 <span>🚢</span>
             </div>
             <div class="text-2xl font-black text-white font-mono">{{ number_format($totalVessels) }}</div>
-            <div class="text-[10px] text-slate-400">Armada pada registry sistem</div>
+            <div class="text-[10px] text-slate-400">Fleet in system registry</div>
         </div>
 
         <!-- Metric 2: Active Positions (24h) -->
         <div class="glass-panel p-4 rounded-xl border border-slate-800 space-y-2">
             <div class="flex items-center justify-between text-slate-400 text-xs">
-                <span class="font-semibold uppercase tracking-wider text-[10px]">Posisi Aktif 24 Jam</span>
+                <span class="font-semibold uppercase tracking-wider text-[10px]">Active Positions (24h)</span>
                 <span>📡</span>
             </div>
             <div class="text-2xl font-black text-teal-300 font-mono">{{ number_format($activeVesselsCount) }}</div>
-            <div class="text-[10px] text-slate-400">Kapal dengan broadcast terkini</div>
+            <div class="text-[10px] text-slate-400">Vessels with recent broadcast</div>
         </div>
 
         <!-- Metric 3: Encounters Needing Review -->
@@ -59,17 +56,17 @@
                 <span>🤝</span>
             </div>
             <div class="text-2xl font-black text-amber-300 font-mono">{{ number_format($encountersNeedingReview) }}</div>
-            <div class="text-[10px] text-slate-400">Perlu telaah analis maritim</div>
+            <div class="text-[10px] text-slate-400">Pending maritime analyst review</div>
         </div>
 
         <!-- Metric 4: Dark Vessel Candidates -->
         <div class="glass-panel p-4 rounded-xl border border-slate-800 space-y-2">
             <div class="flex items-center justify-between text-slate-400 text-xs">
-                <span class="font-semibold uppercase tracking-wider text-[10px]">Unusual Vessel Activity</span>
+                <span class="font-semibold uppercase tracking-wider text-[10px]">Dark Vessel Candidates</span>
                 <span>🛰️</span>
             </div>
             <div class="text-2xl font-black text-rose-400 font-mono">{{ number_format($darkVesselCandidates) }}</div>
-            <div class="text-[10px] text-slate-400">Deteksi SAR tanpa AIS aktif</div>
+            <div class="text-[10px] text-slate-400">SAR detection without AIS</div>
         </div>
 
         <!-- Metric 5: Open Compliance Alerts -->
@@ -79,17 +76,17 @@
                 <span>⚖️</span>
             </div>
             <div class="text-2xl font-black text-orange-400 font-mono">{{ number_format($openComplianceAlerts) }}</div>
-            <div class="text-[10px] text-slate-400">Indikasi pelanggaran terbuka</div>
+            <div class="text-[10px] text-slate-400">Active non-compliance indicators</div>
         </div>
 
         <!-- Metric 6: Open Investigations -->
         <div class="glass-panel p-4 rounded-xl border border-slate-800 space-y-2">
             <div class="flex items-center justify-between text-slate-400 text-xs">
-                <span class="font-semibold uppercase tracking-wider text-[10px]">Berkas Investigasi</span>
+                <span class="font-semibold uppercase tracking-wider text-[10px]">Investigations Dossier</span>
                 <span>📁</span>
             </div>
             <div class="text-2xl font-black text-indigo-300 font-mono">{{ number_format($openInvestigations) }}</div>
-            <div class="text-[10px] text-slate-400">Dossier dalam penanganan</div>
+            <div class="text-[10px] text-slate-400">Open active dossiers</div>
         </div>
     </div>
 
@@ -101,28 +98,28 @@
             <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
                     <span>⏱️</span>
-                    <span>Integritas & Kesegaran Data</span>
+                    <span>Data Freshness &amp; Integrity</span>
                 </h3>
                 <span class="text-[10px] text-slate-400 font-mono">Real-time Tracker</span>
             </div>
 
             <div class="space-y-3 text-xs">
                 <div class="flex justify-between items-center p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
-                    <span class="text-slate-400">Telemetri Terakhir Diterima:</span>
+                    <span class="text-slate-400">Latest Telemetry Received:</span>
                     <span class="text-teal-300 font-mono font-semibold">{{ $latestTelemetryAge }}</span>
                 </div>
 
                 <div class="flex justify-between items-center p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
-                    <span class="text-slate-400">Kebijakan Fusi Data:</span>
+                    <span class="text-slate-400">Fusion Policy:</span>
                     <span class="text-slate-200 font-medium">Multi-source Evidence</span>
                 </div>
 
                 <div class="p-3 rounded-lg bg-slate-900/90 border border-slate-800 text-[11px] text-slate-400 space-y-1.5 leading-relaxed">
                     <div class="font-semibold text-slate-300 flex items-center gap-1">
-                        <span>🛡️</span> Prinsip Anti-Data Dummy
+                        <span>🛡️</span> Zero Synthetic Data Principle
                     </div>
                     <p>
-                        Sistem tidak menyimulasikan pergerakan kapal palsu atau angka metrik artifisial. Jika sumber data eksternal belum dikonfigurasi, sistem menampilkan status transparan <code>Not Configured</code> atau nilai 0.
+                        The platform operates without simulating synthetic vessel movements or fictional metrics. Unconfigured external sources transparently show <code>Not Configured</code> or zero values.
                     </p>
                 </div>
             </div>
@@ -133,10 +130,10 @@
             <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
                     <span>🔌</span>
-                    <span>Status Penyedia Data & Lisensi</span>
+                    <span>Data Sources &amp; License Status</span>
                 </h3>
                 <a href="{{ route('providers.index') }}" class="text-[11px] text-teal-400 hover:text-teal-300 font-semibold underline">
-                    Kelola Provider &rarr;
+                    Manage Providers &rarr;
                 </a>
             </div>
 
@@ -144,10 +141,10 @@
                 <table class="w-full text-left min-w-[540px]">
                     <thead>
                         <tr class="text-[10px] text-slate-400 uppercase tracking-wider border-b border-slate-800">
-                            <th class="pb-2">Penyedia Data</th>
-                            <th class="pb-2">Tipe Ingest</th>
-                            <th class="pb-2">Status Operasional</th>
-                            <th class="pb-2">Sinkronisasi</th>
+                            <th class="pb-2">Provider</th>
+                            <th class="pb-2">Ingestion Type</th>
+                            <th class="pb-2">Operational Status</th>
+                            <th class="pb-2">Synchronization</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800/60">
@@ -183,12 +180,12 @@
                                 @endif
                             </td>
                             <td class="py-2.5 text-[11px] text-slate-400 font-mono">
-                                {{ $provider->last_sync_at ? $provider->last_sync_at->diffForHumans() : 'Belum pernah' }}
+                                {{ $provider->last_sync_at ? $provider->last_sync_at->diffForHumans() : 'Never' }}
                             </td>
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="4" class="py-4 text-center text-slate-500">Tidak ada provider terdaftar.</td>
+                            <td colspan="4" class="py-4 text-center text-slate-500">No registered data providers found.</td>
                         </tr>
                         @endforelse
                     </tbody>
@@ -205,10 +202,10 @@
             <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-2">
                     <span>🤝</span>
-                    <span>Proximity Encounters Terkini</span>
+                    <span>Recent Proximity Encounters</span>
                 </h3>
                 <a href="{{ route('encounters.index') }}" class="text-[11px] text-cyan-400 hover:text-cyan-300 font-semibold underline">
-                    Semua Encounters &rarr;
+                    All Encounters &rarr;
                 </a>
             </div>
 
@@ -223,10 +220,10 @@
                             </span>
                         </div>
                         <div class="text-[11px] text-slate-400 mt-1">
-                            {{ $enc->vessel1?->name ?? 'Kapal A' }} &bull; {{ $enc->vessel2?->name ?? 'Kapal B' }}
+                            {{ $enc->vessel1?->name ?? 'Vessel A' }} &bull; {{ $enc->vessel2?->name ?? 'Vessel B' }}
                         </div>
                         <div class="text-[10px] text-slate-500 mt-0.5 font-mono">
-                            Jarak: {{ $enc->min_distance_meters }}m &bull; Durasi: {{ $enc->duration_minutes }}m &bull; {{ $enc->start_time->diffForHumans() }}
+                            Distance: {{ $enc->min_distance_meters }}m &bull; Duration: {{ $enc->duration_minutes }}m &bull; {{ $enc->start_time->diffForHumans() }}
                         </div>
                     </div>
                     <div class="text-right shrink-0">
@@ -235,14 +232,14 @@
                             {{ $enc->status }}
                         </span>
                         <div class="mt-1">
-                            <a href="{{ route('encounters.show', $enc->id) }}" class="text-[11px] text-cyan-400 hover:underline">Detail</a>
+                            <a href="{{ route('encounters.show', $enc->id) }}" class="text-[11px] text-cyan-400 hover:underline">Details</a>
                         </div>
                     </div>
                 </div>
                 @empty
                 <div class="py-8 text-center text-slate-500">
                     <span class="text-3xl block mb-1">🌊</span>
-                    Belum ada rekaman encounter yang terdeteksi dari data AIS saat ini.
+                    No encounter events currently detected from AIS telemetry.
                 </div>
                 @endforelse
             </div>
@@ -253,10 +250,10 @@
             <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-rose-400 flex items-center gap-2">
                     <span>⚖️</span>
-                    <span>Compliance & Rule Alerts</span>
+                    <span>Compliance &amp; Rule Alerts</span>
                 </h3>
                 <a href="{{ route('compliance.index') }}" class="text-[11px] text-cyan-400 hover:text-cyan-300 font-semibold underline">
-                    Semua Alerts &rarr;
+                    All Alerts &rarr;
                 </a>
             </div>
 
@@ -272,7 +269,7 @@
                             </span>
                         </div>
                         <div class="text-[11px] text-slate-300 mt-1">
-                            {{ $alert->rule?->rule_name ?? 'Rule Violation' }} &bull; <strong class="text-white">{{ $alert->vessel?->name ?? 'Kapal' }}</strong>
+                            {{ $alert->rule?->rule_name ?? 'Rule Violation' }} &bull; <strong class="text-white">{{ $alert->vessel?->name ?? 'Vessel' }}</strong>
                         </div>
                         <div class="text-[10px] text-slate-400 mt-0.5">
                             {{ $alert->evidence_summary }}
@@ -283,14 +280,14 @@
                             {{ $alert->status }}
                         </span>
                         <div class="mt-1">
-                            <a href="{{ route('compliance.show', $alert->id) }}" class="text-[11px] text-cyan-400 hover:underline">Periksa</a>
+                            <a href="{{ route('compliance.show', $alert->id) }}" class="text-[11px] text-cyan-400 hover:underline">Review</a>
                         </div>
                     </div>
                 </div>
                 @empty
                 <div class="py-8 text-center text-slate-500">
                     <span class="text-3xl block mb-1">✅</span>
-                    Tidak ada peringatan kepatuhan yang berstatus open pada sistem saat ini.
+                    No open compliance alerts currently in the system.
                 </div>
                 @endforelse
             </div>

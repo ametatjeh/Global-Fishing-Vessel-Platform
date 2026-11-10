@@ -280,9 +280,9 @@ class VesselOwnerOperatorFilterTest extends TestCase
         $response->assertDontSee('PARTIAL MISMATCH FLAG');
 
         // Check active filters count badge displays 3
-        $response->assertSee('3 filter aktif');
+        $response->assertSee('3 active filters');
         // Check Reset Filters button is rendered
-        $response->assertSee('Reset Filter');
+        $response->assertSee('Reset Filters');
         $response->assertSee(route('vessels.index'));
     }
 
@@ -303,10 +303,10 @@ class VesselOwnerOperatorFilterTest extends TestCase
 
         $response->assertStatus(200);
         // Verify Flag Country dropdown is present
-        $response->assertSee('Semua Bendera');
+        $response->assertSee('All Flags');
         $response->assertSee('Unknown');
         $response->assertSee('France');
-        $response->assertSee('Semua Tipe');
+        $response->assertSee('All Types');
 
         // Verify Owner Country & Operator Country filter dropdowns are completely removed from UI
         $response->assertDontSee('Owner Country (Negara Pemilik)');

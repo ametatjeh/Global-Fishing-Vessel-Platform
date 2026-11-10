@@ -1,6 +1,6 @@
 # GFVIP — TAHAP 13: PRODUCTION READINESS VERIFICATION & OFFSITE BACKUP REPORT
 
-**Platform:** Global Fishing Vessel Intelligence Platform (GFVIP)  
+**Platform:** Global Fishing Vessel Tracking (GFVT)  
 **Workspace:** `C:\XPROJECT\global-fishing-vessel-intelligence`  
 **Stack:** Laravel 13.37.0, PHP 8.4.14, PostgreSQL 18.0, PostGIS 3.6.2, MapLibre GL JS, Windows Task Scheduler  
 **Date of Audit & Testing:** 2026-10-20  

@@ -67,6 +67,6 @@ class ComplianceController extends Controller
         ]);
 
         return redirect()->route('compliance.show', $id)
-            ->with('status', "Status peringatan kepatuhan berhasil diperbarui menjadi: {$event->status}");
+            ->with('status', "Compliance alert status updated successfully to: {$event->status}");
     }
 }

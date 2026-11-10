@@ -81,6 +81,6 @@ class ComplianceRuleTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('Fishing Compliance');
-        $response->assertSee('Basis Aturan Kepatuhan Maritim Global');
+        $response->assertSee('Global Maritime Compliance Rule Catalog');
     }
 }

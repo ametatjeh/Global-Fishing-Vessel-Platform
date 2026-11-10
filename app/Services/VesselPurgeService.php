@@ -199,14 +199,14 @@ class VesselPurgeService
      * @param string $reason
      * @return array
      */
-    public function executePurge(bool $dryRun = true, ?int $adminUserId = null, string $reason = 'Penghapusan data internal kapal non-fishing (cargo, tanker, pleasure) sesuai kebijakan GFVIP'): array
+    public function executePurge(bool $dryRun = true, ?int $adminUserId = null, string $reason = 'Purge of non-fishing vessel data (cargo, tanker, pleasure) according to GFVIP policy'): array
     {
         $inspection = $this->inspectPurgeTargets();
 
         if ($dryRun) {
             return [
                 'status' => 'dry_run',
-                'message' => 'Laporan pemeriksaan dry-run berhasil dibuat. Tidak ada data yang dihapus dari database operasional.',
+                'message' => 'Dry-run inspection report generated successfully. No records were deleted from the operational database.',
                 'inspection' => $inspection,
                 'backup_file' => null,
             ];
@@ -220,7 +220,7 @@ class VesselPurgeService
         if (empty($targetIds)) {
             return [
                 'status' => 'completed',
-                'message' => 'Tidak ada kapal dengan klasifikasi cargo, tanker, atau pleasure yang ditemukan dalam database operasional.',
+                'message' => 'No vessels classified as cargo, tanker, or pleasure found in operational database.',
                 'inspection' => $inspection,
                 'deleted' => [
                     'cargo_vessels' => 0,
@@ -304,7 +304,7 @@ class VesselPurgeService
 
             return [
                 'status' => 'completed',
-                'message' => 'Pembersihan data internal kapal cargo, tanker, dan pleasure berhasil dieksekusi secara terkontrol.',
+                'message' => 'Controlled purge of internal cargo, tanker, and pleasure vessel telemetry executed successfully.',
                 'backup_file' => $backupFile,
                 'deleted' => [
                     'cargo_vessels' => $deletedCargoCount,

@@ -1255,9 +1255,9 @@ class AisStreamAdapter implements ProviderAdapterInterface
             if ($t === 'sar' || $t === 'search_and_rescue') return 'sar';
             if ($t === 'port_tender') return 'port_tender';
             if ($t === 'anti_pollution') return 'anti_pollution';
-            if ($t === 'law_enforcement' || $t === 'patrol') return 'law_enforcement';
+            if ($t === 'law_enforcement' || $t === 'patrol') return 'patrol';
             if ($t === 'high_speed_craft' || $t === 'hsc') return 'high_speed_craft';
-            if ($t === 'non_combatant') return 'other';
+            if ($t === 'non_combatant') return 'non_combatant';
             if ($t === 'medical' || $t === 'medical_transport') return 'medical';
             if ($t === 'pleasure_craft') return 'pleasure';
             if ($t === 'not_available') return 'not_available';
@@ -1278,10 +1278,12 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 'port_tender',
                 'anti_pollution',
                 'law_enforcement',
+                'patrol',
                 'medical',
                 'passenger',
                 'cargo',
                 'tanker',
+                'non_combatant',
                 'other',
                 'not_available',
                 'unmapped',
@@ -1295,7 +1297,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
             if (is_numeric($t)) {
                 $type = (int) $t;
             } else {
-                return 'unmapped';
+                return 'unknown';
             }
         }
 
@@ -1305,8 +1307,8 @@ class AisStreamAdapter implements ProviderAdapterInterface
 
         $code = (int) $type;
 
-        if ($code === 0) {
-            return 'not_available';
+        if ($code === 0 || $code === 99) {
+            return 'unknown';
         }
 
         // ITU-R M.1371 / IMO AIS Ship Type Codes:
@@ -1380,9 +1382,14 @@ class AisStreamAdapter implements ProviderAdapterInterface
             return 'anti_pollution';
         }
 
-        // 55: Law enforcement
+        // 55: Law enforcement / Patrol
         if ($code === 55) {
-            return 'law_enforcement';
+            return 'patrol';
+        }
+
+        // 56, 57: Spare / Reserved / Unknown
+        if ($code === 56 || $code === 57) {
+            return 'unknown';
         }
 
         // 58: Medical transport
@@ -1392,7 +1399,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
 
         // 59: Non-combatant ship / States not parties to armed conflict
         if ($code === 59) {
-            return 'other';
+            return 'non_combatant';
         }
 
         // 60–69: Passenger ships
@@ -1410,8 +1417,8 @@ class AisStreamAdapter implements ProviderAdapterInterface
             return 'tanker';
         }
 
-        // 90–99: Other types of ship
-        if ($code >= 90 && $code <= 99) {
+        // 90–98: Other types of ship
+        if ($code >= 90 && $code <= 98) {
             return 'other';
         }
 
@@ -1428,6 +1435,11 @@ class AisStreamAdapter implements ProviderAdapterInterface
         $cleanMmsi = preg_replace('/\D/', '', $rawMmsi);
 
         if (strlen($cleanMmsi) < 7 || strlen($cleanMmsi) > 9) {
+            return null;
+        }
+
+        // Strictly reject static messages from prohibited MMSIs
+        if (\App\Models\ProhibitedVessel::isProhibited($cleanMmsi)) {
             return null;
         }
 
@@ -1637,6 +1649,11 @@ class AisStreamAdapter implements ProviderAdapterInterface
             return null;
         }
 
+        // Strictly reject positions from prohibited MMSIs
+        if (\App\Models\ProhibitedVessel::isProhibited($cleanMmsi)) {
+            return null;
+        }
+
         $lat = $message['latitude'] ?? null;
         $lng = $message['longitude'] ?? null;
 
@@ -1708,6 +1725,17 @@ class AisStreamAdapter implements ProviderAdapterInterface
         if ($rawShipType !== null && $rawShipType !== '') {
             $aisTypeCode = is_numeric($rawShipType) ? (int) $rawShipType : null;
             $vesselType = self::normalizeVesselType($rawShipType);
+            if (in_array($vesselType, ['cargo', 'tanker', 'pleasure'])) {
+                \App\Models\ProhibitedVessel::firstOrCreate(
+                    ['mmsi' => $cleanMmsi],
+                    [
+                        'reason' => 'non_fishing_policy',
+                        'original_name' => $shipName,
+                        'original_type' => $vesselType,
+                    ]
+                );
+                return null;
+            }
         }
 
         $provider = DataProvider::firstOrCreate(

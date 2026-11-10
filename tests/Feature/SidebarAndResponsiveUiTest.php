@@ -65,7 +65,7 @@ class SidebarAndResponsiveUiTest extends TestCase
         $response->assertSee('data-tooltip="Activity Logs"', false);
         $response->assertDontSee('data-tooltip="About & Attributions"', false);
         $response->assertDontSee('/about', false);
-        $response->assertSee('data-tooltip="Manajemen Akun"', false);
+        $response->assertSee('data-tooltip="User Management"', false);
     }
 
     /**
@@ -78,7 +78,7 @@ class SidebarAndResponsiveUiTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('id="sidebar-desktop-toggle"', false);
         $response->assertSee('id="sidebar-mobile-toggle"', false);
-        $response->assertDontSee('data-tooltip="Manajemen Akun"', false);
+        $response->assertDontSee('data-tooltip="User Management"', false);
     }
 
     /**

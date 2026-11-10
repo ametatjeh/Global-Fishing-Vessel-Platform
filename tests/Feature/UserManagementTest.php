@@ -62,14 +62,13 @@ class UserManagementTest extends TestCase
         $this->actingAs($this->superAdmin)
             ->get('/admin/users')
             ->assertStatus(200)
-            ->assertSee('Manajemen Akun &amp; Hak Akses Pengguna', false)
+            ->assertSee('User Management &amp; Access Control', false)
             ->assertSee('Last Login')
             ->assertDontSee('Pencarian')
             ->assertDontSee('Cari &amp; Filter', false)
-            ->assertSee('Tampilkan')
-            ->assertSee('baris per halaman')
-            ->assertSee('Menampilkan')
-            ->assertSee('hasil')
+            ->assertSee('Show')
+            ->assertSee('rows per page')
+            ->assertSee('Showing')
             ->assertSee($this->analyst->email);
 
         // Verify per_page parameter functions
@@ -81,7 +80,7 @@ class UserManagementTest extends TestCase
         $this->actingAs($this->superAdmin)
             ->get('/admin/users/create')
             ->assertStatus(200)
-            ->assertSee('Tambah Akun Pengguna Baru');
+            ->assertSee('Add New User Account');
 
         $this->actingAs($this->superAdmin)
             ->get("/admin/users/{$this->analyst->id}")
@@ -91,7 +90,7 @@ class UserManagementTest extends TestCase
         $this->actingAs($this->superAdmin)
             ->get("/admin/users/{$this->analyst->id}/edit")
             ->assertStatus(200)
-            ->assertSee('Edit Akun');
+            ->assertSee('Edit User');
     }
 
     /**

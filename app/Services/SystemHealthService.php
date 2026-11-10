@@ -375,7 +375,7 @@ class SystemHealthService
         if (!File::isDirectory($backupDir)) {
             return [
                 'status' => 'DIRECTORY_MISSING',
-                'message' => 'Direktori backup belum ditemukan pada ' . $backupDir,
+                'message' => 'Backup directory not found at ' . $backupDir,
                 'backup_root' => $backupDir,
                 'last_backup_utc' => null,
                 'dump_size_mb' => 0,
@@ -397,7 +397,7 @@ class SystemHealthService
         if (!$manifest || !is_array($manifest) || !isset($manifest['status'])) {
             return [
                 'status' => 'CORRUPTED',
-                'message' => 'Manifest backup ditemukan pada ' . $manifestFile . ' namun format JSON rusak atau tidak sesuai skema.',
+                'message' => 'Backup manifest found at ' . $manifestFile . ' but JSON is corrupted or invalid.',
                 'backup_root' => $backupDir,
                 'last_backup_utc' => null,
                 'dump_size_mb' => 0,
@@ -420,7 +420,7 @@ class SystemHealthService
             if (!$dumpExists && ($manifest['status'] ?? '') === 'SUCCESS') {
                 return [
                     'status' => 'DUMP_MISSING',
-                    'message' => "Manifest mencatat backup sukses, namun file dump fisik ({$dumpFile}) tidak ditemukan pada disk.",
+                    'message' => "Manifest records successful backup, but physical dump file ({$dumpFile}) was not found on disk.",
                     'backup_root' => $backupDir,
                     'last_backup_utc' => $manifest['timestamp_utc'] ?? null,
                     'age_hours' => $ageHours,
@@ -627,8 +627,8 @@ class SystemHealthService
                 'total_bytes' => null,
                 'total_gb' => null,
                 'free_percent' => null,
-                'threshold_status' => 'Pemeriksaan ruang disk gagal atau mount point tidak dapat dibaca (' . $drive . ')',
-                'error' => 'Gagal membaca kapasitas filesystem melalui disk_free_space / disk_total_space.',
+                'threshold_status' => 'Disk space check failed or mount point is unreadable (' . $drive . ')',
+                'error' => 'Failed to read filesystem capacity via disk_free_space / disk_total_space.',
                 'paths' => [
                     'backup_root' => ['path' => $backupDir, 'exists' => File::exists($backupDir)],
                     'sar_products' => ['path' => $sarProductsDir, 'exists' => File::exists($sarProductsDir)],
@@ -678,12 +678,12 @@ class SystemHealthService
                 'severity' => 'WARNING',
                 'component' => 'Backup',
                 'code' => 'BACKUP_AGE_WARNING',
-                'message' => "Backup lokal terakhir berumur {$backup['age_hours']} jam (> 24 jam).",
+                'message' => "Latest local backup is {$backup['age_hours']} hours old (> 24 hours).",
             ];
         } elseif (($backup['status'] ?? '') === 'FAILED') {
             $msg = ($backup['age_hours'] ?? 0) > 48
-                ? "Backup lokal terakhir telah berusia {$backup['age_hours']} jam (> 48 jam). Diperlukan pembuatan snapshot berkala baru."
-                : "Backup lokal gagal diverifikasi atau mengembalikan status error.";
+                ? "Latest local backup is {$backup['age_hours']} hours old (> 48 hours). A new periodic snapshot is required."
+                : "Local backup failed verification or returned an error status.";
             $alerts[] = [
                 'severity' => 'CRITICAL',
                 'component' => 'Backup',
@@ -695,28 +695,28 @@ class SystemHealthService
                 'severity' => 'CRITICAL',
                 'component' => 'Backup',
                 'code' => 'BACKUP_DUMP_MISSING',
-                'message' => $backup['message'] ?? 'File dump database backup fisik tidak ditemukan di disk.',
+                'message' => $backup['message'] ?? 'Physical database backup dump file not found on disk.',
             ];
         } elseif (($backup['status'] ?? '') === 'CORRUPTED') {
             $alerts[] = [
                 'severity' => 'CRITICAL',
                 'component' => 'Backup',
                 'code' => 'BACKUP_MANIFEST_CORRUPTED',
-                'message' => 'Manifest backup lokal rusak atau tidak sesuai skema.',
+                'message' => 'Local backup manifest is corrupted or invalid.',
             ];
         } elseif (($backup['status'] ?? '') === 'DIRECTORY_MISSING') {
             $alerts[] = [
                 'severity' => 'CRITICAL',
                 'component' => 'Backup',
                 'code' => 'BACKUP_DIR_MISSING',
-                'message' => 'Direktori backup belum ditemukan pada: ' . ($backup['backup_root'] ?? $this->getBackupRootDir()),
+                'message' => 'Backup directory not found at: ' . ($backup['backup_root'] ?? $this->getBackupRootDir()),
             ];
         } elseif (($backup['status'] ?? '') === 'NOT_VERIFIED') {
             $alerts[] = [
                 'severity' => 'CRITICAL',
                 'component' => 'Backup',
                 'code' => 'BACKUP_MISSING',
-                'message' => 'Manifest backup lokal belum ditemukan pada direktori: ' . ($backup['backup_root'] ?? $this->getBackupRootDir()),
+                'message' => 'Local backup manifest not found in directory: ' . ($backup['backup_root'] ?? $this->getBackupRootDir()),
             ];
         }
 
@@ -726,14 +726,14 @@ class SystemHealthService
                 'severity' => 'WARNING',
                 'component' => 'Disaster Recovery',
                 'code' => 'DR_TEST_OVERDUE',
-                'message' => "Uji Disaster Recovery telah berumur {$dr['age_days']} hari (> 7 hari).",
+                'message' => "Disaster Recovery test is {$dr['age_days']} days old (> 7 days).",
             ];
         } elseif (($dr['status'] ?? '') === 'FAILED') {
             $alerts[] = [
                 'severity' => 'CRITICAL',
                 'component' => 'Disaster Recovery',
                 'code' => 'DR_TEST_FAILED',
-                'message' => 'Uji Disaster Recovery terakhir mengembalikan status GAGAL.',
+                'message' => 'Latest Disaster Recovery test returned FAILED status.',
             ];
         }
 
@@ -744,21 +744,21 @@ class SystemHealthService
                 'severity' => 'CRITICAL',
                 'component' => 'Storage',
                 'code' => 'DISK_SPACE_CRITICAL',
-                'message' => "Sisa ruang disk {$diskLabel} kurang dari 10% ({$disk['free_percent']}%).",
+                'message' => "Remaining disk space on {$diskLabel} is under 10% ({$disk['free_percent']}%).",
             ];
         } elseif (($disk['status'] ?? '') === 'WARNING') {
             $alerts[] = [
                 'severity' => 'WARNING',
                 'component' => 'Storage',
                 'code' => 'DISK_SPACE_WARNING',
-                'message' => "Sisa ruang disk {$diskLabel} berada di antara 10%-20% ({$disk['free_percent']}%).",
+                'message' => "Remaining disk space on {$diskLabel} is between 10%-20% ({$disk['free_percent']}%).",
             ];
         } elseif (($disk['status'] ?? '') === 'UNKNOWN') {
             $alerts[] = [
                 'severity' => 'WARNING',
                 'component' => 'Storage',
                 'code' => 'DISK_CHECK_FAILED',
-                'message' => "Gagal membaca kapasitas penyimpanan pada mount point {$diskLabel}.",
+                'message' => "Failed to read storage capacity on mount point {$diskLabel}.",
             ];
         }
 
@@ -768,7 +768,7 @@ class SystemHealthService
                 'severity' => 'WARNING',
                 'component' => 'Queue',
                 'code' => 'QUEUE_FAILED_JOBS',
-                'message' => "Terdapat {$queue['failed_jobs']} failed jobs pada antrean background worker.",
+                'message' => "There are {$queue['failed_jobs']} failed jobs in the background worker queue.",
             ];
         }
 
@@ -778,7 +778,7 @@ class SystemHealthService
                 'severity' => 'WARNING',
                 'component' => 'AIS Telemetry',
                 'code' => 'AIS_TELEMETRY_VERY_STALE',
-                'message' => 'Tidak ada pesan telemetri AIS segar yang diterima dalam 6 jam terakhir.',
+                'message' => 'No fresh AIS telemetry messages received within the last 6 hours.',
             ];
         }
 

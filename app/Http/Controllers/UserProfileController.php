@@ -6,27 +6,28 @@ use App\Models\AuditLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 class UserProfileController extends Controller
 {
     /**
-     * Show the user profile settings form.
+     * Show the user profile settings and password management view.
      */
     public function edit(Request $request): View
     {
+        $user = $request->user();
+
         return view('profile.edit', [
-            'user' => $request->user(),
+            'user' => $user,
+            'hasPassword' => $user->hasSetPassword(),
         ]);
     }
 
     /**
-     * Update the user profile basic information and optional avatar.
+     * Update user profile information (name and optional avatar).
      */
     public function update(Request $request): RedirectResponse
     {
@@ -36,11 +37,11 @@ class UserProfileController extends Controller
             'name' => ['required', 'string', 'max:255', 'min:2'],
             'avatar' => ['nullable', 'file', 'image', 'mimes:jpeg,jpg,png,webp', 'max:2048'],
         ], [
-            'name.required' => 'Nama lengkap / panggilan operasional wajib diisi.',
-            'name.min' => 'Nama minimal harus terdiri dari :min karakter.',
-            'avatar.image' => 'Berkas harus berupa gambar valid (JPEG, PNG, atau WebP).',
-            'avatar.mimes' => 'Format foto yang diizinkan hanya JPEG, PNG, dan WebP.',
-            'avatar.max' => 'Ukuran foto tidak boleh melebihi 2 MB.',
+            'name.required' => 'Full name or operational callsign is required.',
+            'name.min' => 'Name must be at least :min characters.',
+            'avatar.image' => 'The file must be a valid image (JPEG, PNG, or WebP).',
+            'avatar.mimes' => 'Only JPEG, PNG, and WebP image formats are permitted.',
+            'avatar.max' => 'The image size may not exceed 2 MB.',
         ]);
 
         $oldName = $user->name;
@@ -54,7 +55,7 @@ class UserProfileController extends Controller
             $allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
 
             if ($imageInfo === false || !in_array($imageInfo['mime'], $allowedMimes, true)) {
-                return back()->withErrors(['avatar' => 'Berkas gambar tidak valid atau terkorupsi. Pastikan format file adalah JPEG, PNG, atau WebP.']);
+                return back()->withErrors(['avatar' => 'Image file is invalid or corrupted. Please ensure file format is JPEG, PNG, or WebP.']);
             }
 
             $ext = match ($imageInfo['mime']) {
@@ -88,8 +89,8 @@ class UserProfileController extends Controller
         ]);
 
         $statusMessage = $avatarUpdated
-            ? 'Profil dan foto profil berhasil diperbarui.'
-            : 'Nama profil berhasil diperbarui.';
+            ? 'Profile details and photo updated successfully.'
+            : 'Profile name updated successfully.';
 
         return back()->with('status', $statusMessage);
     }
@@ -110,10 +111,10 @@ class UserProfileController extends Controller
                 'max:2048', // 2 MB limit
             ],
         ], [
-            'avatar.required' => 'Pilih berkas foto terlebih dahulu.',
-            'avatar.image' => 'Berkas harus berupa gambar valid (JPEG, PNG, atau WebP).',
-            'avatar.mimes' => 'Format foto yang diizinkan hanya JPEG, PNG, dan WebP.',
-            'avatar.max' => 'Ukuran foto tidak boleh melebihi 2 MB.',
+            'avatar.required' => 'Please select an image file first.',
+            'avatar.image' => 'The file must be a valid image (JPEG, PNG, or WebP).',
+            'avatar.mimes' => 'Only JPEG, PNG, and WebP image formats are permitted.',
+            'avatar.max' => 'The image size may not exceed 2 MB.',
         ]);
 
         $file = $request->file('avatar');
@@ -124,7 +125,7 @@ class UserProfileController extends Controller
         $allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
 
         if ($imageInfo === false || !in_array($imageInfo['mime'], $allowedMimes, true)) {
-            return back()->withErrors(['avatar' => 'Berkas gambar tidak valid atau terkorupsi. Pastikan format file adalah JPEG, PNG, atau WebP.']);
+            return back()->withErrors(['avatar' => 'Image file is invalid or corrupted. Please ensure file format is JPEG, PNG, or WebP.']);
         }
 
         // Determine sanitized extension
@@ -143,7 +144,7 @@ class UserProfileController extends Controller
         $newPath = $file->storeAs($storageDir, $filename, 'public');
 
         if (!$newPath) {
-            return back()->withErrors(['avatar' => 'Gagal menyimpan foto profil ke storage. Silakan coba kembali.']);
+            return back()->withErrors(['avatar' => 'Failed to save profile photo to storage. Please try again.']);
         }
 
         // Keep reference to old avatar to delete ONLY after successful replacement
@@ -162,7 +163,7 @@ class UserProfileController extends Controller
             'mime_type' => $imageInfo['mime'],
         ]);
 
-        return back()->with('status', 'Foto profil berhasil diperbarui.');
+        return back()->with('status', 'Profile photo updated successfully.');
     }
 
     /**
@@ -173,22 +174,22 @@ class UserProfileController extends Controller
         $user = $request->user();
 
         if ($user->avatar_path) {
-            $oldPath = $user->avatar_path;
+            $path = $user->avatar_path;
             $user->avatar_path = null;
             $user->save();
 
-            if (Storage::disk('public')->exists($oldPath)) {
-                Storage::disk('public')->delete($oldPath);
+            if (Storage::disk('public')->exists($path)) {
+                Storage::disk('public')->delete($path);
             }
 
             AuditLog::log('delete_avatar', 'user', (string) $user->id, [
-                'deleted_path' => $oldPath,
+                'deleted_path' => $path,
             ]);
 
-            return back()->with('status', 'Foto profil telah dihapus dan dikembalikan ke avatar default.');
+            return back()->with('status', 'Profile photo removed successfully. Reverted to default avatar.');
         }
 
-        return back()->with('warning', 'Anda belum memiliki foto profil kustom.');
+        return back()->with('warning', 'You do not have a custom profile photo set.');
     }
 
     /**
@@ -204,11 +205,11 @@ class UserProfileController extends Controller
         ];
 
         $messages = [
-            'current_password.required' => 'Kata sandi saat ini wajib diisi.',
-            'current_password.current_password' => 'Kata sandi saat ini tidak cocok dengan data kami.',
-            'password.required' => 'Kata sandi baru wajib diisi.',
-            'password.min' => 'Kata sandi baru minimal harus terdiri dari :min karakter.',
-            'password.confirmed' => 'Konfirmasi kata sandi baru tidak cocok.',
+            'current_password.required' => 'Current password is required.',
+            'current_password.current_password' => 'The current password does not match our records.',
+            'password.required' => 'New password is required.',
+            'password.min' => 'New password must be at least :min characters.',
+            'password.confirmed' => 'The new password confirmation does not match.',
         ];
 
         if ($hasSetPassword) {
@@ -229,10 +230,9 @@ class UserProfileController extends Controller
         ]);
 
         $message = $hasSetPassword
-            ? 'Kata sandi berhasil diperbarui.'
-            : 'Kata sandi lokal berhasil dibuat. Anda kini dapat masuk menggunakan email & kata sandi selain Google SSO.';
+            ? 'Password updated successfully.'
+            : 'Local password created successfully. You can now sign in using email & password in addition to Google SSO.';
 
         return back()->with('status', $message);
     }
 }
-

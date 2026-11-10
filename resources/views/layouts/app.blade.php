@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="id" class="dark">
+<html lang="en" class="dark">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ $title ?? config('app.name', 'Global Fishing Vessel Monitoring Platform') }}</title>
+    <title>{{ $title ?? config('app.name', 'Global Fishing Vessel Tracking') }}</title>
 
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -37,11 +37,11 @@
 
         <!-- Brand Header -->
         <div class="h-16 px-4 flex items-center justify-between border-b border-slate-800 bg-slate-900/90 backdrop-blur shrink-0 sidebar-brand-header">
-            <a href="{{ route('dashboard') }}" class="flex items-center gap-2.5 min-w-0" title="GFVM OPS - Global Fishing Vessel Monitoring Platform">
+            <a href="{{ route('dashboard') }}" class="flex items-center gap-2.5 min-w-0" title="GFVT OPS - Global Fishing Vessel Tracking">
                 <span class="text-2xl shrink-0">🛰️</span>
                 <div class="leading-tight sidebar-brand-text truncate">
-                    <div class="text-xs font-bold text-teal-400 tracking-wider uppercase font-mono">GFVM OPS</div>
-                    <div class="text-[13px] font-bold text-white tracking-tight truncate max-w-[130px]">Vessel Monitoring</div>
+                    <div class="text-xs font-bold text-teal-400 tracking-wider uppercase font-mono">GFVT OPS</div>
+                    <div class="text-[13px] font-bold text-white tracking-tight truncate max-w-[130px]">Vessel Tracking</div>
                 </div>
             </a>
 
@@ -49,7 +49,7 @@
                 <!-- Desktop Minimize/Expand Toggle Button -->
                 <button id="sidebar-desktop-toggle" type="button"
                     class="hidden lg:flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition border border-transparent hover:border-slate-700 cursor-pointer"
-                    title="Kecilkan / Perluas Sidebar (Desktop)">
+                    title="Collapse / Expand Sidebar (Desktop)">
                     <svg id="sidebar-toggle-icon" class="w-4 h-4 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
                     </svg>
@@ -58,7 +58,7 @@
                 <!-- Mobile Drawer Close Button -->
                 <button id="sidebar-mobile-close" type="button"
                     class="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
-                    aria-label="Tutup Menu Navigasi">
+                    aria-label="Close Navigation Menu">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -69,7 +69,7 @@
         <!-- Navigation Menu -->
         <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1 text-xs">
             <div class="sidebar-section-title px-2 pb-1 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                Operasi &amp; Pemetaan
+                Operations &amp; Mapping
             </div>
 
             <a href="{{ route('dashboard') }}" data-tooltip="Overview Dashboard"
@@ -85,7 +85,7 @@
             </a>
 
             <div class="sidebar-section-title pt-4 px-2 pb-1 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                Monitoring &amp; Registry
+                Surveillance &amp; Registry
             </div>
 
             <a href="{{ route('vessels.index') }}" data-tooltip="Vessel Registry"
@@ -141,7 +141,7 @@
             </a>
 
             <div class="sidebar-section-title pt-4 px-2 pb-1 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                Integrasi &amp; Pengaturan
+                Integrations &amp; Settings
             </div>
 
             <a href="{{ route('profile.edit') }}" data-tooltip="User Settings"
@@ -178,14 +178,14 @@
 
             @if(auth()->user()?->isSuperAdmin())
             <div class="sidebar-section-title pt-4 px-2 pb-1 text-[10px] uppercase font-bold text-amber-400 tracking-wider flex items-center justify-between">
-                <span>Administrasi Root</span>
+                <span>Root Administration</span>
                 <span class="sidebar-badge px-1.5 py-0.5 rounded text-[8px] bg-amber-500/20 text-amber-300 font-mono border border-amber-500/30">SUPER ADMIN</span>
             </div>
 
-            <a href="{{ route('admin.users.index') }}" data-tooltip="Manajemen Akun"
+            <a href="{{ route('admin.users.index') }}" data-tooltip="User Management"
                 class="sidebar-item flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('admin.users.*') ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
                 <span class="sidebar-icon">🛡️</span>
-                <span class="sidebar-text truncate">Manajemen Akun</span>
+                <span class="sidebar-text truncate">User Management</span>
             </a>
             @endif
         </nav>
@@ -194,7 +194,7 @@
         <div class="p-3 border-t border-slate-800 bg-slate-900/60 shrink-0 sidebar-footer">
             @auth
             <div class="flex items-center justify-between gap-2">
-                <a href="{{ route('profile.edit') }}" class="flex items-center gap-2.5 min-w-0 hover:opacity-85 transition group flex-1" title="Buka User Settings ({{ auth()->user()->name }})">
+                <a href="{{ route('profile.edit') }}" class="flex items-center gap-2.5 min-w-0 hover:opacity-85 transition group flex-1" title="Open User Settings ({{ auth()->user()->name }})">
                     <img src="{{ auth()->user()->avatar_url }}" alt="{{ auth()->user()->name }}" class="w-8 h-8 rounded-full object-cover border border-slate-700 group-hover:border-teal-400 transition shrink-0">
                     <div class="truncate sidebar-user-details">
                         <div class="text-xs font-bold text-white truncate group-hover:text-teal-300 transition">{{ auth()->user()->name }}</div>
@@ -207,7 +207,7 @@
                     </a>
                     <form action="{{ route('logout') }}" method="POST">
                         @csrf
-                        <button type="submit" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer" title="Keluar">
+                        <button type="submit" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer" title="Sign Out">
                             <span>🚪</span>
                         </button>
                     </form>
@@ -225,14 +225,14 @@
                 <!-- Mobile Hamburger Toggle Button -->
                 <button id="sidebar-mobile-toggle" type="button"
                     class="lg:hidden p-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition cursor-pointer shrink-0"
-                    aria-label="Buka Menu Navigasi" title="Buka Menu Navigasi">
+                    aria-label="Open Navigation Menu" title="Open Navigation Menu">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                     </svg>
                 </button>
 
                 <h1 class="text-xs sm:text-sm font-bold text-white tracking-wide uppercase truncate flex items-center gap-2">
-                    @yield('header_title', 'Maritime Monitoring Platform')
+                    @yield('header_title', 'Global Fishing Vessel Tracking')
                 </h1>
             </div>
 
@@ -245,7 +245,7 @@
 
                 <a href="{{ route('map.index') }}" class="px-2.5 sm:px-3 py-1.5 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs transition shadow-sm flex items-center gap-1.5 shrink-0">
                     <span>🗺️</span>
-                    <span class="hidden sm:inline">Peta Global</span>
+                    <span class="hidden sm:inline">Global Map</span>
                 </a>
 
                 @auth
@@ -289,10 +289,10 @@
         <!-- Single-Line Compact Footer -->
         <footer class="h-9 min-h-[36px] max-h-[40px] px-4 sm:px-6 border-t border-slate-800/80 bg-slate-950/80 text-[11px] max-sm:text-[10px] text-slate-400 flex items-center justify-between gap-3 mt-auto shrink-0 select-none">
             <div class="truncate text-slate-400 font-normal">
-                <span class="font-bold text-slate-300">GFVIP</span> &middot; <span>Global Fishing Vessel Monitoring Platform</span>
+                <span class="font-bold text-slate-300">GFVT</span> &middot; <span>Global Fishing Vessel Tracking</span>
             </div>
             <div class="shrink-0 text-slate-400 text-right whitespace-nowrap">
-                <span>Research Platform</span> &middot; <span>&copy; {{ date('Y') }}</span>
+                <span>Vessel Tracking Platform</span> &middot; <span>&copy; {{ date('Y') }}</span>
             </div>
         </footer>
     </div>

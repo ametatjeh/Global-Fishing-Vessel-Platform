@@ -173,17 +173,17 @@ class AseanAndAustraliaEezTest extends TestCase
         // 1. ASEAN EEZ toggle and label
         $response->assertSee('id="toggle-layer-asean-eez"', false);
         $response->assertSee('ASEAN Exclusive Economic Zones (EEZ)', false);
-        $response->assertSee('Garis Batas ZEE &amp; Batas Maritim Resmi ASEAN (v12)', false);
+        $response->assertSee('Official ASEAN EEZ &amp; Maritime Boundaries (v12)', false);
 
         // 2. Australia EEZ toggle and label
         $response->assertSee('id="toggle-layer-australia-eez"', false);
         $response->assertSee('Australia Exclusive Economic Zone (EEZ)', false);
-        $response->assertSee('Garis Batas ZEE &amp; Batas Maritim Resmi Australia (AMSIS / AMB / v12)', false);
+        $response->assertSee('Official Australia EEZ &amp; Maritime Boundaries (AMSIS / AMB / v12)', false);
 
         // 3. Clear distinct legends
         $response->assertSee('ASEAN EEZ (Marine Regions v12)', false);
         $response->assertSee('Australia EEZ (AMSIS / AMB / v12)', false);
-        $response->assertSee('Australia 200 NM Outer Limit (ZEE)', false);
+        $response->assertSee('Australia 200 NM Outer Limit (EEZ)', false);
         $response->assertSee('Agreed Bilateral Maritime Treaty', false);
     }
 

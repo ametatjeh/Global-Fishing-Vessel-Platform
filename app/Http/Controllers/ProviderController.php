@@ -40,7 +40,7 @@ class ProviderController extends Controller
         };
 
         if (!$adapter) {
-            return redirect()->route('providers.index')->with('error', 'Provider tidak dikenali.');
+            return redirect()->route('providers.index')->with('error', 'Unrecognized data provider.');
         }
 
         $result = $adapter->healthCheck();
@@ -49,6 +49,6 @@ class ProviderController extends Controller
 
         $msgType = in_array($result['status'], ['connected', 'receiving_data', 'streaming', 'authenticated']) ? 'status' : 'warning';
         return redirect()->route('providers.index')
-            ->with($msgType, "Health check untuk [{$slug}]: {$result['message']}");
+            ->with($msgType, "Health check for [{$slug}]: {$result['message']}");
     }
 }

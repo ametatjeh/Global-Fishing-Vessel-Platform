@@ -68,7 +68,7 @@ class AuthController extends Controller
         }
 
         throw ValidationException::withMessages([
-            'email' => __('Kredensial yang diberikan tidak cocok dengan data kami.'),
+            'email' => __('These credentials do not match our records.'),
         ]);
     }
 
@@ -78,7 +78,7 @@ class AuthController extends Controller
     public function redirectToGoogle()
     {
         if (empty(config('services.google.client_id')) || empty(config('services.google.client_secret'))) {
-            return redirect()->route('login')->with('error', 'Google SSO belum dikonfigurasi pada environment ini (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET belum diisi).');
+            return redirect()->route('login')->with('error', 'Google SSO is not configured on this environment (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET missing).');
         }
 
         return Socialite::driver('google')
@@ -92,21 +92,21 @@ class AuthController extends Controller
     public function handleGoogleCallback(Request $request)
     {
         if ($request->has('error')) {
-            return redirect()->route('login')->with('error', 'Autentikasi Google dibatalkan atau ditolak.');
+            return redirect()->route('login')->with('error', 'Google authentication was cancelled or declined.');
         }
 
         try {
             $googleUser = Socialite::driver('google')->user();
         } catch (\Throwable $e) {
             Log::warning('Google SSO authentication failed: ' . $e->getMessage());
-            return redirect()->route('login')->with('error', 'Gagal memverifikasi identitas dengan Google. Silakan coba kembali.');
+            return redirect()->route('login')->with('error', 'Failed to verify identity with Google. Please try again.');
         }
 
         $email = $googleUser->getEmail();
         $googleId = (string) $googleUser->getId();
 
         if (empty($email) || empty($googleId)) {
-            return redirect()->route('login')->with('error', 'Akun Google tidak menyediakan email atau identitas yang valid.');
+            return redirect()->route('login')->with('error', 'Google account did not provide a valid email address or identity.');
         }
 
         // 1. Find by stable Google ID
@@ -133,16 +133,16 @@ class AuthController extends Controller
                     'reason' => 'unregistered_email',
                 ]);
 
-                return redirect()->route('login')->with('error', 'Akses ditolak: Alamat email Google ini (' . $email . ') belum terdaftar di sistem. Pendaftaran pengguna baru hanya dapat dilakukan oleh Super Administrator.');
+                return redirect()->route('login')->with('error', 'Access Denied: This Google email address (' . $email . ') is not registered in the system. Account provisioning is restricted to Super Administrators.');
             }
         }
 
         if ($user && $user->is_active === false) {
-            return redirect()->route('login')->with('error', 'Akun ini telah dinonaktifkan oleh administrator. Silakan hubungi Super Admin.');
+            return redirect()->route('login')->with('error', 'This account has been deactivated by an administrator. Please contact your Super Administrator.');
         }
 
         if ($user && ($user->role === 'viewer' || !in_array($user->role, ['super_admin', 'admin', 'analyst', 'research_lead', 'researcher', 'institutional_researcher'], true))) {
-            return redirect()->route('login')->with('error', 'Akses ditolak: Peran akun Anda (' . $user->role . ') telah dinonaktifkan. Silakan hubungi Super Administrator.');
+            return redirect()->route('login')->with('error', 'Access Denied: Your assigned account role (' . $user->role . ') has been deprecated. Please contact your Super Administrator.');
         }
 
         Auth::login($user, true);
@@ -157,7 +157,7 @@ class AuthController extends Controller
             'auth_method' => 'google_sso',
         ]);
 
-        return redirect()->intended(route('dashboard'))->with('status', "Selamat datang, {$user->name}!");
+        return redirect()->intended(route('dashboard'))->with('status', "Welcome back, {$user->name}!");
     }
 
     public function logout(Request $request)

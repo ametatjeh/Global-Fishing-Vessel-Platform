@@ -45,8 +45,8 @@ class MapLayerApiController extends Controller
                     'version' => config('maritime.fao.version', '2026.1-CWP'),
                     'license' => config('maritime.fao.license', 'FAO Open Access Terms / CC-BY-NC-SA 3.0 IGO'),
                     'source_url' => config('maritime.fao.source_url', 'https://www.fao.org/fishery/geoserver/fifao/ows'),
-                    'description' => 'Wilayah statistik perikanan global FAO untuk pelaporan hasil tangkapan (bukan batas yurisdiksi maritim).',
-                    'disclaimer' => config('maritime.fao.disclaimer', 'Wilayah statistik FAO tidak menyatakan pendapat hukum apapun mengenai status hukum negara atau perbatasan laut.'),
+                    'description' => 'FAO global statistical fishery areas for catch reporting (not maritime jurisdiction boundaries).',
+                    'disclaimer' => config('maritime.fao.disclaimer', 'FAO statistical areas do not express any opinion concerning the legal status of any country or maritime boundary.'),
                 ],
                 [
                     'id' => 'layer-eez-boundaries',
@@ -414,7 +414,7 @@ class MapLayerApiController extends Controller
         if (!$vessel) {
             return response()->json([
                 'status' => 'error',
-                'message' => "Kapal dengan identifier '{$id}' tidak ditemukan.",
+                'message' => "Vessel with identifier '{$id}' not found.",
             ], 404);
         }
 

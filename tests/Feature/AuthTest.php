@@ -21,8 +21,8 @@ class AuthTest extends TestCase
     {
         $response = $this->get('/login');
         $response->assertStatus(200);
-        $response->assertSee('Global Fishing Vessel Monitoring Platform');
-        $response->assertSee('Otentikasi Operasional');
+        $response->assertSee('Global Fishing Vessel Tracking');
+        $response->assertSee('Operational Authentication');
     }
 
     public function test_user_can_authenticate_with_valid_credentials(): void

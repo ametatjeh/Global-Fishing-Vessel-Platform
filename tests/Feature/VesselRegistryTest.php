@@ -93,10 +93,10 @@ class VesselRegistryTest extends TestCase
         $response = $this->actingAs($user)->get('/vessels');
 
         $response->assertStatus(200);
-        $response->assertSee('Tampilkan');
-        $response->assertSee('baris per halaman');
-        $response->assertSee('Menampilkan');
-        $response->assertSee('hasil');
+        $response->assertSee('Show');
+        $response->assertSee('rows per page');
+        $response->assertSee('Showing');
+        $response->assertSee('vessels');
         $response->assertSee('vessels?page=2');
     }
 
@@ -117,7 +117,7 @@ class VesselRegistryTest extends TestCase
         $responsePage1->assertSee('No.');
         $responsePage1->assertSeeInOrder([
             'No.',
-            'Nama Kapal',
+            'VESSEL',
             '1',
             'VESSEL 001',
             '50',
@@ -129,7 +129,7 @@ class VesselRegistryTest extends TestCase
         $responsePage2->assertStatus(200);
         $responsePage2->assertSeeInOrder([
             'No.',
-            'Nama Kapal',
+            'VESSEL',
             '51',
             'VESSEL 051',
             '55',

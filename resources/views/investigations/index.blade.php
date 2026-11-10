@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header_title', 'Investigations — Berkas Kasus Analisis Maritim (Private Research)')
+@section('header_title', 'Investigations — Maritime Dossiers & Private Research')
 
 @section('content')
 <div class="space-y-6">
@@ -14,14 +14,14 @@
                 </span>
             </div>
             <p class="text-xs text-slate-400 mt-1">
-                Penyusunan berkas bukti analisis maritim: pergantian identitas kapal, kepemilikan korporasi, kepatuhan batas ZEE, dan status IUU fishing.
+                Compilation of maritime intelligence dossiers: identity alteration, corporate beneficial ownership, EEZ boundary compliance, and IUU fishing risk verification.
             </p>
         </div>
 
         <div class="flex items-center gap-2">
             @if(auth()->user()->hasPermission('investigations.create'))
             <a href="{{ route('investigations.create') }}" class="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs transition shadow-lg shadow-teal-500/20">
-                + Inisiasi Berkas Kasus Baru
+                + Initiate New Investigation Case
             </a>
             @endif
         </div>
@@ -31,9 +31,9 @@
     <div class="glass-panel p-4 rounded-xl border border-slate-800">
         <form method="GET" action="{{ route('investigations.index') }}" class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
             <div>
-                <label class="block text-slate-400 mb-1 font-semibold">Status Berkas</label>
+                <label class="block text-slate-400 mb-1 font-semibold">Case Status</label>
                 <select name="status" class="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200">
-                    <option value="">Semua Status</option>
+                    <option value="">All Statuses</option>
                     <option value="open" {{ request('status') === 'open' ? 'selected' : '' }}>Open</option>
                     <option value="in_progress" {{ request('status') === 'in_progress' ? 'selected' : '' }}>In Progress</option>
                     <option value="closed" {{ request('status') === 'closed' ? 'selected' : '' }}>Closed</option>
@@ -41,9 +41,9 @@
                 </select>
             </div>
             <div>
-                <label class="block text-slate-400 mb-1 font-semibold">Tingkat Prioritas</label>
+                <label class="block text-slate-400 mb-1 font-semibold">Priority Level</label>
                 <select name="priority" class="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200">
-                    <option value="">Semua Prioritas</option>
+                    <option value="">All Priorities</option>
                     <option value="urgent" {{ request('priority') === 'urgent' ? 'selected' : '' }}>Urgent</option>
                     <option value="high" {{ request('priority') === 'high' ? 'selected' : '' }}>High</option>
                     <option value="medium" {{ request('priority') === 'medium' ? 'selected' : '' }}>Medium</option>
@@ -51,9 +51,9 @@
                 </select>
             </div>
             <div>
-                <label class="block text-slate-400 mb-1 font-semibold">Kesimpulan Analisis</label>
+                <label class="block text-slate-400 mb-1 font-semibold">Analytical Verdict</label>
                 <select name="verdict_status" class="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200">
-                    <option value="">Semua Kesimpulan</option>
+                    <option value="">All Verdicts</option>
                     <option value="confirmed" {{ request('verdict_status') === 'confirmed' ? 'selected' : '' }}>Confirmed Violation</option>
                     <option value="suspected" {{ request('verdict_status') === 'suspected' ? 'selected' : '' }}>Suspected Violation</option>
                     <option value="potential" {{ request('verdict_status') === 'potential' ? 'selected' : '' }}>Potential Risk</option>
@@ -80,14 +80,14 @@
             <table class="w-full text-left min-w-[850px]">
                 <thead class="bg-slate-900/90 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
                     <tr>
-                        <th class="py-3 px-4">Nomor Berkas</th>
-                        <th class="py-3 px-4">Judul Kasus</th>
-                        <th class="py-3 px-4">Kerahasiaan</th>
-                        <th class="py-3 px-4">Target Kapal</th>
-                        <th class="py-3 px-4">Kesimpulan</th>
-                        <th class="py-3 px-4">Institusi / Lead</th>
-                        <th class="py-3 px-4">Tanggal Buka</th>
-                        <th class="py-3 px-4 text-right">Aksi</th>
+                        <th class="py-3 px-4">Case Number</th>
+                        <th class="py-3 px-4">Case Title</th>
+                        <th class="py-3 px-4">Confidentiality</th>
+                        <th class="py-3 px-4">Target Vessel</th>
+                        <th class="py-3 px-4">Verdict</th>
+                        <th class="py-3 px-4">Institution / Lead</th>
+                        <th class="py-3 px-4">Date Opened</th>
+                        <th class="py-3 px-4 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-800/60">
@@ -98,7 +98,7 @@
                         </td>
                         <td class="py-3 px-4">
                             <div class="font-bold text-white">{{ $inv->title }}</div>
-                            <div class="text-[10px] text-slate-400 font-mono">Prioritas: <span class="uppercase {{ $inv->priority === 'urgent' ? 'text-rose-400 font-bold' : '' }}">{{ $inv->priority }}</span></div>
+                            <div class="text-[10px] text-slate-400 font-mono">Priority: <span class="uppercase {{ $inv->priority === 'urgent' ? 'text-rose-400 font-bold' : '' }}">{{ $inv->priority }}</span></div>
                         </td>
                         <td class="py-3 px-4">
                             <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase
@@ -107,7 +107,7 @@
                             </span>
                         </td>
                         <td class="py-3 px-4 text-teal-300 font-semibold">
-                            {{ $inv->targetVessel?->name ?? 'Armada Belum Teridentifikasi' }}
+                            {{ $inv->targetVessel?->name ?? 'Unidentified Vessel' }}
                         </td>
                         <td class="py-3 px-4">
                             @php
@@ -124,8 +124,8 @@
                             </span>
                         </td>
                         <td class="py-3 px-4 text-slate-300">
-                            <div>{{ $inv->leadResearcher?->name ?? $inv->assignedTo?->name ?? 'Belum ditugaskan' }}</div>
-                            <div class="text-[10px] text-slate-400">{{ $inv->organization ?? 'Tim Internal GFVIP' }}</div>
+                            <div>{{ $inv->leadResearcher?->name ?? $inv->assignedTo?->name ?? 'Unassigned' }}</div>
+                            <div class="text-[10px] text-slate-400">{{ $inv->organization ?? 'GFVIP Internal Team' }}</div>
                         </td>
                         <td class="py-3 px-4 text-slate-400 font-mono text-[11px]">{{ $inv->created_at->format('Y-m-d') }}</td>
                         <td class="py-3 px-4 text-right">
@@ -138,7 +138,7 @@
                     <tr>
                         <td colspan="8" class="py-12 text-center text-slate-500">
                             <span class="text-4xl block mb-2">📁</span>
-                            Tidak ada berkas investigasi aktif yang dapat Anda akses sesuai hak otorisasi dan institusi Anda.
+                            No active investigation cases accessible under your role and organizational permissions.
                         </td>
                     </tr>
                     @endforelse

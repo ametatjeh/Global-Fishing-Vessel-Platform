@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="id" class="dark">
+<html lang="en" class="dark">
 
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Login — Global Fishing Vessel Monitoring Platform</title>
+    <title>Login — Global Fishing Vessel Tracking</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -54,17 +54,17 @@
                 🛰️
             </div>
             <h1 class="text-xl font-black text-white tracking-wide uppercase">
-                Global Fishing Vessel Monitoring Platform
+                Global Fishing Vessel Tracking
             </h1>
             <p class="text-xs text-slate-400 mt-1">
-                Platform Pemantauan Maritim Global: Vessel Monitoring, Maritime Compliance &amp; Unusual Vessel Activity
+                Global Vessel Tracking &bull; Maritime Monitoring, AIS Intelligence, Fisheries Compliance &amp; Dark Vessel Detection
             </p>
         </div>
 
         <!-- Login Card -->
         <div class="glass-panel p-6 sm:p-8 rounded-2xl border border-slate-800 shadow-2xl relative">
             <h2 class="text-sm font-bold text-slate-200 uppercase tracking-wider mb-4 border-b border-slate-800 pb-2">
-                Otentikasi Operasional
+                Operational Authentication
             </h2>
 
             @if(session('error'))
@@ -100,7 +100,7 @@
                 </div>
 
                 <div>
-                    <label for="password" class="block font-semibold text-slate-300 mb-1">Kata Sandi</label>
+                    <label for="password" class="block font-semibold text-slate-300 mb-1">Password</label>
                     <input type="password" id="password" name="password" required
                         class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition font-mono"
                         placeholder="••••••••">
@@ -109,12 +109,12 @@
                 <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" name="remember" class="rounded bg-slate-900 border-slate-700 text-teal-500 focus:ring-teal-400">
-                        <span>Ingat sesi ini</span>
+                        <span>Remember session</span>
                     </label>
                 </div>
 
                 <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-teal-500/20 cursor-pointer mt-2">
-                    Masuk ke Dunia Ikan
+                    Sign In
                 </button>
             </form>
 
@@ -123,7 +123,7 @@
                     <div class="w-full border-t border-slate-800"></div>
                 </div>
                 <div class="relative flex justify-center text-[10px] uppercase font-mono">
-                    <span class="bg-slate-900 px-2.5 text-slate-400">Atau Single Sign-On</span>
+                    <span class="bg-slate-900 px-2.5 text-slate-400">Or Single Sign-On</span>
                 </div>
             </div>
 
@@ -138,7 +138,7 @@
             </a>
 
             <div class="mt-6 pt-4 border-t border-slate-800/80 text-center text-[11px] text-slate-500">
-                Akses dibatasi hanya untuk personel berwenang. Segala aktivitas dicatat dalam sistem audit trail terenkripsi.
+                Authorized personnel only. All access and activity is logged and monitored.
             </div>
         </div>
     </div>

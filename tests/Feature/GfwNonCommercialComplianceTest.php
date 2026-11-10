@@ -95,7 +95,7 @@ class GfwNonCommercialComplianceTest extends TestCase
         $response->assertSee('NON-COMMERCIAL RESEARCH');
         $response->assertSee('https://globalfishingwatch.org');
         $response->assertSee('This application uses data and services provided by Global Fishing Watch (GFW) for non-commercial research, educational, and public-interest purposes.');
-        $response->assertSee('Aktivitas kapal yang ditampilkan merupakan estimasi atau hasil analisis berdasarkan sumber data, bukan bukti final pelanggaran.');
+        $response->assertSee('Notice: Displayed vessel activity represents estimates or analytical findings based on available data sources, not conclusive proof of infractions.');
     }
 
     public function test_single_line_compact_footer_renders_on_pages(): void
@@ -103,9 +103,9 @@ class GfwNonCommercialComplianceTest extends TestCase
         $response = $this->actingAs($this->researcher)->get('/map');
         $response->assertStatus(200);
 
-        $response->assertSee('GFVIP', false);
-        $response->assertSee('Global Fishing Vessel Monitoring Platform', false);
-        $response->assertSee('Research Platform', false);
+        $response->assertSee('GFVT', false);
+        $response->assertSee('Global Fishing Vessel Tracking', false);
+        $response->assertSee('Vessel Tracking Platform', false);
         $response->assertSee('2026', false);
         $response->assertDontSee('/about', false);
         $response->assertDontSee('About &amp; Attributions', false);
@@ -132,7 +132,7 @@ class GfwNonCommercialComplianceTest extends TestCase
         $encResponse = $this->actingAs($this->researcher)->get('/encounters');
         $encResponse->assertStatus(200);
         $encResponse->assertSee('NON-COMMERCIAL RESEARCH');
-        $encResponse->assertSee('Aktivitas kapal yang ditampilkan merupakan estimasi atau hasil analisis berdasarkan sumber data, bukan bukti final pelanggaran.');
+        $encResponse->assertSee('Notice: Displayed vessel activity represents estimates or analytical findings based on available data sources, not conclusive proof of infractions.');
         $encResponse->assertSee('https://globalfishingwatch.org');
 
         // Vessel detail
@@ -140,7 +140,7 @@ class GfwNonCommercialComplianceTest extends TestCase
         $vslResponse->assertStatus(200);
         $vslResponse->assertSee('NON-COMMERCIAL RESEARCH');
         $vslResponse->assertSee('This application uses data and services provided by Global Fishing Watch (GFW) for non-commercial research, educational, and public-interest purposes.');
-        $vslResponse->assertSee('Aktivitas kapal yang ditampilkan merupakan estimasi atau hasil analisis berdasarkan sumber data, bukan bukti final pelanggaran.');
+        $vslResponse->assertSee('Notice: Displayed vessel activities represent estimates and analytical indicators derived from data sources, not definitive legal proof of infractions.');
     }
 
     public function test_gfw_events_403_forbidden_sets_research_access_required_without_synthetic_data(): void

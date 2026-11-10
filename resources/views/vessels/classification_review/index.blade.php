@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header_title', 'Classification Review & Reconciliation — Tinjauan Klasifikasi Kapal & Penegakan Retensi')
+@section('header_title', 'Classification Review & Reconciliation')
 
 @section('content')
 <div class="space-y-6">
@@ -17,13 +17,13 @@
                 </span>
             </div>
             <p class="text-xs text-slate-400 mt-1">
-                Tinjauan bukti telemetri AIS vs label manual, resolusi konflik kapal kargo/tangki, dan perlindungan Protective Hold kapal penangkap ikan.
+                Review AIS telemetry evidence against manual classifications, resolve cargo/tanker classification conflicts, and enforce Protective Hold on fishing vessels.
             </p>
         </div>
 
         <div class="flex items-center gap-2">
             <a href="{{ route('vessels.index') }}" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-medium transition shadow-sm">
-                <span>🚢</span> Kembali ke Vessel Registry
+                <span>🚢</span> Back to Vessel Registry
             </a>
         </div>
     </div>
@@ -39,37 +39,37 @@
 
         <a href="{{ route('vessels.classification-review.index', ['verification_status' => 'unverified_historical']) }}"
            class="glass-panel p-3 rounded-xl border {{ $status === 'unverified_historical' ? 'border-purple-500 bg-purple-500/10' : 'border-slate-800 hover:border-slate-700' }} transition">
-            <div class="text-[10px] uppercase font-bold text-purple-400 tracking-wider">Historis Dilindungi</div>
+            <div class="text-[10px] uppercase font-bold text-purple-400 tracking-wider">Historical Protected</div>
             <div class="text-xl font-bold text-purple-300 mt-1">{{ number_format($metrics['total_historical']) }}</div>
-            <div class="text-[10px] text-slate-400 mt-0.5">5 Kapal Wajib Hold</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Mandatory Hold Vessels</div>
         </a>
 
         <a href="{{ route('vessels.classification-review.index', ['verification_status' => 'under_review']) }}"
            class="glass-panel p-3 rounded-xl border {{ $status === 'under_review' ? 'border-amber-500 bg-amber-500/10' : 'border-slate-800 hover:border-slate-700' }} transition">
             <div class="text-[10px] uppercase font-bold text-amber-400 tracking-wider">Under Review</div>
             <div class="text-xl font-bold text-amber-300 mt-1">{{ number_format($metrics['total_under_review']) }}</div>
-            <div class="text-[10px] text-slate-400 mt-0.5">Menunggu Keputusan</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Pending Decision</div>
         </a>
 
         <a href="{{ route('vessels.classification-review.index', ['verification_status' => 'unverified']) }}"
            class="glass-panel p-3 rounded-xl border {{ $status === 'unverified' ? 'border-amber-500 bg-amber-500/10' : 'border-slate-800 hover:border-slate-700' }} transition">
             <div class="text-[10px] uppercase font-bold text-amber-400 tracking-wider">Unverified</div>
             <div class="text-xl font-bold text-amber-300 mt-1">{{ number_format($metrics['total_unverified']) }}</div>
-            <div class="text-[10px] text-slate-400 mt-0.5">Belum Ada Bukti Sah</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">No Authoritative Evidence</div>
         </a>
 
         <a href="{{ route('vessels.classification-review.index', ['verification_status' => 'provider_reported']) }}"
            class="glass-panel p-3 rounded-xl border {{ $status === 'provider_reported' ? 'border-blue-500 bg-blue-500/10' : 'border-slate-800 hover:border-slate-700' }} transition">
             <div class="text-[10px] uppercase font-bold text-blue-400 tracking-wider">Provider Reported</div>
             <div class="text-xl font-bold text-blue-300 mt-1">{{ number_format($metrics['total_provider_reported']) }}</div>
-            <div class="text-[10px] text-slate-400 mt-0.5">Laporan Mentah Eksternal</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">External Raw Reports</div>
         </a>
 
         <a href="{{ route('vessels.classification-review.index', ['verification_status' => 'verified', 'vessel_type' => 'fishing']) }}"
            class="glass-panel p-3 rounded-xl border {{ $status === 'verified' && $vesselType === 'fishing' ? 'border-emerald-500 bg-emerald-500/10' : 'border-slate-800 hover:border-slate-700' }} transition">
             <div class="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Verified Fishing</div>
             <div class="text-xl font-bold text-emerald-300 mt-1">{{ number_format($metrics['total_verified_fishing']) }}</div>
-            <div class="text-[10px] text-slate-400 mt-0.5">Permanen 100% Aman</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Protected & Permanent</div>
         </a>
     </div>
 
@@ -80,10 +80,10 @@
             <!-- Search Query -->
             <div class="md:col-span-4 space-y-1">
                 <label class="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                    Pencarian Kapal
+                    Vessel Search
                 </label>
                 <div class="relative">
-                    <input type="text" name="search" value="{{ $search }}" placeholder="Nama, MMSI, IMO, Callsign..."
+                    <input type="text" name="search" value="{{ $search }}" placeholder="Name, MMSI, IMO, Callsign..."
                         class="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-400 font-sans transition">
                     <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-500">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -99,7 +99,7 @@
                     Verification Status
                 </label>
                 <select name="verification_status" class="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 focus:outline-none focus:border-indigo-400 font-sans transition">
-                    <option value="all">Semua Status</option>
+                    <option value="all">All Statuses</option>
                     <option value="unverified" {{ $status === 'unverified' ? 'selected' : '' }}>Unverified</option>
                     <option value="provider_reported" {{ $status === 'provider_reported' ? 'selected' : '' }}>Provider Reported</option>
                     <option value="unverified_historical" {{ $status === 'unverified_historical' ? 'selected' : '' }}>Unverified Historical</option>
@@ -113,10 +113,10 @@
             <!-- Vessel Type Filter -->
             <div class="md:col-span-2 space-y-1">
                 <label class="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                    Tipe Kapal
+                    Vessel Type
                 </label>
                 <select name="vessel_type" class="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 focus:outline-none focus:border-indigo-400 font-sans transition">
-                    <option value="all">Semua Tipe</option>
+                    <option value="all">All Types</option>
                     <option value="fishing" {{ $vesselType === 'fishing' ? 'selected' : '' }}>Fishing</option>
                     <option value="cargo" {{ $vesselType === 'cargo' ? 'selected' : '' }}>Cargo</option>
                     <option value="tanker" {{ $vesselType === 'tanker' ? 'selected' : '' }}>Tanker</option>
@@ -131,12 +131,12 @@
             <!-- Conflict Status Filter -->
             <div class="md:col-span-2 space-y-1">
                 <label class="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                    Status Konflik
+                    Conflict Status
                 </label>
                 <select name="conflict_status" class="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 focus:outline-none focus:border-indigo-400 font-sans transition">
-                    <option value="all">Semua</option>
-                    <option value="disputed_only" {{ $conflict === 'disputed_only' ? 'selected' : '' }}>⚠️ Hanya Disputed (Konflik)</option>
-                    <option value="clean_only" {{ $conflict === 'clean_only' ? 'selected' : '' }}>Tanpa Konflik</option>
+                    <option value="all">All</option>
+                    <option value="disputed_only" {{ $conflict === 'disputed_only' ? 'selected' : '' }}>⚠️ Disputed Only (Conflicts)</option>
+                    <option value="clean_only" {{ $conflict === 'clean_only' ? 'selected' : '' }}>Clean Only (No Conflicts)</option>
                 </select>
             </div>
 
@@ -148,7 +148,7 @@
                     </svg>
                     Filter
                 </button>
-                <a href="{{ route('vessels.classification-review.index') }}" class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 font-medium text-xs transition" title="Reset filter">
+                <a href="{{ route('vessels.classification-review.index') }}" class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 font-medium text-xs transition" title="Reset filters">
                     Reset
                 </a>
             </div>
@@ -303,11 +303,11 @@
                         <!-- Protective Hold -->
                         <td class="px-3 py-3 text-center">
                             @if($isVerifiedFish)
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" title="Permanen: posisi tidak akan pernah dihapus">
-                                    PERMANEN
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" title="Permanent: positions are exempt from retention purge">
+                                    PERMANENT
                                 </span>
                             @elseif($isHeld)
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40" title="Protective Hold: posisi ditahan dari siklus retensi">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40" title="Protective Hold: positions protected from retention purge cycles">
                                     🛡️ HOLD
                                 </span>
                             @else
@@ -325,7 +325,7 @@
                     @empty
                     <tr>
                         <td colspan="11" class="px-4 py-8 text-center text-slate-500">
-                            Tidak ada kapal yang memenuhi kriteria filter review.
+                            No vessels match the review criteria.
                         </td>
                     </tr>
                     @endforelse

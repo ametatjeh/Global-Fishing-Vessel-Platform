@@ -518,8 +518,8 @@ class GfwVesselEnrichmentTest extends TestCase
         $response->assertSee('passenger');
         $response->assertSee('917 GT');
         $response->assertSee('a4534777b-b656-fe37-84db-ebc0fc9c48bd');
-        $response->assertSee('GFW Enriched');
-        $response->assertSee('Ketertelusuran Sumber Data');
+        $response->assertSee('Enrichment: ENRICHED');
+        $response->assertSee('Data Provenance & Traceability', false);
     }
 
     /**
@@ -546,7 +546,7 @@ class GfwVesselEnrichmentTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('MINIMAL VESSEL');
-        $response->assertSee('&lt;tidak tersedia&gt;', false);
+        $response->assertSee('&lt;not available&gt;', false);
     }
 
     /**

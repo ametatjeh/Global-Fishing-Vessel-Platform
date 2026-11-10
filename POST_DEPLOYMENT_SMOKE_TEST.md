@@ -1,5 +1,5 @@
-# GFVIP — POST-DEPLOYMENT SMOKE TEST SOP
-**Platform:** Global Fishing Vessel Intelligence Platform (GFVIP)  
+# GFVT — POST-DEPLOYMENT SMOKE TEST SOP
+**Platform:** Global Fishing Vessel Tracking (GFVT)  
 **Target URL:** `https://gfw.nagakecil.site`  
 **Execution Timeframe:** 0 - 30 Menit Setelah Rilis  
 **Evaluator:** QA / Maritime System Administrator / Lead Engineer  

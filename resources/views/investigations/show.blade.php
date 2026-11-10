@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header_title', 'Berkas Investigasi — ' . $investigation->case_number . ' (Private Research)')
+@section('header_title', 'Investigation Dossier — ' . $investigation->case_number . ' (Private Research)')
 
 @section('content')
 <div class="space-y-6">
@@ -27,26 +27,26 @@
                 </div>
             </div>
             <div class="mt-2 flex items-center gap-2 text-[11px] text-rose-300/80 font-mono">
-                <span>🔒 KLASIFIKASI KERAHASIAAN:</span>
+                <span>🔒 CONFIDENTIALITY CLASSIFICATION:</span>
                 <span class="font-bold underline">PRIVATE — RESEARCH TEAM ONLY</span>
-                <span>(Dilarang menyebarluaskan data atau koordinat tanpa otorisasi pimpinan riset)</span>
+                <span>(Unauthorized dissemination of intelligence telemetry or coordinates is strictly prohibited)</span>
             </div>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
             <a href="{{ route('investigations.index') }}" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition border border-slate-700">
-                &larr; Berkas
+                &larr; Dossiers
             </a>
 
             @if($canExport)
             <a href="{{ route('investigations.export', $investigation->id) }}" class="px-3 py-2 rounded-xl bg-indigo-600/80 hover:bg-indigo-500 text-white font-bold text-xs transition border border-indigo-500/40 shadow-lg shadow-indigo-500/20 flex items-center gap-1.5">
                 <span>⬇</span>
-                <span>Ekspor Dossier (JSON)</span>
+                <span>Export Dossier (JSON)</span>
             </a>
             @endif
 
             <a href="{{ route('map.index') }}" class="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs transition shadow-lg shadow-teal-500/20">
-                Lihat di Peta
+                View on Map
             </a>
         </div>
     </div>
@@ -66,7 +66,7 @@
             <!-- Summary Card -->
             <div class="glass-panel p-5 rounded-xl border border-slate-800 space-y-3 text-xs">
                 <h3 class="font-bold uppercase tracking-wider text-teal-300 border-b border-slate-800 pb-2">
-                    Uraian Fakta & Hipotesis Awal Riset
+                    Case Summary &amp; Initial Research Hypothesis
                 </h3>
                 <div class="text-slate-200 leading-relaxed p-3.5 rounded-lg bg-slate-900 border border-slate-800">
                     {{ $investigation->summary }}
@@ -78,19 +78,19 @@
             <div class="glass-panel p-5 rounded-xl border border-slate-800 space-y-3 text-xs">
                 <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                     <h3 class="font-bold uppercase tracking-wider text-sky-400">
-                        Target Armada Utama Teridentifikasi
+                        Identified Primary Target Vessel
                     </h3>
                     <a href="{{ route('vessels.show', $investigation->targetVessel->id) }}" class="text-cyan-400 hover:underline">
-                        Buka Profil Kapal Lengkap &rarr;
+                        View Complete Vessel Profile &rarr;
                     </a>
                 </div>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-slate-300">
                     <div class="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800">
-                        <div class="text-[10px] text-slate-400 uppercase">Nama Kapal</div>
+                        <div class="text-[10px] text-slate-400 uppercase">Vessel Name</div>
                         <div class="font-bold text-white text-sm">{{ $investigation->targetVessel->name }}</div>
                     </div>
                     <div class="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800">
-                        <div class="text-[10px] text-slate-400 uppercase">Bendera Negara</div>
+                        <div class="text-[10px] text-slate-400 uppercase">Flag State</div>
                         <div class="font-mono text-teal-300 uppercase font-bold text-sm">{{ $investigation->targetVessel->flag_state ?? 'UN' }}</div>
                     </div>
                     <div class="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800">
@@ -98,7 +98,7 @@
                         <div class="font-mono text-white text-xs">{{ $investigation->targetVessel->mmsi ?? '-' }} / {{ $investigation->targetVessel->imo ?? '-' }}</div>
                     </div>
                     <div class="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800">
-                        <div class="text-[10px] text-slate-400 uppercase">Tipe Kapal</div>
+                        <div class="text-[10px] text-slate-400 uppercase">Vessel Type</div>
                         <div class="capitalize text-slate-200 text-xs font-semibold">{{ $investigation->targetVessel->vessel_type }}</div>
                     </div>
                 </div>
@@ -111,16 +111,16 @@
                     <div class="flex items-center gap-2">
                         <span class="w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-400 font-bold flex items-center justify-center text-xs">A</span>
                         <h3 class="font-bold uppercase tracking-wider text-indigo-300">
-                            Pergantian Identitas dan Bendera Kapal (Flag Hopping)
+                            Vessel Identity &amp; Flag Hopping Analysis
                         </h3>
                     </div>
                     @if($identityAnalysis && $identityAnalysis['flag_hopping_detected'])
                         <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                            ⚠ Indikasi Flag Hopping Terdeteksi
+                            ⚠ Flag Hopping Indication Detected
                         </span>
                     @else
                         <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                            Identitas Bendera Stabil
+                            Stable Flag Identity
                         </span>
                     @endif
                 </div>
@@ -129,13 +129,13 @@
                 <div class="space-y-3">
                     <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800 flex items-center justify-between text-slate-300">
                         <div>
-                            <span class="text-slate-400">Bendera Terpantau:</span>
+                            <span class="text-slate-400">Observed Flags:</span>
                             <span class="font-mono font-bold text-white uppercase ml-1">
-                                {{ implode(', ', $identityAnalysis['observed_flags'] ?: ['Tidak Tercatat']) }}
+                                {{ implode(', ', $identityAnalysis['observed_flags'] ?: ['Not Recorded']) }}
                             </span>
                         </div>
                         <div class="text-[11px] text-slate-400">
-                            Total Rekaman Perubahan: <strong class="text-white">{{ count($identityAnalysis['identity_timeline']) }}</strong>
+                            Total Recorded Alterations: <strong class="text-white">{{ count($identityAnalysis['identity_timeline']) }}</strong>
                         </div>
                     </div>
 
@@ -144,11 +144,11 @@
                         <table class="w-full text-left text-slate-300 min-w-[550px]">
                             <thead class="bg-slate-900/90 text-slate-400 uppercase text-[10px] border-b border-slate-800">
                                 <tr>
-                                    <th class="py-2 px-3">Tipe</th>
-                                    <th class="py-2 px-3">Nilai Rekaman</th>
-                                    <th class="py-2 px-3">Periode Berlaku</th>
+                                    <th class="py-2 px-3">Type</th>
+                                    <th class="py-2 px-3">Recorded Value</th>
+                                    <th class="py-2 px-3">Validity Period</th>
                                     <th class="py-2 px-3">Status</th>
-                                    <th class="py-2 px-3">Sumber Provenance</th>
+                                    <th class="py-2 px-3">Provenance Source</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-800/60 font-mono text-[11px]">
@@ -157,13 +157,13 @@
                                     <td class="py-2 px-3 uppercase text-indigo-300">{{ $item['type'] }}</td>
                                     <td class="py-2 px-3 font-bold text-white">{{ $item['value'] }}</td>
                                     <td class="py-2 px-3 text-slate-400 text-[10px]">
-                                        {{ $item['valid_from'] ? substr($item['valid_from'], 0, 10) : 'Awal Catatan' }} &rarr; {{ $item['valid_to'] ? substr($item['valid_to'], 0, 10) : 'Sekarang' }}
+                                        {{ $item['valid_from'] ? substr($item['valid_from'], 0, 10) : 'Initial Record' }} &rarr; {{ $item['valid_to'] ? substr($item['valid_to'], 0, 10) : 'Present' }}
                                     </td>
                                     <td class="py-2 px-3">
                                         @if($item['is_current'])
-                                            <span class="text-emerald-400 font-bold">Aktif</span>
+                                            <span class="text-emerald-400 font-bold">Active</span>
                                         @else
-                                            <span class="text-slate-500">Historis</span>
+                                            <span class="text-slate-500">Historical</span>
                                         @endif
                                     </td>
                                     <td class="py-2 px-3 text-slate-400 text-[10px] font-sans">{{ $item['provenance'] }}</td>
@@ -174,16 +174,16 @@
                     </div>
                     @else
                     <div class="p-3 text-center text-slate-500 bg-slate-900/50 rounded-lg">
-                        Tidak ada riwayat pergantian identitas sebelumnya yang tercatat untuk kapal ini.
+                        No prior identity alteration history recorded for this vessel.
                     </div>
                     @endif
 
                     <div class="text-[11px] text-slate-400 italic">
-                        Catatan Provenance: {{ $identityAnalysis['provenance_notes'] }}
+                        Provenance Notes: {{ $identityAnalysis['provenance_notes'] }}
                     </div>
                 </div>
                 @else
-                <div class="text-slate-500 italic">Data analisis identitas memerlukan penetapan kapal target.</div>
+                <div class="text-slate-500 italic">Identity analysis requires a designated target vessel.</div>
                 @endif
             </div>
 
@@ -193,13 +193,13 @@
                     <div class="flex items-center gap-2">
                         <span class="w-6 h-6 rounded-lg bg-purple-500/20 text-purple-400 font-bold flex items-center justify-center text-xs">B</span>
                         <h3 class="font-bold uppercase tracking-wider text-purple-300">
-                            Jejaring Korporasi dan Kepemilikan Manfaat (Beneficial Ownership)
+                            Corporate Networks &amp; Beneficial Ownership
                         </h3>
                     </div>
                     @if($corporateAnalysis)
                     <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono
                         {{ $corporateAnalysis['confidence_level'] === 'verified_legal_docs' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-slate-800 text-slate-400 border border-slate-700' }}">
-                        Tingkat Validasi: {{ $corporateAnalysis['confidence_level'] }}
+                        Validation Level: {{ $corporateAnalysis['confidence_level'] }}
                     </span>
                     @endif
                 </div>
@@ -208,15 +208,15 @@
                 <div class="space-y-3">
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
-                            <div class="text-[10px] text-slate-400 uppercase">Pemilik Terdaftar (Registered Owner)</div>
+                            <div class="text-[10px] text-slate-400 uppercase">Registered Owner</div>
                             <div class="font-bold text-white text-xs mt-0.5">{{ $corporateAnalysis['registered_owner'] }}</div>
                         </div>
                         <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
-                            <div class="text-[10px] text-slate-400 uppercase">Operator Armada</div>
+                            <div class="text-[10px] text-slate-400 uppercase">Fleet Operator</div>
                             <div class="font-bold text-white text-xs mt-0.5">{{ $corporateAnalysis['operator'] }}</div>
                         </div>
                         <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
-                            <div class="text-[10px] text-slate-400 uppercase">Beneficial Owner (Pemilik Manfaat)</div>
+                            <div class="text-[10px] text-slate-400 uppercase">Beneficial Owner</div>
                             <div class="font-bold text-purple-300 text-xs mt-0.5">{{ $corporateAnalysis['beneficial_owner'] }}</div>
                         </div>
                     </div>
@@ -224,17 +224,17 @@
                     @if(!empty($corporateAnalysis['related_sister_vessels']))
                     <div class="mt-3">
                         <div class="text-xs font-semibold text-slate-300 mb-2">
-                            Armada Sejawat Terkorelasi (Sister Fleet Correlation): {{ $corporateAnalysis['related_fleet_count'] }} Kapal Teridentifikasi
+                            Correlated Sister Fleet: {{ $corporateAnalysis['related_fleet_count'] }} Identified Vessels
                         </div>
                         <div class="overflow-x-auto rounded-lg border border-slate-800 responsive-table-container">
                             <table class="w-full text-left text-slate-300 min-w-[550px]">
                                 <thead class="bg-slate-900/90 text-slate-400 uppercase text-[10px] border-b border-slate-800">
                                     <tr>
-                                        <th class="py-2 px-3">Nama Kapal</th>
+                                        <th class="py-2 px-3">Vessel Name</th>
                                         <th class="py-2 px-3">MMSI</th>
-                                        <th class="py-2 px-3">Bendera</th>
-                                        <th class="py-2 px-3">Tipe</th>
-                                        <th class="py-2 px-3">Operator Bersama</th>
+                                        <th class="py-2 px-3">Flag State</th>
+                                        <th class="py-2 px-3">Type</th>
+                                        <th class="py-2 px-3">Shared Operator / Owner</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-800/60 text-[11px]">
@@ -254,11 +254,11 @@
                     @endif
 
                     <div class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300/90 text-[11px] leading-relaxed">
-                        <strong>Metodologi Kerahasiaan Kepemilikan:</strong> {{ $corporateAnalysis['investigative_disclaimer'] }}
+                        <strong>Ownership Confidentiality Methodology:</strong> {{ $corporateAnalysis['investigative_disclaimer'] }}
                     </div>
                 </div>
                 @else
-                <div class="text-slate-500 italic">Data analisis korporasi memerlukan penetapan kapal target.</div>
+                <div class="text-slate-500 italic">Corporate network analysis requires a designated target vessel.</div>
                 @endif
             </div>
 
@@ -268,13 +268,13 @@
                     <div class="flex items-center gap-2">
                         <span class="w-6 h-6 rounded-lg bg-teal-500/20 text-teal-400 font-bold flex items-center justify-center text-xs">C</span>
                         <h3 class="font-bold uppercase tracking-wider text-teal-300">
-                            Analisis Lintasan Geospasial & Dugaan Pelanggaran Batas Wilayah ZEE
+                            Geospatial Trajectory &amp; Suspected EEZ Boundary Violations
                         </h3>
                     </div>
                     @if($eezAnalysis)
                     <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono
                         {{ $eezAnalysis['anomalies_detected_count'] > 0 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' }}">
-                        Anomali Spasial: {{ $eezAnalysis['anomalies_detected_count'] }}
+                        Spatial Anomalies: {{ $eezAnalysis['anomalies_detected_count'] }}
                     </span>
                     @endif
                 </div>
@@ -284,19 +284,19 @@
                     @if($eezAnalysis['latest_position'])
                     <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-2 text-slate-300">
                         <div>
-                            <span class="text-slate-400 text-[10px] uppercase block">Lintang (Lat):</span>
+                            <span class="text-slate-400 text-[10px] uppercase block">Latitude (Lat):</span>
                             <span class="font-mono text-white font-bold">{{ $eezAnalysis['latest_position']['latitude'] }}</span>
                         </div>
                         <div>
-                            <span class="text-slate-400 text-[10px] uppercase block">Bujur (Lon):</span>
+                            <span class="text-slate-400 text-[10px] uppercase block">Longitude (Lon):</span>
                             <span class="font-mono text-white font-bold">{{ $eezAnalysis['latest_position']['longitude'] }}</span>
                         </div>
                         <div>
-                            <span class="text-slate-400 text-[10px] uppercase block">Kecepatan:</span>
+                            <span class="text-slate-400 text-[10px] uppercase block">Speed:</span>
                             <span class="font-mono text-teal-300">{{ $eezAnalysis['latest_position']['speed_knots'] ?? 0 }} kts</span>
                         </div>
                         <div>
-                            <span class="text-slate-400 text-[10px] uppercase block">Waktu Terakhir:</span>
+                            <span class="text-slate-400 text-[10px] uppercase block">Last Timestamp:</span>
                             <span class="font-mono text-slate-400 text-[10px]">{{ substr($eezAnalysis['latest_position']['observed_at'] ?? '', 0, 16) }} UTC</span>
                         </div>
                     </div>
@@ -307,10 +307,10 @@
                         <table class="w-full text-left text-slate-300 min-w-[500px]">
                             <thead class="bg-slate-900/90 text-slate-400 uppercase text-[10px] border-b border-slate-800">
                                 <tr>
-                                    <th class="py-2 px-3">Aturan / Rule</th>
-                                    <th class="py-2 px-3">Klasifikasi Formil</th>
-                                    <th class="py-2 px-3">Koordinat</th>
-                                    <th class="py-2 px-3">Waktu Terdeteksi</th>
+                                    <th class="py-2 px-3">Compliance Rule</th>
+                                    <th class="py-2 px-3">Formal Classification</th>
+                                    <th class="py-2 px-3">Coordinates</th>
+                                    <th class="py-2 px-3">Detection Time</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-800/60 text-[11px]">
@@ -334,16 +334,16 @@
                     </div>
                     @else
                     <div class="p-3 text-center text-slate-500 bg-slate-900/50 rounded-lg">
-                        Tidak ada anomali atau peristiwa pelanggaran batas wilayah ZEE yang terekam pada basis data kepatuhan.
+                        No anomalies or EEZ boundary compliance events recorded in the telemetry database.
                     </div>
                     @endif
 
                     <div class="text-[11px] text-slate-400 italic">
-                        Prinsip Audit Geospasial: {{ $eezAnalysis['methodology_note'] }}
+                        Geospatial Audit Methodology: {{ $eezAnalysis['methodology_note'] }}
                     </div>
                 </div>
                 @else
-                <div class="text-slate-500 italic">Data analisis ZEE memerlukan penetapan kapal target.</div>
+                <div class="text-slate-500 italic">EEZ analysis requires a designated target vessel.</div>
                 @endif
             </div>
 
@@ -353,7 +353,7 @@
                     <div class="flex items-center gap-2">
                         <span class="w-6 h-6 rounded-lg bg-rose-500/20 text-rose-400 font-bold flex items-center justify-center text-xs">D</span>
                         <h3 class="font-bold uppercase tracking-wider text-rose-300">
-                            IUU Fishing & Status Otorisasi Penangkapan Ikan
+                            IUU Fishing Risk &amp; Fishery Authorizations
                         </h3>
                     </div>
                     @if($iuuAnalysis)
@@ -368,7 +368,7 @@
                             };
                         @endphp
                         <span class="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase font-mono border {{ $catStyle }}">
-                            Klasifikasi 5-Tingkat: {{ str_replace('_', ' ', $cat) }}
+                            5-Tier Classification: {{ str_replace('_', ' ', $cat) }}
                         </span>
                     @endif
                 </div>
@@ -377,14 +377,14 @@
                 <div class="space-y-3">
                     <div class="p-3.5 rounded-lg bg-slate-900/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
-                            <div class="text-[10px] text-slate-400 uppercase">Status Daftar Hitam IUU Fishing:</div>
+                            <div class="text-[10px] text-slate-400 uppercase">IUU Blacklist Status:</div>
                             <div class="text-sm font-black font-mono mt-0.5
                                 {{ $iuuAnalysis['iuu_blacklist_status'] === 'BLACKLISTED' ? 'text-rose-400' : 'text-emerald-400' }}">
                                 {{ $iuuAnalysis['iuu_blacklist_status'] }}
                             </div>
                         </div>
                         <div class="sm:text-right">
-                            <div class="text-[10px] text-slate-400 uppercase">Uraian Rasional Bukti:</div>
+                            <div class="text-[10px] text-slate-400 uppercase">Evidence Rationale:</div>
                             <div class="text-xs text-slate-200 font-semibold">{{ $iuuAnalysis['verdict_rationale'] }}</div>
                         </div>
                     </div>
@@ -392,17 +392,17 @@
                     @if(!empty($iuuAnalysis['authorizations']))
                     <div>
                         <div class="text-xs font-semibold text-slate-300 mb-2">
-                            Riwayat Otorisasi & Surat Izin Penangkapan Ikan (SIPI): {{ $iuuAnalysis['authorizations_count'] }} Dokumen
+                            Authorization &amp; Permit History: {{ $iuuAnalysis['authorizations_count'] }} Records
                         </div>
                         <div class="overflow-x-auto rounded-lg border border-slate-800 responsive-table-container">
                             <table class="w-full text-left text-slate-300 min-w-[550px]">
                                 <thead class="bg-slate-900/90 text-slate-400 uppercase text-[10px] border-b border-slate-800">
                                     <tr>
-                                        <th class="py-2 px-3">Kode Otorisasi</th>
-                                        <th class="py-2 px-3">Tipe Izin</th>
-                                        <th class="py-2 px-3">Otoritas Penerbit</th>
-                                        <th class="py-2 px-3">Alat Tangkap</th>
-                                        <th class="py-2 px-3">Masa Berlaku</th>
+                                        <th class="py-2 px-3">Authorization Code</th>
+                                        <th class="py-2 px-3">Permit Type</th>
+                                        <th class="py-2 px-3">Issuing Authority</th>
+                                        <th class="py-2 px-3">Gear Type</th>
+                                        <th class="py-2 px-3">Validity Period</th>
                                         <th class="py-2 px-3">Status</th>
                                     </tr>
                                 </thead>
@@ -418,7 +418,7 @@
                                         </td>
                                         <td class="py-2 px-3">
                                             @if($auth['is_current'])
-                                                <span class="text-emerald-400 font-bold uppercase">Berlaku</span>
+                                                <span class="text-emerald-400 font-bold uppercase">Active</span>
                                             @else
                                                 <span class="text-rose-400 font-bold uppercase">Expired</span>
                                             @endif
@@ -432,11 +432,11 @@
                     @endif
 
                     <div class="text-[11px] text-slate-400 italic">
-                        Standar Verifikasi: {{ $iuuAnalysis['audit_standard'] }}
+                        Verification Standard: {{ $iuuAnalysis['audit_standard'] }}
                     </div>
                 </div>
                 @else
-                <div class="text-slate-500 italic">Data analisis IUU memerlukan penetapan kapal target.</div>
+                <div class="text-slate-500 italic">IUU analysis requires a designated target vessel.</div>
                 @endif
             </div>
 
@@ -444,17 +444,17 @@
             @if(!empty($investigation->evidence_matrix))
             <div class="glass-panel p-5 rounded-xl border border-slate-800 space-y-3 text-xs">
                 <h3 class="font-bold uppercase tracking-wider text-slate-200 border-b border-slate-800 pb-2">
-                    Matriks Bukti Forensik Tambahan (Evidence Matrix)
+                    Additional Forensic Evidence Matrix
                 </h3>
                 <div class="space-y-2">
                     @foreach($investigation->evidence_matrix as $ev)
                     <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-800 flex items-start justify-between gap-3">
                         <div>
-                            <div class="font-bold text-white">{{ $ev['title'] ?? 'Bukti Forensik' }}</div>
+                            <div class="font-bold text-white">{{ $ev['title'] ?? 'Forensic Evidence' }}</div>
                             <div class="text-slate-400 text-[11px] mt-0.5">{{ $ev['notes'] ?? '-' }}</div>
                         </div>
                         <div class="text-right text-[10px] text-slate-500 font-mono">
-                            <div>Dicatat oleh: {{ $ev['recorded_by'] ?? '-' }}</div>
+                            <div>Recorded by: {{ $ev['recorded_by'] ?? '-' }}</div>
                             <div>{{ substr($ev['recorded_at'] ?? '', 0, 16) }}</div>
                         </div>
                     </div>
@@ -471,44 +471,44 @@
             <!-- Case Metadata & Assignment -->
             <div class="glass-panel p-5 rounded-xl border border-slate-800 space-y-4 text-xs">
                 <h3 class="font-bold uppercase tracking-wider text-white border-b border-slate-800 pb-2">
-                    Metadata & Otorisasi Kasus
+                    Case Metadata &amp; Authorization
                 </h3>
 
                 <div class="space-y-2.5">
                     <div class="flex justify-between py-1 border-b border-slate-800/60">
-                        <span class="text-slate-400">Klasifikasi Kerahasiaan:</span>
+                        <span class="text-slate-400">Confidentiality Classification:</span>
                         <span class="font-bold uppercase font-mono text-rose-300">{{ $investigation->confidentiality_level ?? 'private' }}</span>
                     </div>
                     <div class="flex justify-between py-1 border-b border-slate-800/60">
-                        <span class="text-slate-400">Institusi Riset:</span>
-                        <span class="font-semibold text-slate-200">{{ $investigation->organization ?? 'Tim Internal GFVIP' }}</span>
+                        <span class="text-slate-400">Research Institution:</span>
+                        <span class="font-semibold text-slate-200">{{ $investigation->organization ?? 'GFVIP Internal Team' }}</span>
                     </div>
                     <div class="flex justify-between py-1 border-b border-slate-800/60">
-                        <span class="text-slate-400">Prioritas:</span>
+                        <span class="text-slate-400">Priority Level:</span>
                         <span class="font-bold uppercase font-mono text-amber-300">{{ $investigation->priority }}</span>
                     </div>
                     <div class="flex justify-between py-1 border-b border-slate-800/60">
-                        <span class="text-slate-400">Status Berkas:</span>
+                        <span class="text-slate-400">Case Status:</span>
                         <span class="font-bold uppercase font-mono text-teal-300">{{ $investigation->status }}</span>
                     </div>
                     <div class="flex justify-between py-1 border-b border-slate-800/60">
-                        <span class="text-slate-400">Kesimpulan Riset:</span>
+                        <span class="text-slate-400">Analytical Verdict:</span>
                         <span class="font-bold uppercase font-mono text-indigo-300">{{ str_replace('_', ' ', $investigation->verdict_status ?? 'under_review') }}</span>
                     </div>
                     <div class="flex justify-between py-1 border-b border-slate-800/60">
-                        <span class="text-slate-400">Lead Peneliti:</span>
-                        <span class="font-semibold text-white">{{ $investigation->leadResearcher?->name ?? 'Belum Ditunjuk' }}</span>
+                        <span class="text-slate-400">Lead Researcher:</span>
+                        <span class="font-semibold text-white">{{ $investigation->leadResearcher?->name ?? 'Unassigned' }}</span>
                     </div>
                     <div class="flex justify-between py-1 border-b border-slate-800/60">
-                        <span class="text-slate-400">Analis Pelaksana:</span>
-                        <span class="font-semibold text-white">{{ $investigation->assignedTo?->name ?? 'Belum Ditugaskan' }}</span>
+                        <span class="text-slate-400">Assigned Analyst:</span>
+                        <span class="font-semibold text-white">{{ $investigation->assignedTo?->name ?? 'Unassigned' }}</span>
                     </div>
                     <div class="flex justify-between py-1 border-b border-slate-800/60">
-                        <span class="text-slate-400">Inisiator Berkas:</span>
+                        <span class="text-slate-400">Case Initiator:</span>
                         <span class="text-slate-300">{{ $investigation->createdBy?->name ?? 'System' }}</span>
                     </div>
                     <div class="flex justify-between py-1">
-                        <span class="text-slate-400">Waktu Inisiasi:</span>
+                        <span class="text-slate-400">Initiation Time:</span>
                         <span class="font-mono text-slate-400 text-[10px]">{{ $investigation->created_at->format('Y-m-d H:i') }} UTC</span>
                     </div>
                 </div>
@@ -517,19 +517,19 @@
             <!-- Current Findings & Recommendations Display -->
             <div class="glass-panel p-5 rounded-xl border border-slate-800 space-y-3 text-xs">
                 <h3 class="font-bold uppercase tracking-wider text-amber-300 border-b border-slate-800 pb-2">
-                    Temuan Akhir & Rekomendasi Riset
+                    Case Findings &amp; Recommendations
                 </h3>
                 <div class="space-y-2">
                     <div>
-                        <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Temuan Analis:</span>
+                        <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Analyst Findings:</span>
                         <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 leading-relaxed">
-                            {{ $investigation->findings ?: 'Belum ada temuan tertulis yang disimpulkan.' }}
+                            {{ $investigation->findings ?: 'No formalized findings recorded yet.' }}
                         </div>
                     </div>
                     <div>
-                        <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Rekomendasi Tindakan:</span>
+                        <span class="text-[10px] uppercase text-slate-400 font-semibold block mb-0.5">Recommended Action:</span>
                         <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 leading-relaxed">
-                            {{ $investigation->recommendation ?: 'Belum ada rekomendasi yang diformulasikan.' }}
+                            {{ $investigation->recommendation ?: 'No action recommendations formulated yet.' }}
                         </div>
                     </div>
                 </div>
@@ -539,7 +539,7 @@
             @if($canManage)
             <div class="glass-panel p-5 rounded-xl border border-teal-500/30 bg-teal-950/10 space-y-4 text-xs">
                 <h3 class="font-bold uppercase tracking-wider text-teal-300 border-b border-teal-500/20 pb-2">
-                    Perbarui Kesimpulan & Temuan Kasus
+                    Update Case Findings &amp; Verdict
                 </h3>
 
                 <form action="{{ route('investigations.findings.update', $investigation->id) }}" method="POST" class="space-y-3">
@@ -547,18 +547,18 @@
                     @method('PATCH')
 
                     <div>
-                        <label for="verdict_status" class="block font-semibold text-slate-300 mb-1">Status Kesimpulan Hukum/Riset:</label>
+                        <label for="verdict_status" class="block font-semibold text-slate-300 mb-1">Legal / Research Verdict Status:</label>
                         <select name="verdict_status" id="verdict_status" class="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200">
-                            <option value="under_review" {{ $investigation->verdict_status === 'under_review' ? 'selected' : '' }}>Under Review (Sedang Ditelusuri)</option>
-                            <option value="confirmed" {{ $investigation->verdict_status === 'confirmed' ? 'selected' : '' }}>Confirmed (Terbukti Pelanggaran)</option>
-                            <option value="suspected" {{ $investigation->verdict_status === 'suspected' ? 'selected' : '' }}>Suspected (Dugaan Kuat)</option>
-                            <option value="potential" {{ $investigation->verdict_status === 'potential' ? 'selected' : '' }}>Potential (Potensi Risiko)</option>
-                            <option value="inconclusive" {{ $investigation->verdict_status === 'inconclusive' ? 'selected' : '' }}>Inconclusive (Bukti Tidak Cukup)</option>
+                            <option value="under_review" {{ $investigation->verdict_status === 'under_review' ? 'selected' : '' }}>Under Review</option>
+                            <option value="confirmed" {{ $investigation->verdict_status === 'confirmed' ? 'selected' : '' }}>Confirmed Violation</option>
+                            <option value="suspected" {{ $investigation->verdict_status === 'suspected' ? 'selected' : '' }}>Suspected Violation</option>
+                            <option value="potential" {{ $investigation->verdict_status === 'potential' ? 'selected' : '' }}>Potential Risk</option>
+                            <option value="inconclusive" {{ $investigation->verdict_status === 'inconclusive' ? 'selected' : '' }}>Inconclusive Evidence</option>
                         </select>
                     </div>
 
                     <div>
-                        <label for="status" class="block font-semibold text-slate-300 mb-1">Status Dossier:</label>
+                        <label for="status" class="block font-semibold text-slate-300 mb-1">Dossier Status:</label>
                         <select name="status" id="status" class="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200">
                             <option value="open" {{ $investigation->status === 'open' ? 'selected' : '' }}>Open</option>
                             <option value="in_progress" {{ $investigation->status === 'in_progress' ? 'selected' : '' }}>In Progress</option>
@@ -568,24 +568,24 @@
                     </div>
 
                     <div>
-                        <label for="findings" class="block font-semibold text-slate-300 mb-1">Ringkasan Temuan:</label>
-                        <textarea name="findings" id="findings" rows="3" class="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 placeholder-slate-500" placeholder="Uraikan temuan analisis berdasarkan bukti telemetri atau satelit...">{{ $investigation->findings }}</textarea>
+                        <label for="findings" class="block font-semibold text-slate-300 mb-1">Summary of Findings:</label>
+                        <textarea name="findings" id="findings" rows="3" class="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 placeholder-slate-500" placeholder="Detail analytical findings based on telemetry, satellite radar, or AIS evidence...">{{ $investigation->findings }}</textarea>
                     </div>
 
                     <div>
-                        <label for="recommendation" class="block font-semibold text-slate-300 mb-1">Rekomendasi Tindakan Lanjutan:</label>
-                        <textarea name="recommendation" id="recommendation" rows="2" class="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 placeholder-slate-500" placeholder="Rekomendasi pemantauan patroli, notifikasi satgas, atau tindak lanjut hukum...">{{ $investigation->recommendation }}</textarea>
+                        <label for="recommendation" class="block font-semibold text-slate-300 mb-1">Follow-up Recommendations:</label>
+                        <textarea name="recommendation" id="recommendation" rows="2" class="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 placeholder-slate-500" placeholder="Recommendations for patrol tasking, task force notification, or enforcement referrals...">{{ $investigation->recommendation }}</textarea>
                     </div>
 
                     <div class="pt-2 border-t border-slate-800">
-                        <label class="block font-semibold text-slate-300 mb-1">Tambah Bukti Forensik Baru (Opsional):</label>
-                        <input type="text" name="new_evidence_title" placeholder="Nama / Judul Dokumen Bukti" class="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 text-xs mb-1.5">
-                        <textarea name="new_evidence_notes" rows="2" placeholder="Catatan bukti forensik (referensi citra SAR, koordinat AIS, dll)..." class="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 text-xs"></textarea>
+                        <label class="block font-semibold text-slate-300 mb-1">Add New Forensic Evidence (Optional):</label>
+                        <input type="text" name="new_evidence_title" placeholder="Evidence Document / Record Title" class="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 text-xs mb-1.5">
+                        <textarea name="new_evidence_notes" rows="2" placeholder="Forensic notes (SAR radar references, AIS coordinate fixes, source documents)..." class="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 text-xs"></textarea>
                     </div>
 
                     <div class="pt-2">
                         <button type="submit" class="w-full py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold transition shadow-md shadow-teal-500/20">
-                            Simpan Pembaruan Analisis
+                            Save Analysis Updates
                         </button>
                     </div>
                 </form>

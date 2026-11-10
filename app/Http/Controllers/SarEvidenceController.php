@@ -26,7 +26,7 @@ class SarEvidenceController extends Controller
         // Find detection safely by identifier or UUID without UUID cast errors
         $detection = SatelliteDetection::whereIdentifierOrId($candidate)->first();
         if (!$detection) {
-            abort(404, "Kandidat SAR '{$candidate}' tidak ditemukan.");
+            abort(404, "SAR candidate '{$candidate}' not found.");
         }
 
         $sceneId = $detection->scene?->scene_id ?? '542e73f3-35ea-4ff6-bc6a-fa71d5d1fee7';
@@ -40,14 +40,14 @@ class SarEvidenceController extends Controller
         ];
 
         if (!isset($fileMap[$type])) {
-            abort(404, 'Tipe file evidence tidak valid. Opsi yang tersedia: raw, sigma0-linear, sigma0-db, metadata.');
+            abort(404, 'Invalid evidence file type. Available options: raw, sigma0-linear, sigma0-db, metadata.');
         }
 
         $filename = $fileMap[$type];
         $filePath = storage_path("app/sar_evidence/{$sceneId}/{$identifier}/{$filename}");
 
         if (!File::exists($filePath)) {
-            abort(404, 'File evidence raster SAR belum diekstraksi untuk kandidat ini.');
+            abort(404, 'SAR raster evidence files have not been extracted for this candidate.');
         }
 
         $contentType = ($type === 'metadata') ? 'application/json' : 'image/png';
@@ -73,7 +73,7 @@ class SarEvidenceController extends Controller
         if (!$detection) {
             return response()->json([
                 'status' => 'error',
-                'message' => "Kandidat SAR dengan identifier '{$id}' tidak ditemukan.",
+                'message' => "SAR candidate with identifier '{$id}' not found.",
             ], 404);
         }
 
@@ -158,7 +158,7 @@ class SarEvidenceController extends Controller
         if (!$detection) {
             return response()->json([
                 'status' => 'error',
-                'message' => "Kandidat SAR dengan identifier '{$id}' tidak ditemukan.",
+                'message' => "SAR candidate with identifier '{$id}' not found.",
             ], 404);
         }
 
@@ -166,14 +166,14 @@ class SarEvidenceController extends Controller
         $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'window' => 'nullable|integer|in:30,60,180,360,1440',
         ], [
-            'window.in' => 'Parameter rentang waktu (window) tidak valid. Opsi yang didukung: 30, 60, 180, 360, 1440 menit.',
-            'window.integer' => 'Parameter window harus berupa angka integer.',
+            'window.in' => 'Invalid time window parameter. Supported options: 30, 60, 180, 360, 1440 minutes.',
+            'window.integer' => 'Window parameter must be an integer.',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Parameter window tidak valid.',
+                'message' => 'Invalid window parameter.',
                 'errors' => $validator->errors(),
             ], 422);
         }

@@ -17,7 +17,7 @@ class ExampleTest extends TestCase
         $response = $this->actingAs($user)->get('/dashboard');
 
         $response->assertStatus(200);
-        $response->assertSee('Global Fishing Vessel Monitoring Platform');
+        $response->assertSee('Global Fishing Vessel Tracking');
         $response->assertSee('Overview Dashboard');
     }
 }

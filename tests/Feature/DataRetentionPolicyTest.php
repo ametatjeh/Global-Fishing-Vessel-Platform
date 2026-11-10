@@ -54,9 +54,9 @@ class DataRetentionPolicyTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('AIS Data Retention Policy');
-        $response->assertSee('Kapal Penangkap Ikan (Fishing)');
+        $response->assertSee('Fishing Vessels (Fishing)');
         $response->assertSee('FISHING: 100% IMMUTABLE');
-        $response->assertSee('Permanen (Tidak Terbatas / Forever)');
+        $response->assertSee('Permanent (Unlimited / Forever)');
     }
 
     public function test_data_retention_page_forbidden_for_regular_analyst(): void

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header_title', 'Vessel Registry — Identitas, Bendera, Kepemilikan & Operator Armada Global')
+@section('header_title', 'Vessel Registry — Identity, Flag, Ownership & Global Fleet Operators')
 
 @section('content')
 <div class="space-y-6">
@@ -11,17 +11,17 @@
             <div class="flex items-center gap-2.5 flex-wrap">
                 <h2 class="text-xl font-bold text-white tracking-wide uppercase">Vessel Registry</h2>
                 <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase bg-teal-500/15 text-teal-300 border border-teal-500/30">
-                    Armada Global & Pemantauan Maritim
+                    Global Fleet Surveillance
                 </span>
                 @if($activeFiltersCount > 0)
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30">
                     <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-                    {{ $activeFiltersCount }} filter aktif
+                    {{ $activeFiltersCount }} active filters
                 </span>
                 @endif
             </div>
             <p class="text-xs text-slate-400 mt-1">
-                Katalog identitas kapal, registrasi bendera (Flag State), entitas operator, dan struktur kepemilikan (Owner) terverifikasi.
+                Verified vessel identities, flag state registrations, fleet operators, and beneficial ownership structures.
             </p>
         </div>
 
@@ -31,14 +31,14 @@
                 @csrf
                 <input type="hidden" name="limit" value="25">
                 <input type="hidden" name="active_only" value="1">
-                <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 hover:text-teal-200 border border-teal-500/40 text-xs font-semibold transition shadow-sm" title="Jalankan pengayaan multi-sumber untuk 25 kapal aktif awaiting">
+                <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 hover:text-teal-200 border border-teal-500/40 text-xs font-semibold transition shadow-sm" title="Run multi-source data enrichment for 25 active awaiting vessels">
                     <span>⚡</span>
-                    <span>Bulk Enrich (25 Aktif)</span>
+                    <span>Bulk Enrichment (25 Active)</span>
                 </button>
             </form>
 
             @if($activeFiltersCount > 0)
-            <a href="{{ route('vessels.index') }}" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-medium transition shadow-sm" title="Hapus semua filter pencarian">
+            <a href="{{ route('vessels.index') }}" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-medium transition shadow-sm" title="Clear all search filters">
                 <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
@@ -48,9 +48,21 @@
         </div>
     </div>
 
-    <!-- Awaiting Static Data Enrichment KPI Summary Cards -->
-    @if(isset($awaitingStats))
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+    <!-- Registry KPI Summary & Awaiting Static Data Cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+        <!-- 0. Total Registered -->
+        <a href="{{ route('vessels.index') }}" class="glass-panel p-3.5 rounded-xl border border-slate-800 hover:border-teal-500/40 transition group shadow-md block" title="Show all registered fleet vessels">
+            <div class="flex items-center justify-between text-slate-400 text-xs">
+                <span class="font-semibold uppercase tracking-wider text-[10px]">Total Registered</span>
+                <span>🚢</span>
+            </div>
+            <div class="text-xl sm:text-2xl font-black text-white font-mono group-hover:text-teal-300 transition mt-1">
+                {{ number_format($totalVessels ?? \App\Models\Vessel::count()) }}
+            </div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Fleet in system registry</div>
+        </a>
+
+        @if(isset($awaitingStats))
         <!-- 1. Total Awaiting -->
         <a href="{{ route('vessels.index', ['vessel_type' => 'awaiting_static']) }}" class="glass-panel p-3.5 rounded-xl border border-slate-800 hover:border-amber-500/40 transition group shadow-md block">
             <div class="text-[10px] font-mono uppercase text-slate-400 flex items-center justify-between">
@@ -60,19 +72,19 @@
             <div class="text-xl font-bold font-mono text-amber-300 mt-1">
                 {{ number_format($awaitingStats['total_awaiting'] ?? 0) }}
             </div>
-            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Total Menunggu AIS</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Total Awaiting AIS</div>
         </a>
 
         <!-- 2. Active Awaiting -->
         <a href="{{ route('vessels.index', ['vessel_type' => 'awaiting_static', 'activity' => 'active']) }}" class="glass-panel p-3.5 rounded-xl border border-slate-800 hover:border-emerald-500/40 transition group shadow-md block">
             <div class="text-[10px] font-mono uppercase text-slate-400 flex items-center justify-between">
-                <span>Aktif &le; 24 Jam</span>
+                <span>Active &le; 24h</span>
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
             </div>
             <div class="text-xl font-bold font-mono text-emerald-300 mt-1">
                 {{ number_format($awaitingStats['active_awaiting'] ?? 0) }}
             </div>
-            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Prioritas Pengayaan</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Enrichment Priority</div>
         </a>
 
         <!-- 3. Enriched -->
@@ -84,31 +96,31 @@
             <div class="text-xl font-bold font-mono text-teal-300 mt-1">
                 {{ number_format($awaitingStats['enriched_count'] ?? 0) }}
             </div>
-            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Terisi Eksternal</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Enriched (External)</div>
         </a>
 
         <!-- 4. Partially Enriched -->
         <a href="{{ route('vessels.index', ['enrichment_status' => 'partial']) }}" class="glass-panel p-3.5 rounded-xl border border-slate-800 hover:border-sky-500/40 transition group shadow-md block">
             <div class="text-[10px] font-mono uppercase text-slate-400 flex items-center justify-between">
-                <span>Sebagian (Partial)</span>
+                <span>Partially Enriched</span>
                 <span class="text-xs">◐</span>
             </div>
             <div class="text-xl font-bold font-mono text-sky-300 mt-1">
                 {{ number_format($awaitingStats['partial_count'] ?? 0) }}
             </div>
-            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Atribut Sebagian</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Partial Attributes</div>
         </a>
 
         <!-- 5. Conflicting -->
         <a href="{{ route('vessels.index', ['enrichment_status' => 'conflicting']) }}" class="glass-panel p-3.5 rounded-xl border border-slate-800 hover:border-rose-500/40 transition group shadow-md block">
             <div class="text-[10px] font-mono uppercase text-slate-400 flex items-center justify-between">
-                <span>Konflik (Review)</span>
+                <span>Conflicting Data</span>
                 <span class="text-xs">⚠️</span>
             </div>
             <div class="text-xl font-bold font-mono text-rose-300 mt-1">
                 {{ number_format($awaitingStats['conflicting_count'] ?? 0) }}
             </div>
-            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Butuh Review Analis</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Analyst Review Required</div>
         </a>
 
         <!-- 6. Not Found -->
@@ -120,10 +132,10 @@
             <div class="text-xl font-bold font-mono text-slate-300 mt-1">
                 {{ number_format($awaitingStats['not_found_count'] ?? 0) }}
             </div>
-            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Belum Ditemukan</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Not Found</div>
         </a>
+        @endif
     </div>
-    @endif
 
     <!-- Multi-Dimensional Filter Bar (Compact Mode) -->
     <div class="glass-panel p-4 rounded-2xl border border-slate-800 shadow-xl space-y-3">
@@ -136,10 +148,10 @@
                 <!-- 1. Search Query -->
                 <div class="md:col-span-4 space-y-1">
                     <label class="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                        Pencarian Kapal / Entitas
+                        Vessel / Entity Search
                     </label>
                     <div class="relative">
-                        <input type="text" name="search" value="{{ request('search') }}" placeholder="Nama, MMSI, IMO, Callsign, Owner, Operator..."
+                        <input type="text" name="search" value="{{ request('search') }}" placeholder="Name, MMSI, IMO, Callsign, Owner, Operator..."
                             class="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-teal-400 font-sans transition">
                         <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-500">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -152,18 +164,18 @@
                 <!-- 2. Flag Country Filter -->
                 <div class="md:col-span-3 space-y-1">
                     <label for="flag_country" class="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                        Flag Country (Negara Bendera)
+                        Flag State
                     </label>
                     <select id="flag_country" name="flag_country" onchange="this.form.submit()"
                         class="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-400 font-sans cursor-pointer transition">
-                        <option value="">All Countries (Semua Bendera)</option>
+                        <option value="">All Flags</option>
                         @foreach($availableFlagCountries as $country)
                         <option value="{{ $country['iso2'] }}" {{ (request('flag_country') == $country['iso2'] || request('flag_country') == $country['code'] || request('flag_state') == $country['iso2'] || request('flag_state') == $country['code']) ? 'selected' : '' }}>
                             {{ $country['flag_emoji'] }} {{ $country['iso2'] }} • {{ $country['name'] }}
                         </option>
                         @endforeach
                         <option value="unknown" {{ (request('flag_country') === 'unknown' || request('flag_state') === 'unknown') ? 'selected' : '' }}>
-                            🌐 Unknown (Negara Tidak Diketahui)
+                            🌐 Unknown (Unreported Flag)
                         </option>
                     </select>
                 </div>
@@ -171,47 +183,47 @@
                 <!-- 3. Vessel Type Filter -->
                 <div class="md:col-span-3 space-y-1">
                     <label for="vessel_type" class="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                        Vessel Type (Tipe Armada)
+                        Vessel Type
                     </label>
                     <select id="vessel_type" name="vessel_type" onchange="this.form.submit()"
                         class="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-400 font-sans cursor-pointer transition">
-                        <option value="">All Types (Semua Tipe)</option>
-                        <option value="fishing" {{ request('vessel_type') === 'fishing' ? 'selected' : '' }}>Fishing (Penangkap Ikan)</option>
-                        <option value="cargo" {{ request('vessel_type') === 'cargo' ? 'selected' : '' }}>Cargo (Kargo Barang)</option>
-                        <option value="tanker" {{ request('vessel_type') === 'tanker' ? 'selected' : '' }}>Tanker (Minyak/Gas)</option>
-                        <option value="towing" {{ request('vessel_type') === 'towing' ? 'selected' : '' }}>Towing (Penarik)</option>
-                        <option value="tug" {{ request('vessel_type') === 'tug' ? 'selected' : '' }}>Tug (Kapal Tunda)</option>
-                        <option value="passenger" {{ request('vessel_type') === 'passenger' ? 'selected' : '' }}>Passenger (Penumpang)</option>
+                        <option value="">All Types</option>
+                        <option value="fishing" {{ request('vessel_type') === 'fishing' ? 'selected' : '' }}>Fishing</option>
+                        <option value="cargo" {{ request('vessel_type') === 'cargo' ? 'selected' : '' }}>Cargo</option>
+                        <option value="tanker" {{ request('vessel_type') === 'tanker' ? 'selected' : '' }}>Tanker</option>
+                        <option value="towing" {{ request('vessel_type') === 'towing' ? 'selected' : '' }}>Towing</option>
+                        <option value="tug" {{ request('vessel_type') === 'tug' ? 'selected' : '' }}>Tug</option>
+                        <option value="passenger" {{ request('vessel_type') === 'passenger' ? 'selected' : '' }}>Passenger</option>
                         <option value="high_speed_craft" {{ request('vessel_type') === 'high_speed_craft' ? 'selected' : '' }}>High Speed Craft (HSC)</option>
-                        <option value="pleasure" {{ request('vessel_type') === 'pleasure' ? 'selected' : '' }}>Pleasure Craft (Rekreasi)</option>
-                        <option value="sailing" {{ request('vessel_type') === 'sailing' ? 'selected' : '' }}>Sailing (Kapal Layar)</option>
-                        <option value="pilot" {{ request('vessel_type') === 'pilot' ? 'selected' : '' }}>Pilot Vessel (Pandu)</option>
+                        <option value="pleasure" {{ request('vessel_type') === 'pleasure' ? 'selected' : '' }}>Pleasure Craft</option>
+                        <option value="sailing" {{ request('vessel_type') === 'sailing' ? 'selected' : '' }}>Sailing</option>
+                        <option value="pilot" {{ request('vessel_type') === 'pilot' ? 'selected' : '' }}>Pilot Vessel</option>
                         <option value="sar" {{ request('vessel_type') === 'sar' ? 'selected' : '' }}>Search and Rescue (SAR)</option>
                         <option value="port_tender" {{ request('vessel_type') === 'port_tender' ? 'selected' : '' }}>Port Tender</option>
-                        <option value="law_enforcement" {{ in_array(request('vessel_type'), ['law_enforcement', 'patrol']) ? 'selected' : '' }}>Law Enforcement (Patroli)</option>
-                        <option value="military" {{ request('vessel_type') === 'military' ? 'selected' : '' }}>Military (Militer)</option>
+                        <option value="law_enforcement" {{ in_array(request('vessel_type'), ['law_enforcement', 'patrol']) ? 'selected' : '' }}>Law Enforcement / Patrol</option>
+                        <option value="military" {{ request('vessel_type') === 'military' ? 'selected' : '' }}>Military</option>
                         <option value="dredging" {{ request('vessel_type') === 'dredging' ? 'selected' : '' }}>Dredging / Underwater Ops</option>
                         <option value="diving" {{ request('vessel_type') === 'diving' ? 'selected' : '' }}>Diving Operations</option>
                         <option value="anti_pollution" {{ request('vessel_type') === 'anti_pollution' ? 'selected' : '' }}>Anti-pollution</option>
                         <option value="medical" {{ in_array(request('vessel_type'), ['medical', 'medical_transport']) ? 'selected' : '' }}>Medical Transport</option>
                         <option value="carrier" {{ request('vessel_type') === 'carrier' ? 'selected' : '' }}>Carrier (Reefer)</option>
-                        <option value="support" {{ request('vessel_type') === 'support' ? 'selected' : '' }}>Support (Pendukung)</option>
-                        <option value="other" {{ request('vessel_type') === 'other' ? 'selected' : '' }}>Other (Lainnya)</option>
-                        <option value="not_available" {{ request('vessel_type') === 'not_available' ? 'selected' : '' }}>Not Available (Kode 0)</option>
+                        <option value="support" {{ request('vessel_type') === 'support' ? 'selected' : '' }}>Support</option>
+                        <option value="other" {{ request('vessel_type') === 'other' ? 'selected' : '' }}>Other</option>
+                        <option value="not_available" {{ request('vessel_type') === 'not_available' ? 'selected' : '' }}>Not Available (Code 0)</option>
                         <option value="awaiting_static" {{ request('vessel_type') === 'awaiting_static' ? 'selected' : '' }}>Awaiting Static Data</option>
                         <option value="unmapped" {{ request('vessel_type') === 'unmapped' ? 'selected' : '' }}>Unmapped AIS Code</option>
                     </select>
                 </div>
 
-                <!-- 4. Filter Action Buttons (Sejajar dengan Filter) -->
+                <!-- 4. Filter Action Buttons -->
                 <div class="md:col-span-2 flex items-center gap-2">
                     @if($activeFiltersCount > 0)
                     <a href="{{ route('vessels.index') }}" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold transition shrink-0 whitespace-nowrap text-center" title="Reset Filters">
-                        Reset Filter
+                        Reset Filters
                     </a>
                     @endif
                     <button type="submit" class="w-full py-2 px-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold transition shadow-md shadow-teal-500/20 whitespace-nowrap text-center">
-                        Terapkan
+                        Apply
                     </button>
                 </div>
             </div>
@@ -221,44 +233,44 @@
                 <!-- 5. Enrichment Status Filter -->
                 <div class="md:col-span-4 space-y-1">
                     <label for="enrichment_status" class="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                        Enrichment Status
+                        Data Enrichment Status
                     </label>
                     <select id="enrichment_status" name="enrichment_status" onchange="this.form.submit()"
                         class="w-full px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-400 font-sans cursor-pointer transition text-xs">
-                        <option value="">Semua Status Pengayaan</option>
-                        <option value="awaiting" {{ request('enrichment_status') === 'awaiting' ? 'selected' : '' }}>Awaiting Static (Semua Menunggu)</option>
-                        <option value="enriched" {{ request('enrichment_status') === 'enriched' ? 'selected' : '' }}>✓ Enriched (Terisi Penuh)</option>
-                        <option value="partial" {{ request('enrichment_status') === 'partial' ? 'selected' : '' }}>◐ Partially Enriched (Sebagian)</option>
-                        <option value="conflicting" {{ request('enrichment_status') === 'conflicting' ? 'selected' : '' }}>⚠️ Conflicting (Butuh Review)</option>
-                        <option value="not_found" {{ request('enrichment_status') === 'not_found' ? 'selected' : '' }}>🔍 Not Found (Belum Ditemukan)</option>
-                        <option value="not_started" {{ request('enrichment_status') === 'not_started' ? 'selected' : '' }}>⏱️ Not Started (Belum Diproses)</option>
+                        <option value="">All Enrichment Statuses</option>
+                        <option value="awaiting" {{ request('enrichment_status') === 'awaiting' ? 'selected' : '' }}>Awaiting Static (All Pending)</option>
+                        <option value="enriched" {{ request('enrichment_status') === 'enriched' ? 'selected' : '' }}>✓ Enriched</option>
+                        <option value="partial" {{ request('enrichment_status') === 'partial' ? 'selected' : '' }}>◐ Partially Enriched</option>
+                        <option value="conflicting" {{ request('enrichment_status') === 'conflicting' ? 'selected' : '' }}>⚠️ Conflicting Data (Needs Review)</option>
+                        <option value="not_found" {{ request('enrichment_status') === 'not_found' ? 'selected' : '' }}>🔍 Not Found</option>
+                        <option value="not_started" {{ request('enrichment_status') === 'not_started' ? 'selected' : '' }}>⏱️ Not Started</option>
                     </select>
                 </div>
 
                 <!-- 6. Activity Filter -->
                 <div class="md:col-span-4 space-y-1">
                     <label for="activity" class="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                        Aktivitas Telemetri
+                        Telemetry Activity
                     </label>
                     <select id="activity" name="activity" onchange="this.form.submit()"
                         class="w-full px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-400 font-sans cursor-pointer transition text-xs">
-                        <option value="">Semua Aktivitas Telemetri</option>
-                        <option value="active" {{ request('activity') === 'active' ? 'selected' : '' }}>🟢 Aktif &le; 24 Jam (Prioritas)</option>
-                        <option value="inactive" {{ request('activity') === 'inactive' ? 'selected' : '' }}>⚪ Tidak Aktif (&gt; 24 Jam)</option>
+                        <option value="">All Activity Statuses</option>
+                        <option value="active" {{ request('activity') === 'active' ? 'selected' : '' }}>🟢 Active &le; 24h (Priority)</option>
+                        <option value="inactive" {{ request('activity') === 'inactive' ? 'selected' : '' }}>⚪ Inactive (&gt; 24h)</option>
                     </select>
                 </div>
 
                 <!-- 7. Waiting Duration Filter -->
                 <div class="md:col-span-4 space-y-1">
                     <label for="waiting_duration" class="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                        Durasi Menunggu (Waiting Time)
+                        Waiting Duration
                     </label>
                     <select id="waiting_duration" name="waiting_duration" onchange="this.form.submit()"
                         class="w-full px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-400 font-sans cursor-pointer transition text-xs">
-                        <option value="">Semua Rentang Waktu</option>
-                        <option value="1d" {{ request('waiting_duration') === '1d' ? 'selected' : '' }}>&gt; 1 Hari Menunggu</option>
-                        <option value="7d" {{ request('waiting_duration') === '7d' ? 'selected' : '' }}>&gt; 7 Hari Menunggu</option>
-                        <option value="30d" {{ request('waiting_duration') === '30d' ? 'selected' : '' }}>&gt; 30 Hari Menunggu</option>
+                        <option value="">All Timeframes</option>
+                        <option value="1d" {{ request('waiting_duration') === '1d' ? 'selected' : '' }}>&gt; 1 Day Waiting</option>
+                        <option value="7d" {{ request('waiting_duration') === '7d' ? 'selected' : '' }}>&gt; 7 Days Waiting</option>
+                        <option value="30d" {{ request('waiting_duration') === '30d' ? 'selected' : '' }}>&gt; 30 Days Waiting</option>
                     </select>
                 </div>
             </div>
@@ -272,7 +284,7 @@
                 <thead class="bg-slate-900/90 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
                     <tr>
                         <th class="py-2.5 px-3 text-center w-12 text-slate-400 whitespace-nowrap">No.</th>
-                        <th class="py-2.5 px-4 font-semibold text-slate-300 whitespace-nowrap">VESSEL <span class="sr-only">Nama Kapal</span></th>
+                        <th class="py-2.5 px-4 font-semibold text-slate-300 whitespace-nowrap">VESSEL <span class="sr-only">Vessel Name</span></th>
                         <th class="py-2.5 px-4 font-semibold text-slate-300 whitespace-nowrap">MMSI</th>
                         <th class="py-2.5 px-4 font-semibold text-slate-300 whitespace-nowrap">IMO</th>
                         <th class="py-2.5 px-4 font-semibold text-slate-300 whitespace-nowrap">FLAG</th>
@@ -421,12 +433,12 @@
                             @if($lastDetect)
                             <span class="inline-flex items-center gap-1.5" title="{{ $lastDetect->format('Y-m-d H:i:s') }} UTC @if($vessel->latestPosition) &bull; {{ sprintf('%.2f°, %.2f°', $vessel->latestPosition->latitude, $vessel->latestPosition->longitude) }} @endif">
                                 @if($vessel->isRecentlyActive())
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" title="Aktif (&le; 24 jam)"></span>
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" title="Active (&le; 24h)"></span>
                                 @endif
                                 <span class="text-slate-300">{{ $lastDetect->diffForHumans() }}</span>
                             </span>
                             @else
-                            <span class="text-slate-500 italic text-[11px]" title="Belum pernah terdeteksi telemetri">-</span>
+                            <span class="text-slate-500 italic text-[11px]" title="No telemetry detected">-</span>
                             @endif
                         </td>
 
@@ -435,13 +447,13 @@
                             <div class="inline-flex items-center gap-1.5 justify-end">
                                 <form action="{{ route('vessels.enrich', $vessel->id) }}" method="POST" class="inline">
                                     @csrf
-                                    <button type="submit" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 hover:text-teal-200 border border-teal-500/30 font-semibold transition text-xs shadow-sm" title="Enrich profil kapal via multi-sumber eksternal">
+                                    <button type="submit" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 hover:text-teal-200 border border-teal-500/30 font-semibold transition text-xs shadow-sm" title="Enrich vessel profile via multi-source reconciliation">
                                         <span>⚡</span>
-                                        <span>Enrich</span>
+                                        <span>Enrich Data</span>
                                     </button>
                                 </form>
-                                <a href="{{ route('vessels.show', $vessel->id) }}" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 font-semibold transition text-xs shadow-sm" title="Lihat profil kapal">
-                                    <span>Profil</span>
+                                <a href="{{ route('vessels.show', $vessel->id) }}" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 font-semibold transition text-xs shadow-sm" title="View vessel profile">
+                                    <span>Profile</span>
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                                     </svg>
@@ -451,7 +463,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="10" class="py-12 text-center text-slate-500">
+                        <td colspan="11" class="py-12 text-center text-slate-500">
                             <span class="text-4xl block mb-2">🌊</span>
                             Belum ada kapal yang terdaftar dalam database registry saat ini.
                         </td>

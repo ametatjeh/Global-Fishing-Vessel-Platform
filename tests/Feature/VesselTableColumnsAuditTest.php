@@ -616,7 +616,7 @@ class VesselTableColumnsAuditTest extends TestCase
         $resAll->assertOk();
         $this->assertCount(35, $resAll->viewData('vessels'));
         $resAll->assertSee('value="all" selected', false);
-        $resAll->assertSee('All (Semua)');
+        $resAll->assertSee('>All<', false);
         $resAll->assertSee('Showing <span class="font-medium text-slate-200">1–35</span> of <span class="font-medium text-slate-200">35</span> vessels', false);
 
         // Test per_page = semua (alias)

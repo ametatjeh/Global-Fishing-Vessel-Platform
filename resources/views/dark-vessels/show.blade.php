@@ -12,7 +12,7 @@
             <span class="text-base">✓</span>
             <span class="font-medium">{{ session('success') }}</span>
         </div>
-        <span class="text-[10px] font-mono text-emerald-400 uppercase">Jejak Audit Forensik Tersimpan</span>
+        <span class="text-[10px] font-mono text-emerald-400 uppercase">Forensic Audit Trail Recorded</span>
     </div>
     @endif
 
@@ -20,7 +20,7 @@
     <div class="p-4 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-200 text-xs space-y-1">
         <div class="font-bold flex items-center gap-2">
             <span>⚠️</span>
-            <span>Terdapat kesalahan validasi peninjauan:</span>
+            <span>Review validation errors occurred:</span>
         </div>
         <ul class="list-disc list-inside text-[11px] text-rose-300">
             @foreach($errors->all() as $err)
@@ -36,10 +36,10 @@
             <div>
                 <div class="flex items-center gap-2">
                     <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30 uppercase">
-                        Tahap 8 Evidence-Based Inspector
+                        Stage 8 Evidence-Based Inspector
                     </span>
                     <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase">
-                        Tahap 9 Multi-Source Monitoring
+                        Stage 9 Multi-Source Monitoring
                     </span>
                     <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 uppercase">
                         Sentinel-1 SAR C-Band
@@ -62,7 +62,7 @@
                             Dark Vessel Candidate
                         </span>
                     @else
-                        <span class="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40" title="Cakupan penerima AIS tidak memadai pada lokasi ini">
+                        <span class="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40" title="Insufficient AIS receiver coverage at this location">
                             Insufficient AIS Coverage
                         </span>
                     @endif
@@ -93,36 +93,36 @@
 
                 <div class="text-xs text-slate-400 mt-2 font-mono flex flex-wrap items-center gap-x-4 gap-y-1">
                     <span>Scene: <strong class="text-slate-200">{{ $detection->scene?->scene_id }}</strong></span>
-                    <span>Waktu: <strong class="text-slate-200">{{ $detection->detected_at?->format('Y-m-d H:i:s') }} UTC</strong></span>
-                    <span>Koordinat: <strong class="text-teal-300">{{ number_format($detection->latitude, 5) }}&deg; S, {{ number_format($detection->longitude, 5) }}&deg; E</strong></span>
+                    <span>Time: <strong class="text-slate-200">{{ $detection->detected_at?->format('Y-m-d H:i:s') }} UTC</strong></span>
+                    <span>Coordinates: <strong class="text-teal-300">{{ number_format($detection->latitude, 5) }}&deg; S, {{ number_format($detection->longitude, 5) }}&deg; E</strong></span>
                     <span>Peak TCR: <strong class="text-emerald-300">{{ $detection->tcr_db !== null ? number_format($detection->tcr_db, 1) . ' dB' : '-' }}</strong></span>
-                    <span>Dimensi Radar: <strong class="text-white">{{ $detection->estimated_length_meters }}m &times; {{ $detection->estimated_width_meters }}m</strong></span>
+                    <span>Radar Dimensions: <strong class="text-white">{{ $detection->estimated_length_meters }}m &times; {{ $detection->estimated_width_meters }}m</strong></span>
                 </div>
             </div>
 
             <div class="flex items-center gap-2">
                 <a href="{{ route('dark-vessels.index') }}" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition border border-slate-700 flex items-center gap-1.5">
                     <span>&larr;</span>
-                    <span>Daftar Kandidat</span>
+                    <span>Candidate Registry</span>
                 </a>
-                <a href="{{ route('api.sar.candidates.evidence', $detection->detection_identifier) }}" target="_blank" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 font-bold text-xs transition border border-slate-700 flex items-center gap-1.5" title="Metadata JSON Bukti Forensik">
+                <a href="{{ route('api.sar.candidates.evidence', $detection->detection_identifier) }}" target="_blank" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 font-bold text-xs transition border border-slate-700 flex items-center gap-1.5" title="Forensic Evidence JSON Metadata">
                     <span>🔗</span>
                     <span>API Evidence</span>
                 </a>
-                <a href="{{ route('api.sar.candidates.track', $detection->detection_identifier) }}" target="_blank" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs transition border border-slate-700 flex items-center gap-1.5" title="GeoJSON Historical Track AIS">
+                <a href="{{ route('api.sar.candidates.track', $detection->detection_identifier) }}" target="_blank" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs transition border border-slate-700 flex items-center gap-1.5" title="AIS Historical Track GeoJSON">
                     <span>🛰️</span>
                     <span>API Track</span>
                 </a>
                 <a href="{{ route('map.index') }}" class="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs transition shadow-lg shadow-teal-500/20 flex items-center gap-1.5">
                     <span>🗺️</span>
-                    <span>Peta Global</span>
+                    <span>Global Map</span>
                 </a>
             </div>
         </div>
 
         <!-- THREE CONFIDENCE LEVELS CLASSIFICATION (Tahap 9 - Requirement 5) -->
         <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-            <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Pemilahan Tiga Level Keyakinan Ilmiah (Three Confidence Levels)</div>
+            <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Scientific Three-Tier Confidence Levels Classification</div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                 <!-- Level 1: Detection Confidence -->
                 <div class="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 space-y-1">
@@ -130,8 +130,8 @@
                         <span>Level 1: Detection Confidence</span>
                         <span class="font-mono">{{ round($detection->confidence_score * 100) }}%</span>
                     </div>
-                    <div class="text-[11px] font-bold text-white">Algoritma CA-CFAR Radar</div>
-                    <div class="text-[9px] text-slate-400 leading-snug">Probabilitas statistik bahwa piksel bukan puncak gelombang laut latar (Pfa = 1e-6).</div>
+                    <div class="text-[11px] font-bold text-white">CA-CFAR Radar Algorithm</div>
+                    <div class="text-[9px] text-slate-400 leading-snug">Statistical probability that pixel is not a background ocean wave peak (Pfa = 1e-6).</div>
                 </div>
 
                 <!-- Level 2: Correlation Evidence Score -->
@@ -142,9 +142,9 @@
                             {{ isset($evidence['correlation_evidence']['correlation_evidence_score']) && $evidence['correlation_evidence']['correlation_evidence_score'] !== null ? round($evidence['correlation_evidence']['correlation_evidence_score'] * 100) . '%' : 'N/A' }}
                         </span>
                     </div>
-                    <div class="text-[11px] font-bold text-white">Hubungan Spasio-Temporal AIS</div>
+                    <div class="text-[11px] font-bold text-white">Spatio-Temporal AIS Correlation</div>
                     <div class="text-[9px] text-slate-400 leading-snug">
-                        {{ isset($evidence['correlation_evidence']['correlation_evidence_score']) && $evidence['correlation_evidence']['correlation_evidence_score'] !== null ? 'Skor fusi berbasis jarak, waktu, dan lintasan kapal.' : 'Ketiadaan stasiun AIS di lintang tinggi (Gap penerima).' }}
+                        {{ isset($evidence['correlation_evidence']['correlation_evidence_score']) && $evidence['correlation_evidence']['correlation_evidence_score'] !== null ? 'Data fusion score based on distance, time, and vessel trajectory.' : 'Absence of AIS stations in high latitudes (receiver gap).' }}
                     </div>
                 </div>
 
@@ -154,8 +154,8 @@
                         <span>Level 3: Analyst Assessment</span>
                         <span class="font-mono text-teal-300">{{ $detection->review_status }}</span>
                     </div>
-                    <div class="text-[11px] font-bold text-white">Keputusan Pakar Maritim</div>
-                    <div class="text-[9px] text-slate-400 leading-snug">Penilaian komprehensif manusia. Possible Vessel ≠ Confirmed Vessel.</div>
+                    <div class="text-[11px] font-bold text-white">Maritime Expert Assessment</div>
+                    <div class="text-[9px] text-slate-400 leading-snug">Comprehensive human evaluation. Possible Vessel ≠ Confirmed Vessel.</div>
                 </div>
             </div>
         </div>
@@ -165,13 +165,13 @@
             <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-start gap-2.5">
                 <span class="text-sm shrink-0">⚠️</span>
                 <p class="leading-relaxed">
-                    <strong class="text-slate-300">Prinsip Validitas Ilmiah:</strong> Radar-object dimensions are estimated from SAR backscatter Point Spread Function (PSF) blooming and do not represent confirmed physical vessel dimensions. Detection ≠ Vessel Confirmation. No AIS ≠ Dark Vessel. Radar Signature ≠ Proof of Vessel Identity. Possible Vessel ≠ Confirmed Vessel.
+                    <strong class="text-slate-300">Scientific Validity Principle:</strong> Radar-object dimensions are estimated from SAR backscatter Point Spread Function (PSF) blooming and do not represent confirmed physical vessel dimensions. Detection ≠ Vessel Confirmation. No AIS ≠ Dark Vessel. Radar Signature ≠ Proof of Vessel Identity. Possible Vessel ≠ Confirmed Vessel.
                 </p>
             </div>
             <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-start gap-2.5">
                 <span class="text-sm shrink-0">❄️</span>
                 <p class="leading-relaxed">
-                    <strong class="text-cyan-300">Southern Ocean Polar Caution:</strong> Koordinat {{ number_format($detection->latitude, 2) }}° LS berada di zona es musiman Samudra Selatan. {{ $evidence['sea_ice_status']['description'] }}
+                    <strong class="text-cyan-300">Southern Ocean Polar Caution:</strong> Coordinates {{ number_format($detection->latitude, 2) }}° S are located within the seasonal sea ice zone of the Southern Ocean. {{ $evidence['sea_ice_status']['description'] }}
                 </p>
             </div>
         </div>
@@ -190,10 +190,10 @@
             <table class="w-full text-left min-w-[700px]">
                 <thead class="bg-slate-900/90 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800 font-mono">
                     <tr>
-                        <th class="py-2.5 px-3">Sumber Data</th>
-                        <th class="py-2.5 px-3">Tipe Sensor / Kanal</th>
-                        <th class="py-2.5 px-3">Status Operasional</th>
-                        <th class="py-2.5 px-3">Bukti & Metadata Terverifikasi</th>
+                        <th class="py-2.5 px-3">Data Source</th>
+                        <th class="py-2.5 px-3">Sensor / Channel Type</th>
+                        <th class="py-2.5 px-3">Operational Status</th>
+                        <th class="py-2.5 px-3">Verified Evidence &amp; Metadata</th>
                         <th class="py-2.5 px-3">Provenance / Gateway</th>
                     </tr>
                 </thead>
@@ -236,7 +236,7 @@
                             </span>
                         </div>
                         <p class="text-[11px] text-slate-400 mt-0.5">
-                            Ekstraksi deterministik piksel aktual dari GeoTIFF SAFE (<code class="text-slate-300 font-mono text-[10px]">s1c-ew-grd-hh-*.tiff</code>).
+                            Deterministic pixel extraction from SAFE GeoTIFF (<code class="text-slate-300 font-mono text-[10px]">s1c-ew-grd-hh-*.tiff</code>).
                         </p>
                     </div>
 
@@ -320,13 +320,13 @@
                         </div>
                     </div>
                     <div class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
-                        <div class="text-[9px] uppercase font-bold text-slate-500">Clutter Latar Belakang</div>
+                        <div class="text-[9px] uppercase font-bold text-slate-500">Background Clutter</div>
                         <div class="font-mono text-slate-300 text-sm font-bold mt-0.5">
                             {{ isset($evidence['metadata']['radar_measurements']['background_clutter_db']) ? number_format($evidence['metadata']['radar_measurements']['background_clutter_db'], 2) . ' dB' : 'N/A' }}
                         </div>
                     </div>
                     <div class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
-                        <div class="text-[9px] uppercase font-bold text-slate-500">Resolusi Spasial Efektif</div>
+                        <div class="text-[9px] uppercase font-bold text-slate-500">Effective Spatial Resolution</div>
                         <div class="font-mono text-white text-sm font-bold mt-0.5">
                             93m &times; 87m
                         </div>
@@ -335,9 +335,9 @@
                 @else
                 <div class="p-8 rounded-xl bg-slate-900/40 border border-slate-800 text-center text-slate-400 space-y-2">
                     <span class="text-3xl block">📷</span>
-                    <div class="font-bold text-white text-sm">Crop Raster SAR Belum Tersedia</div>
+                    <div class="font-bold text-white text-sm">SAR Raster Crop Unavailable</div>
                     <p class="text-xs text-slate-500 max-w-md mx-auto">
-                        File citra crop belum diekstraksi dari file SAFE mentah. Jalankan prosesor evidence untuk mengekstraksi piksel aktual kandidat ini.
+                        Crop image files have not been extracted from raw SAFE archives. Run the evidence processor to extract actual pixels for this candidate.
                     </p>
                 </div>
                 @endif
@@ -349,9 +349,9 @@
                     <div>
                         <h3 class="font-bold uppercase tracking-wider text-teal-400 text-xs flex items-center gap-2">
                             <span>🗺️</span>
-                            <span>Panel 3: Konteks Spasial MapLibre & Lintasan AIS</span>
+                            <span>Panel 3: MapLibre Spatial Context &amp; AIS Track</span>
                         </h3>
-                        <p class="text-[10px] text-slate-400 mt-0.5">ESRI World Dark Gray Canvas &bull; Footprint SAR &bull; Lintasan Posisi AIS Historis</p>
+                        <p class="text-[10px] text-slate-400 mt-0.5">ESRI World Dark Gray Canvas &bull; SAR Footprint &bull; Historical AIS Positions Track</p>
                     </div>
 
                     <!-- Controls: AIS Track Toggle & Temporal Window Selector -->
@@ -362,11 +362,11 @@
                         </label>
 
                         <select id="select-track-window" class="px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 text-[11px] focus:outline-none focus:border-teal-500">
-                            <option value="30">&plusmn;30 menit</option>
-                            <option value="60" selected>&plusmn;60 menit (Standar)</option>
-                            <option value="180">&plusmn;180 menit (3 Jam)</option>
-                            <option value="360">&plusmn;360 menit (6 Jam)</option>
-                            <option value="1440">&plusmn;24 jam (1 Hari)</option>
+                            <option value="30">&plusmn;30 mins</option>
+                            <option value="60" selected>&plusmn;60 mins (Standard)</option>
+                            <option value="180">&plusmn;180 mins (3 Hours)</option>
+                            <option value="360">&plusmn;360 mins (6 Hours)</option>
+                            <option value="1440">&plusmn;24 hours (1 Day)</option>
                         </select>
                     </div>
                 </div>
@@ -377,16 +377,16 @@
                         Lat: {{ number_format($detection->latitude, 5) }}, Lng: {{ number_format($detection->longitude, 5) }}
                     </div>
                     <div id="track-status-badge" class="absolute top-2 left-2 px-2.5 py-1 rounded bg-slate-950/80 backdrop-blur-md border border-slate-800 text-[10px] font-mono text-amber-300">
-                        Memuat lintasan AIS...
+                        Loading AIS track...
                     </div>
                 </div>
 
                 <div class="flex items-center justify-between text-[10px] font-mono text-slate-400 px-1">
                     <div class="flex items-center gap-3">
-                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Target SAR</span>
-                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span> AIS Sebelum</span>
-                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span> AIS Terdekat</span>
-                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-indigo-400"></span> AIS Sesudah</span>
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> SAR Target</span>
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span> AIS Before</span>
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Nearest AIS</span>
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-indigo-400"></span> AIS After</span>
                     </div>
                     <span class="text-slate-500">WGS84 EPSG:4326</span>
                 </div>
@@ -397,7 +397,7 @@
                 <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
                     <h3 class="font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
                         <span>📡</span>
-                        <span>Panel 4: Evaluasi Korelasi Telemetri AIS Independen</span>
+                        <span>Panel 4: Independent AIS Telemetry Correlation Evaluation</span>
                     </h3>
                     <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase">
                         {{ $aisComparison['reception_status'] }}
@@ -409,15 +409,15 @@
                 <div class="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-500/30 space-y-2 text-slate-300">
                     <div class="font-bold text-emerald-300 flex items-center gap-2">
                         <span>✓</span>
-                        <span>Korelasi AIS Terverifikasi (Matched Vessel):</span>
+                        <span>Verified AIS Correlation (Matched Vessel):</span>
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-[11px] font-mono mt-1">
                         <div>MMSI: <strong class="text-white">{{ $aisComparison['closest_vessel']?->mmsi ?? '-' }}</strong></div>
-                        <div>Nama: <strong class="text-white">{{ $aisComparison['closest_vessel']?->name ?? '-' }}</strong></div>
-                        <div>Bendera: <strong class="text-teal-300">{{ $aisComparison['closest_vessel']?->flag_info['flag_emoji'] }} {{ $aisComparison['closest_vessel']?->flag_info['country_name'] }} ({{ $aisComparison['closest_vessel']?->flag_info['iso2'] }})</strong></div>
-                        <div>Status Bendera: <strong class="text-white">{{ $aisComparison['closest_vessel']?->flag_info['status'] }}</strong></div>
-                        <div>Jarak: <strong class="text-emerald-300">{{ $aisComparison['distance_meters'] }} m</strong></div>
-                        <div>Selisih Waktu: <strong class="text-emerald-300">{{ $aisComparison['time_diff_minutes'] }} mnt</strong></div>
+                        <div>Name: <strong class="text-white">{{ $aisComparison['closest_vessel']?->name ?? '-' }}</strong></div>
+                        <div>Flag State: <strong class="text-teal-300">{{ $aisComparison['closest_vessel']?->flag_info['flag_emoji'] }} {{ $aisComparison['closest_vessel']?->flag_info['country_name'] }} ({{ $aisComparison['closest_vessel']?->flag_info['iso2'] }})</strong></div>
+                        <div>Flag Status: <strong class="text-white">{{ $aisComparison['closest_vessel']?->flag_info['status'] }}</strong></div>
+                        <div>Distance: <strong class="text-emerald-300">{{ $aisComparison['distance_meters'] }} m</strong></div>
+                        <div>Time Difference: <strong class="text-emerald-300">{{ $aisComparison['time_diff_minutes'] }} mins</strong></div>
                     </div>
                 </div>
                 @else
@@ -425,13 +425,13 @@
                 <div class="p-3.5 rounded-xl bg-amber-950/20 border border-amber-500/30 space-y-2 text-[11px] text-amber-200 leading-relaxed">
                     <div class="font-bold text-amber-300 flex items-center gap-1.5">
                         <span>⚖️</span>
-                        <span>No AIS correlation available — Ketiadaan Cakupan Penerima AIS:</span>
+                        <span>No AIS correlation available — Absence of AIS Receiver Coverage:</span>
                     </div>
                     <p class="text-slate-300">
                         {{ $aisComparison['coverage_description'] }}
                     </p>
                     <p class="text-amber-200 font-semibold pt-1 border-t border-amber-500/20">
-                        Absence of AIS data does not independently establish that the target is a dark vessel. Status dark vessel memerlukan bukti aktif bahwa kapal berada di zona berjangkauan penerima dan sengaja mematikan transponder AIS.
+                        Absence of AIS data does not independently establish that the target is a dark vessel. Dark vessel designation requires verifiable evidence that the vessel operated within active receiver coverage and deliberately disabled its AIS transponder.
                     </p>
                 </div>
                 @endif
@@ -439,19 +439,19 @@
                 <!-- Correlation Evidence Score Breakdown Card -->
                 <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2 text-slate-300">
                     <div class="flex items-center justify-between">
-                        <span class="font-bold text-white text-[11px] uppercase tracking-wide">Correlation Evidence Score (Algoritmik)</span>
+                        <span class="font-bold text-white text-[11px] uppercase tracking-wide">Correlation Evidence Score (Algorithmic)</span>
                         <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                             {{ isset($evidence['correlation_evidence']['correlation_evidence_score']) && $evidence['correlation_evidence']['correlation_evidence_score'] !== null ? round($evidence['correlation_evidence']['correlation_evidence_score'] * 100) . '%' : 'not_available' }}
                         </span>
                     </div>
                     <p class="text-[10px] text-slate-400">
-                        Skor keterkaitan bukti multikriteria: kedekatan spasial (40%), temporal (25%), konsistensi arah/COG (15%), kecepatan/SOG (10%), dan kontinuitas lintasan (10%). Tidak mengasumsikan data fiktif bila AIS tidak tersedia.
+                        Multi-criteria evidence correlation score: spatial proximity (40%), temporal (25%), heading/COG consistency (15%), speed/SOG (10%), and track continuity (10%). Never fabricates hypothetical data when AIS is unavailable.
                     </p>
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[10px] font-mono">
-                        <div>Lintasan: <strong class="text-white">{{ $evidence['correlation_evidence']['track_continuity']['trajectory'] ?? 'no_relevant_track' }}</strong></div>
-                        <div>Jarak Terdekat: <strong class="text-white">{{ isset($evidence['correlation_evidence']['spatial']['nearest_ais_distance_meters']) && $evidence['correlation_evidence']['spatial']['nearest_ais_distance_meters'] !== null ? round($evidence['correlation_evidence']['spatial']['nearest_ais_distance_meters']) . ' m' : 'N/A' }}</strong></div>
-                        <div>Selisih Waktu: <strong class="text-white">{{ isset($evidence['correlation_evidence']['temporal']['time_difference_minutes']) && $evidence['correlation_evidence']['temporal']['time_difference_minutes'] !== null ? $evidence['correlation_evidence']['temporal']['time_difference_minutes'] . ' mnt' : 'N/A' }}</strong></div>
-                        <div>Konsistensi Arah: <strong class="text-white">{{ $evidence['correlation_evidence']['motion']['heading_consistency'] ?? 'not_available' }}</strong></div>
+                        <div>Track: <strong class="text-white">{{ $evidence['correlation_evidence']['track_continuity']['trajectory'] ?? 'no_relevant_track' }}</strong></div>
+                        <div>Nearest Distance: <strong class="text-white">{{ isset($evidence['correlation_evidence']['spatial']['nearest_ais_distance_meters']) && $evidence['correlation_evidence']['spatial']['nearest_ais_distance_meters'] !== null ? round($evidence['correlation_evidence']['spatial']['nearest_ais_distance_meters']) . ' m' : 'N/A' }}</strong></div>
+                        <div>Time Difference: <strong class="text-white">{{ isset($evidence['correlation_evidence']['temporal']['time_difference_minutes']) && $evidence['correlation_evidence']['temporal']['time_difference_minutes'] !== null ? $evidence['correlation_evidence']['temporal']['time_difference_minutes'] . ' mins' : 'N/A' }}</strong></div>
+                        <div>Heading Consistency: <strong class="text-white">{{ $evidence['correlation_evidence']['motion']['heading_consistency'] ?? 'not_available' }}</strong></div>
                     </div>
                 </div>
             </div>
@@ -461,7 +461,7 @@
                 <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
                     <h3 class="font-bold uppercase tracking-wider text-slate-200 text-xs flex items-center gap-2">
                         <span>⏱️</span>
-                        <span>Evidence Timeline — Kronologi Forensik Multi-Source</span>
+                        <span>Evidence Timeline — Multi-Source Forensic Chronology</span>
                     </h3>
                     <span class="text-[10px] font-mono text-teal-400">Immutable Audit Sequence</span>
                 </div>
@@ -496,7 +496,7 @@
                 <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
                     <h3 class="font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-2">
                         <span>☑️</span>
-                        <span>Panel 5: Checklist Bukti Analis Maritim</span>
+                        <span>Panel 5: Maritime Analyst Evidence Checklist</span>
                     </h3>
                     <span class="text-[10px] font-mono text-slate-400">Yes / No / Unknown</span>
                 </div>
@@ -546,7 +546,7 @@
                 <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
                     <h3 class="font-bold uppercase tracking-wider text-teal-300 text-xs flex items-center gap-2">
                         <span>⚖️</span>
-                        <span>Panel 6: Keputusan & Justifikasi Analis</span>
+                        <span>Panel 6: Analyst Decision &amp; Technical Rationale</span>
                     </h3>
                     <span class="text-[10px] font-mono text-teal-400">
                         {{ auth()->user()?->role ?? 'Guest' }}
@@ -558,10 +558,10 @@
                 <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-400 space-y-1">
                     <div class="text-slate-200 font-bold flex items-center gap-1.5">
                         <span>🔒</span>
-                        <span>Mode Akses Terbatas (Read-Only):</span>
+                        <span>Restricted Access Mode (Read-Only):</span>
                     </div>
                     <p>
-                        Akun Anda tidak memiliki hak otorisasi peninjauan. Hanya Analis Maritim (<em class="text-teal-300">analyst</em>) dan Administrator (<em class="text-teal-300">super_admin</em>) yang memiliki wewenang mencatat atau mengubah keputusan peninjauan.
+                        Your account does not possess review authorization privileges. Only Maritime Analysts (<em class="text-teal-300">analyst</em>) and Administrators (<em class="text-teal-300">super_admin</em>) are authorized to record or modify review decisions.
                     </p>
                 </div>
                 @endif
@@ -572,7 +572,7 @@
                     <!-- Status Selection -->
                     <div>
                         <label class="block text-[11px] uppercase font-bold text-slate-300 mb-1.5">
-                            Status Keputusan Analis <span class="text-rose-400">*</span>
+                            Analyst Decision Status <span class="text-rose-400">*</span>
                         </label>
                         <select name="review_status" {{ !$canReview ? 'disabled' : '' }}
                                 class="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-500 text-xs font-medium">
@@ -588,32 +588,32 @@
                     <div>
                         <div class="flex items-center justify-between mb-1.5">
                             <label class="text-[11px] uppercase font-bold text-slate-300">
-                                Alasan Keputusan & Justifikasi Teknis <span class="text-rose-400">*</span>
+                                Decision Rationale &amp; Technical Justification <span class="text-rose-400">*</span>
                             </label>
-                            <span class="text-[10px] font-mono text-slate-500">Min. 20 karakter</span>
+                            <span class="text-[10px] font-mono text-slate-500">Min. 20 characters</span>
                         </div>
                         <textarea name="review_rationale" id="review_rationale" rows="4" minlength="20" required {{ !$canReview ? 'disabled' : '' }}
-                                  placeholder="Jelaskan alasan penetapan keputusan ini secara terperinci (minimal 20 karakter: misal analisis morfologi crop citra SAR, rasio TCR, ketidaksesuaian es laut polar, dll)..." 
+                                  placeholder="Provide a detailed technical justification for this decision (minimum 20 characters: e.g. SAR image crop morphology, TCR backscatter ratio, polar sea ice exclusion, etc)..." 
                                   class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-500 text-xs leading-relaxed">{{ old('review_rationale', $detection->review_rationale) }}</textarea>
                     </div>
 
                     <!-- Evidence Notes -->
                     <div>
                         <label class="block text-[11px] uppercase font-bold text-slate-400 mb-1">
-                            Catatan Bukti Morfologi Citra SAR
+                            SAR Image Morphology Evidence Notes
                         </label>
                         <input type="text" name="evidence_notes" value="{{ old('evidence_notes', $detection->review_metadata['evidence_notes'] ?? '') }}" {{ !$canReview ? 'disabled' : '' }}
-                               placeholder="Contoh: Titik pantul terang terisolasi (peak DN 874), rasio kontras 15.9 dB..." 
+                               placeholder="e.g. Isolated bright point scatterer (peak DN 874), contrast ratio 15.9 dB..." 
                                class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-500 text-xs">
                     </div>
 
                     <!-- Limitation Notes -->
                     <div>
                         <label class="block text-[11px] uppercase font-bold text-slate-400 mb-1">
-                            Keterbatasan & Catatan Lingkungan Polar
+                            Polar Environment &amp; Coverage Limitations
                         </label>
                         <input type="text" name="limitation_notes" value="{{ old('limitation_notes', $detection->review_metadata['limitation_notes'] ?? '') }}" {{ !$canReview ? 'disabled' : '' }}
-                               placeholder="Contoh: Lintang 59.5S Samudra Selatan, potensi drifting growlers..." 
+                               placeholder="e.g. Latitude 59.5°S Southern Ocean, potential drifting ice growlers..." 
                                class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-500 text-xs">
                     </div>
 
@@ -621,7 +621,7 @@
                     <div class="pt-2">
                         <button type="submit" class="w-full py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-black text-xs transition shadow-lg shadow-teal-500/20 flex items-center justify-center gap-2">
                             <span>💾</span>
-                            <span>Simpan Keputusan & Catat ke Audit Trail</span>
+                            <span>Save Decision &amp; Record to Audit Trail</span>
                         </button>
                     </div>
                     @endif
@@ -633,7 +633,7 @@
                 <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
                     <h3 class="font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
                         <span>📜</span>
-                        <span>Riwayat Keputusan Forensik ({{ count($auditLogs) }})</span>
+                        <span>Forensic Audit History ({{ count($auditLogs) }})</span>
                     </h3>
                     <span class="text-[10px] font-mono text-teal-400">Immutable</span>
                 </div>
@@ -668,7 +668,7 @@
 
                         @if(!empty($log->details['evidence_notes']))
                         <div class="text-[10px] text-slate-400 font-mono">
-                            <strong>Bukti:</strong> {{ $log->details['evidence_notes'] }}
+                            <strong>Evidence:</strong> {{ $log->details['evidence_notes'] }}
                         </div>
                         @endif
                     </div>
@@ -676,7 +676,7 @@
                 </div>
                 @else
                 <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800 text-center text-slate-500 text-[11px]">
-                    Belum ada riwayat peninjauan manusia yang tercatat untuk kandidat ini.
+                    No human review history recorded for this candidate.
                 </div>
                 @endif
             </div>
@@ -863,11 +863,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         <span>🎯 SAR Target:</span>
                         <span>{{ $detection->detection_identifier }}</span>
                     </div>
-                    <div>Koordinat: {{ number_format($detection->latitude, 4) }}S, {{ number_format($detection->longitude, 4) }}E</div>
+                    <div>Coordinates: {{ number_format($detection->latitude, 4) }}S, {{ number_format($detection->longitude, 4) }}E</div>
                     <div>Peak TCR: {{ $detection->tcr_db ?? '-' }} dB</div>
-                    <div>Dimensi: {{ $detection->estimated_length_meters }}m &times; {{ $detection->estimated_width_meters }}m</div>
+                    <div>Dimensions: {{ $detection->estimated_length_meters }}m &times; {{ $detection->estimated_width_meters }}m</div>
                     <div>Status: <span class="text-amber-300">{{ $detection->review_status }}</span></div>
-                    <div class="text-[10px] text-slate-400 italic">Target deteksi utama radar</div>
+                    <div class="text-[10px] text-slate-400 italic">Primary radar target detection</div>
                 </div>
             `))
             .addTo(map);
@@ -882,7 +882,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadAisTrack() {
         const windowVal = document.getElementById('select-track-window').value;
         const statusBadge = document.getElementById('track-status-badge');
-        statusBadge.innerText = 'Memuat lintasan ±' + windowVal + 'm...';
+        statusBadge.innerText = 'Loading track ±' + windowVal + ' mins...';
         statusBadge.className = 'absolute top-2 left-2 px-2.5 py-1 rounded bg-slate-950/80 backdrop-blur-md border border-slate-800 text-[10px] font-mono text-amber-300';
 
         // Clear existing markers
@@ -933,16 +933,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // 3. Informative Status Messaging
                 if (count === 0) {
-                    statusBadge.innerText = `Insufficient AIS positions to draw a track for the selected time window (±${windowVal} mnt).`;
+                    statusBadge.innerText = `Insufficient AIS positions to draw a track for the selected time window (±${windowVal} mins).`;
                     statusBadge.className = 'absolute top-2 left-2 px-2.5 py-1 rounded bg-slate-950/80 backdrop-blur-md border border-slate-800 text-[10px] font-mono text-slate-400';
                     return;
                 }
 
                 if (count < 2) {
-                    statusBadge.innerText = `Insufficient AIS positions to draw a track for the selected time window (1 posisi terpantau, butuh ≥2 posisi).`;
+                    statusBadge.innerText = `Insufficient AIS positions to draw a track for the selected time window (1 position observed, requires ≥2 positions).`;
                     statusBadge.className = 'absolute top-2 left-2 px-2.5 py-1 rounded bg-slate-950/80 backdrop-blur-md border border-slate-800 text-[10px] font-mono text-amber-300';
                 } else {
-                    statusBadge.innerText = `${count} posisi AIS terpantau & lintasan terhubung (±${windowVal} mnt)`;
+                    statusBadge.innerText = `${count} AIS positions observed & connected track (±${windowVal} mins)`;
                     statusBadge.className = 'absolute top-2 left-2 px-2.5 py-1 rounded bg-slate-950/80 backdrop-blur-md border border-slate-800 text-[10px] font-mono text-emerald-300';
                 }
 
@@ -977,15 +977,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     const popupHtml = `
                         <div class="p-1 text-xs font-mono text-slate-200 space-y-1">
                             <div class="font-bold text-amber-400 flex items-center gap-1">
-                                <span>Kapal:</span>
+                                <span>Vessel:</span>
                                 <span>${props.vessel_name || 'AIS Vessel'}</span>
                             </div>
                             <div>MMSI: <strong>${props.mmsi || '-'}</strong></div>
-                            <div>Waktu: ${props.observed_at ? props.observed_at.replace('T', ' ').substring(0, 19) : '-'} UTC</div>
+                            <div>Time: ${props.observed_at ? props.observed_at.replace('T', ' ').substring(0, 19) : '-'} UTC</div>
                             <div>SOG: ${props.speed_knots !== null ? props.speed_knots + ' kn' : 'N/A'} &bull; COG: ${props.course_degrees !== null ? props.course_degrees + '°' : 'N/A'}</div>
-                            <div>Jarak ke Target SAR: <strong class="text-rose-400">${props.distance_to_sar_meters ? Math.round(props.distance_to_sar_meters) + ' m' : '-'}</strong></div>
-                            <div>Selisih Waktu: ${props.time_delta_minutes !== undefined ? props.time_delta_minutes + ' mnt' : '-'}</div>
-                            <div class="text-[9px] text-slate-400 italic">Peran: ${props.role}</div>
+                            <div>Distance to SAR Target: <strong class="text-rose-400">${props.distance_to_sar_meters ? Math.round(props.distance_to_sar_meters) + ' m' : '-'}</strong></div>
+                            <div>Time Difference: ${props.time_delta_minutes !== undefined ? props.time_delta_minutes + ' mins' : '-'}</div>
+                            <div class="text-[9px] text-slate-400 italic">Role: ${props.role}</div>
                         </div>
                     `;
 
@@ -1017,7 +1017,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(err => {
                 console.error('Failed to load AIS track:', err);
-                statusBadge.innerText = 'Gagal memuat track AIS';
+                statusBadge.innerText = 'Failed to load AIS track';
                 statusBadge.className = 'absolute top-2 left-2 px-2.5 py-1 rounded bg-rose-950/80 backdrop-blur-md border border-rose-800 text-[10px] font-mono text-rose-300';
             });
     }

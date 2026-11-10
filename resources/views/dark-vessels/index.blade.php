@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header_title', 'Analyst Review Workflow — Manajemen & Peninjauan Kandidat SAR')
+@section('header_title', 'Analyst Review Workflow — SAR Candidate Management & Review')
 
 @section('content')
 <div class="space-y-6">
@@ -10,26 +10,26 @@
         <div>
             <div class="flex items-center gap-2">
                 <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30 uppercase">
-                    Tahap 7 Operational
+                    Stage 7 Operational
                 </span>
                 <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase">
                     Status: Validated For Analyst Review
                 </span>
             </div>
-            <h2 class="text-xl font-bold text-white tracking-wide uppercase mt-1">Workflow Peninjauan Analis SAR & Manajemen Kandidat</h2>
+            <h2 class="text-xl font-bold text-white tracking-wide uppercase mt-1">SAR Analyst Review Workflow &amp; Candidate Management</h2>
             <p class="text-xs text-slate-400 mt-0.5">
-                Evaluasi keputusan manusia terhadap anomali radar Sentinel-1 SAR dan pembandingan independen dengan cakupan telemetri AIS.
+                Human analyst evaluation of Sentinel-1 SAR radar anomalies and independent comparison with AIS telemetry coverage.
             </p>
         </div>
 
         <div class="flex items-center gap-2">
             <a href="{{ route('dark-vessels.export', request()->query()) }}" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700 font-bold text-xs transition flex items-center gap-1.5 shadow-sm">
                 <span>📥</span>
-                <span>Ekspor CSV ({{ number_format($detections->total()) }})</span>
+                <span>Export CSV ({{ number_format($detections->total()) }})</span>
             </a>
             <a href="{{ route('map.index') }}" class="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs transition shadow-lg shadow-teal-500/20 flex items-center gap-1.5">
                 <span>🗺️</span>
-                <span>Peta Spasial SAR</span>
+                <span>SAR Spatial Map</span>
             </a>
         </div>
     </div>
@@ -39,10 +39,10 @@
         <span class="text-xl shrink-0">⚖️</span>
         <div class="space-y-1">
             <div class="font-bold text-amber-300 flex items-center gap-2">
-                <span>Prinsip Integritas Ilmiah Analis Maritim:</span>
+                <span>Maritime Analyst Scientific Integrity Principles:</span>
             </div>
             <p class="text-[11px] text-slate-300 leading-relaxed">
-                Objek radar yang terdeteksi merupakan <strong class="text-amber-200">kandidat anomali radar (SAR Candidate)</strong>, bukan kapal yang telah dikonfirmasi (<em class="text-slate-400">Confirmed Vessel</em>). Status <code class="text-amber-300 font-mono text-[10px]">insufficient_data</code> menandakan tidak adanya cakupan stasiun penerima AIS (coverage gap), bukan bukti bahwa kapal mematikan AIS (<em class="text-slate-400">Dark Vessel</em>). Setiap keputusan analis direkam secara permanen dalam audit log untuk ketertelusuran forensik.
+                Detected radar objects are <strong class="text-amber-200">radar anomaly candidates (SAR Candidates)</strong>, not confirmed vessels (<em class="text-slate-400">Confirmed Vessels</em>). The <code class="text-amber-300 font-mono text-[10px]">insufficient_data</code> status indicates lack of AIS receiver station coverage (coverage gap), not proof that the vessel disabled its AIS (<em class="text-slate-400">Dark Vessel</em>). Every analyst decision is recorded permanently in the audit trail for forensic traceability.
             </p>
         </div>
     </div>
@@ -57,29 +57,29 @@
         <div class="glass-panel p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-center">
             <div class="text-[9px] uppercase font-bold text-amber-400">Pending</div>
             <div class="text-lg font-black text-amber-300 font-mono mt-0.5">{{ number_format($stats['pending_review']) }}</div>
-            <div class="text-[8px] text-amber-400/80 mt-0.5">Belum Ditinjau</div>
+            <div class="text-[8px] text-amber-400/80 mt-0.5">Pending Review</div>
         </div>
         <div class="glass-panel p-3 rounded-xl border border-teal-500/30 bg-teal-500/5 text-center">
             <div class="text-[9px] uppercase font-bold text-teal-400">Possible Vessel</div>
             <div class="text-lg font-black text-teal-300 font-mono mt-0.5">{{ number_format($stats['possible_vessel']) }}</div>
-            <div class="text-[8px] text-teal-400/80 mt-0.5">Konsisten Kapal</div>
+            <div class="text-[8px] text-teal-400/80 mt-0.5">Consistent Vessel</div>
         </div>
         <div class="glass-panel p-3 rounded-xl border border-cyan-500/30 bg-cyan-500/5 text-center">
             <div class="text-[9px] uppercase font-bold text-cyan-400">Ice / Clutter</div>
             <div class="text-lg font-black text-cyan-300 font-mono mt-0.5">{{ number_format($stats['possible_ice_clutter']) }}</div>
-            <div class="text-[8px] text-cyan-400/80 mt-0.5">Es Laut / Gelombang</div>
+            <div class="text-[8px] text-cyan-400/80 mt-0.5">Sea Ice / Clutter</div>
         </div>
         <div class="glass-panel p-3 rounded-xl border border-slate-700 bg-slate-800/30 text-center">
             <div class="text-[9px] uppercase font-bold text-slate-300">Inconclusive</div>
             <div class="text-lg font-black text-slate-200 font-mono mt-0.5">{{ number_format($stats['inconclusive'] + $stats['reviewed_other']) }}</div>
-            <div class="text-[8px] text-slate-400 mt-0.5">Bukti Kurang</div>
+            <div class="text-[8px] text-slate-400 mt-0.5">Insufficient Evidence</div>
         </div>
         <div class="glass-panel p-3 rounded-xl border border-indigo-500/30 bg-indigo-500/5 text-center">
             <div class="text-[9px] uppercase font-bold text-indigo-400">AIS Gap</div>
             <div class="text-lg font-black text-indigo-300 font-mono mt-0.5">{{ number_format($stats['insufficient_data']) }}</div>
             <div class="text-[8px] text-indigo-400/80 mt-0.5">No Terrestrial AIS</div>
         </div>
-        <div class="glass-panel p-3 rounded-xl border border-purple-500/30 bg-purple-500/5 text-center" title="GFW Events API v3: HTTP 403 Forbidden (Akses Penelitian Diperlukan)">
+        <div class="glass-panel p-3 rounded-xl border border-purple-500/30 bg-purple-500/5 text-center" title="GFW Events API v3: HTTP 403 Forbidden (Research access required)">
             <div class="text-[9px] uppercase font-bold text-purple-400">GFW Events</div>
             <div class="text-lg font-black text-purple-300 font-mono mt-0.5">403</div>
             <div class="text-[8px] text-purple-400/80 mt-0.5">Not Authorized</div>
@@ -97,16 +97,16 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
                 <!-- Search by ID -->
                 <div>
-                    <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Cari ID Kandidat</label>
-                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Contoh: 0001 atau 542e73f3..." 
+                    <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Search Candidate ID</label>
+                    <input type="text" name="search" value="{{ request('search') }}" placeholder="e.g. 0001 or 542e73f3..." 
                            class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-500 text-xs font-mono">
                 </div>
 
                 <!-- Scene Filter -->
                 <div>
-                    <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Scene Sentinel-1</label>
+                    <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Sentinel-1 Scene</label>
                     <select name="scene_id" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-500 text-xs">
-                        <option value="">Semua Scene Satelit</option>
+                        <option value="">All Satellite Scenes</option>
                         @foreach($scenes as $sc)
                             <option value="{{ $sc->id }}" {{ request('scene_id') == $sc->id || request('scene_id') == $sc->scene_id ? 'selected' : '' }}>
                                 {{ substr($sc->scene_id, 0, 16) }}... ({{ $sc->platform_name }} {{ $sc->sensor_mode }})
@@ -117,9 +117,9 @@
 
                 <!-- Review Status Filter -->
                 <div>
-                    <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Status Peninjauan Analis</label>
+                    <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Analyst Review Status</label>
                     <select name="review_status" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-500 text-xs">
-                        <option value="">Semua Status Peninjauan</option>
+                        <option value="">All Review Statuses</option>
                         @foreach($reviewStatuses as $val => $label)
                             <option value="{{ $val }}" {{ request('review_status') == $val ? 'selected' : '' }}>
                                 {{ $label }}
@@ -130,12 +130,12 @@
 
                 <!-- AIS Correlation Filter -->
                 <div>
-                    <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Status Korelasi AIS</label>
+                    <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">AIS Correlation Status</label>
                     <select name="correlation_status" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-500 text-xs">
-                        <option value="all">Semua Status Korelasi</option>
+                        <option value="all">All Correlation Statuses</option>
                         <option value="insufficient_data" {{ request('correlation_status') == 'insufficient_data' ? 'selected' : '' }}>Insufficient Coverage (54)</option>
-                        <option value="matched" {{ request('correlation_status') == 'matched' ? 'selected' : '' }}>Terkorelasi (Matched AIS)</option>
-                        <option value="dark_vessel_candidate" {{ request('correlation_status') == 'dark_vessel_candidate' ? 'selected' : '' }}>Kandidat Dark Vessel</option>
+                        <option value="matched" {{ request('correlation_status') == 'matched' ? 'selected' : '' }}>Correlated (Matched AIS)</option>
+                        <option value="dark_vessel_candidate" {{ request('correlation_status') == 'dark_vessel_candidate' ? 'selected' : '' }}>Dark Vessel Candidate</option>
                     </select>
                 </div>
             </div>
@@ -143,40 +143,40 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs pt-1 border-t border-slate-800/80">
                 <!-- AIS Evidence Filter -->
                 <div>
-                    <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Filter Bukti AIS</label>
+                    <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">AIS Evidence Filter</label>
                     <select name="ais_evidence" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-500 text-xs">
-                        <option value="">Semua Bukti AIS</option>
-                        <option value="matched" {{ request('ais_evidence') == 'matched' ? 'selected' : '' }}>Track Terkorelasi (&lt; 1500m)</option>
-                        <option value="insufficient" {{ request('ais_evidence') == 'insufficient' ? 'selected' : '' }}>Coverage Gap Laut Lepas</option>
-                        <option value="dark_candidate" {{ request('ais_evidence') == 'dark_candidate' ? 'selected' : '' }}>Dark Vessel Terverifikasi</option>
+                        <option value="">All AIS Evidence</option>
+                        <option value="matched" {{ request('ais_evidence') == 'matched' ? 'selected' : '' }}>Correlated Track (&lt; 1500m)</option>
+                        <option value="insufficient" {{ request('ais_evidence') == 'insufficient' ? 'selected' : '' }}>High Seas Coverage Gap</option>
+                        <option value="dark_candidate" {{ request('ais_evidence') == 'dark_candidate' ? 'selected' : '' }}>Verified Dark Vessel</option>
                     </select>
                 </div>
 
                 <!-- GFW Status Filter -->
                 <div>
-                    <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Status GFW Events</label>
+                    <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">GFW Events Status</label>
                     <select name="gfw_status" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-500 text-xs">
-                        <option value="">Semua Status GFW</option>
-                        <option value="forbidden" {{ request('gfw_status') == 'forbidden' ? 'selected' : '' }}>403 Access Not Authorized (Aktual)</option>
-                        <option value="available" {{ request('gfw_status') == 'available' ? 'selected' : '' }}>Available (Akses Terbuka)</option>
+                        <option value="">All GFW Statuses</option>
+                        <option value="forbidden" {{ request('gfw_status') == 'forbidden' ? 'selected' : '' }}>403 Access Not Authorized (Actual)</option>
+                        <option value="available" {{ request('gfw_status') == 'available' ? 'selected' : '' }}>Available (Open Access)</option>
                     </select>
                 </div>
 
                 <!-- Sea Ice Status Filter -->
                 <div>
-                    <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Status Es Laut</label>
+                    <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Sea Ice Status</label>
                     <select name="sea_ice_status" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-500 text-xs">
-                        <option value="all">Semua Status Es Laut</option>
+                        <option value="all">All Sea Ice Statuses</option>
                         <option value="not_available" {{ request('sea_ice_status') == 'not_available' ? 'selected' : '' }}>Not Available (Caution)</option>
                     </select>
                 </div>
 
                 <!-- Analyst Reviewer Filter -->
                 <div>
-                    <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Peninjau Analis</label>
+                    <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Analyst Reviewer</label>
                     <select name="reviewer_id" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-500 text-xs">
-                        <option value="">Semua Peninjau</option>
-                        <option value="unassigned" {{ request('reviewer_id') == 'unassigned' ? 'selected' : '' }}>Belum Ditugaskan / Unreviewed</option>
+                        <option value="">All Reviewers</option>
+                        <option value="unassigned" {{ request('reviewer_id') == 'unassigned' ? 'selected' : '' }}>Unassigned / Unreviewed</option>
                         @foreach($analysts as $an)
                             <option value="{{ $an->id }}" {{ request('reviewer_id') == $an->id ? 'selected' : '' }}>
                                 {{ $an->name }} ({{ $an->role }})
@@ -195,7 +195,7 @@
                     <button type="submit" class="px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs transition shadow-sm">
                         Filter
                     </button>
-                    <a href="{{ route('dark-vessels.index') }}" class="px-2.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition border border-slate-700" title="Reset Filter">
+                    <a href="{{ route('dark-vessels.index') }}" class="px-2.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition border border-slate-700" title="Reset Filters">
                         ✕
                     </a>
                 </div>
@@ -209,15 +209,15 @@
             <table class="w-full text-left min-w-[900px]">
                 <thead class="bg-slate-900/90 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
                     <tr>
-                        <th class="py-3 px-4">ID Kandidat</th>
-                        <th class="py-3 px-4">Waktu Akuisisi (UTC)</th>
-                        <th class="py-3 px-4">Koordinat WGS84</th>
+                        <th class="py-3 px-4">Candidate ID</th>
+                        <th class="py-3 px-4">Acquisition Time (UTC)</th>
+                        <th class="py-3 px-4">WGS84 Coordinates</th>
                         <th class="py-3 px-4 text-center">Peak TCR</th>
-                        <th class="py-3 px-4">Estimasi Dimensi Radar</th>
-                        <th class="py-3 px-4">Korelasi AIS</th>
-                        <th class="py-3 px-4">Status Peninjauan Analis</th>
-                        <th class="py-3 px-4">Peninjau Terakhir</th>
-                        <th class="py-3 px-4 text-right">Aksi</th>
+                        <th class="py-3 px-4">Estimated Radar Dimensions</th>
+                        <th class="py-3 px-4">AIS Correlation</th>
+                        <th class="py-3 px-4">Analyst Review Status</th>
+                        <th class="py-3 px-4">Last Reviewer</th>
+                        <th class="py-3 px-4 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-800/60">
@@ -279,7 +279,7 @@
                                     Dark Vessel
                                 </span>
                             @else
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono bg-amber-500/20 text-amber-300 border border-amber-500/40" title="Tidak ada cakupan stasiun AIS dalam radius geografis">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono bg-amber-500/20 text-amber-300 border border-amber-500/40" title="No AIS receiver station coverage within geographical radius">
                                     Insufficient Data
                                 </span>
                             @endif
@@ -316,14 +316,14 @@
                                 <div class="font-semibold text-slate-200">{{ $det->reviewer->name }}</div>
                                 <div class="text-[9px] text-slate-400 font-mono">{{ $det->reviewed_at?->format('d/m/Y H:i') }} UTC</div>
                             @else
-                                <span class="text-slate-500 text-[10px] italic">Belum dievaluasi</span>
+                                <span class="text-slate-500 text-[10px] italic">Not evaluated</span>
                             @endif
                         </td>
 
                         <!-- Action -->
                         <td class="py-3.5 px-4 text-right">
                             <a href="{{ route('dark-vessels.show', $det->id) }}" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-teal-600/30 hover:bg-teal-500 text-teal-200 hover:text-slate-950 font-bold border border-teal-500/40 transition">
-                                <span>Tinjau</span>
+                                <span>Review</span>
                                 <span>&rarr;</span>
                             </a>
                         </td>
@@ -333,13 +333,13 @@
                         <td colspan="9" class="py-12 px-4 text-center">
                             <div class="max-w-md mx-auto space-y-3">
                                 <span class="text-4xl block">🔍</span>
-                                <div class="font-bold text-slate-300 text-sm">Tidak Ditemukan Kandidat Deteksi SAR</div>
+                                <div class="font-bold text-slate-300 text-sm">No SAR Detection Candidates Found</div>
                                 <p class="text-slate-500 text-xs leading-relaxed">
-                                    Tidak ada kandidat radar satelit yang cocok dengan kriteria filter saat ini. Coba bersihkan filter pencarian atau ubah ambang batas TCR.
+                                    No satellite radar candidates match the current filter criteria. Try clearing search filters or adjusting the TCR threshold.
                                 </p>
                                 <div>
                                     <a href="{{ route('dark-vessels.index') }}" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700 text-xs font-semibold inline-block transition">
-                                        Reset Semua Filter
+                                        Reset All Filters
                                     </a>
                                 </div>
                             </div>

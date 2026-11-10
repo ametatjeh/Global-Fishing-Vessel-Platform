@@ -51,9 +51,9 @@ class DeprecatedAboutPageAndSingleLineFooterTest extends TestCase
         $response->assertStatus(200);
 
         // Required text elements
-        $response->assertSee('GFVIP', false);
-        $response->assertSee('Global Fishing Vessel Monitoring Platform', false);
-        $response->assertSee('Research Platform', false);
+        $response->assertSee('GFVT', false);
+        $response->assertSee('Global Fishing Vessel Tracking', false);
+        $response->assertSee('Vessel Tracking Platform', false);
         $response->assertSee('2026', false);
 
         // Must NOT render old footer links or long disclaimers

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header_title', 'Tambah Pengguna Baru — Root Control')
+@section('header_title', 'Add New User — Root Control')
 
 @section('content')
 <div class="max-w-3xl space-y-6">
@@ -14,23 +14,23 @@
                 </span>
             </div>
             <h2 class="text-xl sm:text-2xl font-bold text-white tracking-wide uppercase mt-1">
-                Tambah Akun Pengguna Baru
+                Add New User Account
             </h2>
             <p class="text-xs text-slate-400 mt-0.5">
-                Daftarkan akun operator/analyst baru dengan penetapan hak akses operasional yang ketat.
+                Register a new operator or analyst account with strict operational access privileges.
             </p>
         </div>
 
         <a href="{{ route('admin.users.index') }}" class="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 font-medium text-xs transition flex items-center gap-1.5">
             <span>←</span>
-            <span>Kembali ke Daftar</span>
+            <span>Back to Users</span>
         </a>
     </div>
 
     @if($errors->any())
     <div class="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs space-y-1">
         <strong class="font-bold flex items-center gap-1.5">
-            <span>⚠️</span> Periksa kembali isian formulir:
+            <span>⚠️</span> Please check the form errors:
         </strong>
         <ul class="list-disc pl-5 space-y-0.5">
             @foreach($errors->all() as $error)
@@ -48,31 +48,31 @@
             <!-- Basic Information -->
             <div class="space-y-4">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-teal-300 border-b border-slate-800 pb-2">
-                    Informasi Identitas &amp; Dinas
+                    Identity &amp; Organization
                 </h3>
 
                 <div>
                     <label for="name" class="block font-semibold text-slate-300 mb-1">
-                        Nama Lengkap Pengguna <span class="text-rose-400">*</span>
+                        Full Name <span class="text-rose-400">*</span>
                     </label>
-                    <input type="text" id="name" name="name" value="{{ old('name') }}" required minlength="2" placeholder="Contoh: Capt. Hendra Gunawan"
+                    <input type="text" id="name" name="name" value="{{ old('name') }}" required minlength="2" placeholder="e.g. Capt. Hendra Gunawan"
                         class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition text-xs font-medium">
                 </div>
 
                 <div>
                     <label for="email" class="block font-semibold text-slate-300 mb-1">
-                        Alamat Email Dinas (Login Unik) <span class="text-rose-400">*</span>
+                        Official Email Address (Unique Login) <span class="text-rose-400">*</span>
                     </label>
                     <input type="email" id="email" name="email" value="{{ old('email') }}" required placeholder="operator@gfw.nagakecil.site"
                         class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition text-xs font-mono">
-                    <p class="text-[10px] text-slate-400 mt-1">Email harus unik dan belum terdaftar dalam sistem.</p>
+                    <p class="text-[10px] text-slate-400 mt-1">Email must be unique and not currently registered.</p>
                 </div>
 
                 <div>
                     <label for="organization" class="block font-semibold text-slate-300 mb-1">
-                        Organisasi / Satuan Operasi
+                        Organization / Operational Unit
                     </label>
-                    <input type="text" id="organization" name="organization" value="{{ old('organization', 'Maritime Operations Center') }}" placeholder="Contoh: Satuan Pengawasan SDKP"
+                    <input type="text" id="organization" name="organization" value="{{ old('organization', 'Maritime Operations Center') }}" placeholder="e.g. Fisheries Surveillance Unit"
                         class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition text-xs font-medium">
                 </div>
             </div>
@@ -80,12 +80,12 @@
             <!-- Role & Permissions -->
             <div class="space-y-4 pt-2">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300 border-b border-slate-800 pb-2">
-                    Penetapan Peran (Role) &amp; Hak Akses
+                    Role Assignment &amp; Access Rights
                 </h3>
 
                 <div>
                     <label for="role" class="block font-semibold text-slate-300 mb-1">
-                        Pilih Tingkat Hak Akses <span class="text-rose-400">*</span>
+                        Select Access Level <span class="text-rose-400">*</span>
                     </label>
                     <select id="role" name="role" required
                         class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition text-xs font-medium">
@@ -97,14 +97,14 @@
                     </select>
 
                     <div class="mt-3 p-3 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-400 space-y-1">
-                        <div class="font-bold text-slate-300 mb-1">Panduan Otorisasi Sistem Riset & Operasional:</div>
+                        <div class="font-bold text-slate-300 mb-1">Authorization &amp; Operations Guide:</div>
                         <ul class="list-disc pl-4 space-y-0.5">
-                            <li><strong class="text-amber-300">Super Admin:</strong> Hak akses penuh root, manajemen akun, offsite backup, dan seluruh modul.</li>
-                            <li><strong class="text-blue-300">Admin:</strong> Kelola provider health, system settings, activity log, dan operasional teknis.</li>
-                            <li><strong class="text-purple-300">Research Lead:</strong> Pimpinan tim riset (Akses kasus per institusi, kelola kolaborator, persetujuan temuan, ekspor dossier).</li>
-                            <li><strong class="text-teal-300">Researcher / Analyst:</strong> Peneliti inti / analis data (Akses kasus yang ditugaskan, input temuan, matriks bukti).</li>
-                            <li><strong class="text-sky-300">Institutional Researcher:</strong> Peneliti mitra universitas / NGO (Hanya dapat mengakses kasus yang secara eksplisit ditugaskan).</li>
-                            <li class="text-rose-400"><strong>Viewer:</strong> Dinonaktifkan secara permanen. Hanya peran terdaftar di atas yang dapat mengakses sistem.</li>
+                            <li><strong class="text-amber-300">Super Admin:</strong> Full root privileges, user management, backups, and all system modules.</li>
+                            <li><strong class="text-blue-300">Admin:</strong> Provider health, system settings, activity logs, and technical maintenance.</li>
+                            <li><strong class="text-purple-300">Research Lead:</strong> Institutional case management, collaborator access, findings review, dossier export.</li>
+                            <li><strong class="text-teal-300">Researcher / Analyst:</strong> Assigned cases, evidence evaluation, telemetry analysis.</li>
+                            <li><strong class="text-sky-300">Institutional Researcher:</strong> Partner university / NGO researchers (access strictly limited to assigned cases).</li>
+                            <li class="text-rose-400"><strong>Viewer:</strong> Permanently decommissioned. Only registered roles above may access the platform.</li>
                         </ul>
                     </div>
                 </div>
@@ -113,31 +113,31 @@
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" name="is_active" value="1" {{ old('is_active', '1') == '1' ? 'checked' : '' }}
                             class="w-4 h-4 rounded bg-slate-900 border-slate-700 text-teal-500 focus:ring-0 focus:ring-offset-0">
-                        <span class="font-semibold text-slate-200">Aktifkan akun ini segera setelah dibuat</span>
+                        <span class="font-semibold text-slate-200">Activate account immediately upon creation</span>
                     </label>
-                    <p class="text-[10px] text-slate-400 pl-6 mt-0.5">Jika tidak dicentang, akun akan berstatus nonaktif dan tidak dapat masuk.</p>
+                    <p class="text-[10px] text-slate-400 pl-6 mt-0.5">If unchecked, the account will remain inactive and cannot sign in.</p>
                 </div>
             </div>
 
             <!-- Initial Password -->
             <div class="space-y-4 pt-2">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-teal-300 border-b border-slate-800 pb-2">
-                    Kredensial Kata Sandi Awal
+                    Initial Password Credentials
                 </h3>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label for="password" class="block font-semibold text-slate-300 mb-1">
-                            Kata Sandi Awal <span class="text-rose-400">*</span>
+                            Initial Password <span class="text-rose-400">*</span>
                         </label>
                         <input type="password" id="password" name="password" required minlength="8"
                             class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition text-xs font-mono">
-                        <p class="text-[10px] text-slate-400 mt-1">Minimal 8 karakter.</p>
+                        <p class="text-[10px] text-slate-400 mt-1">Minimum 8 characters.</p>
                     </div>
 
                     <div>
                         <label for="password_confirmation" class="block font-semibold text-slate-300 mb-1">
-                            Konfirmasi Kata Sandi <span class="text-rose-400">*</span>
+                            Confirm Password <span class="text-rose-400">*</span>
                         </label>
                         <input type="password" id="password_confirmation" name="password_confirmation" required minlength="8"
                             class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition text-xs font-mono">
@@ -148,10 +148,10 @@
             <!-- Action Buttons -->
             <div class="pt-4 border-t border-slate-800 flex items-center justify-end gap-3">
                 <a href="{{ route('admin.users.index') }}" class="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition border border-slate-700">
-                    Batal
+                    Cancel
                 </a>
                 <button type="submit" class="py-2.5 px-6 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-teal-500/20 cursor-pointer">
-                    Simpan Akun Pengguna
+                    Save User Account
                 </button>
             </div>
         </form>

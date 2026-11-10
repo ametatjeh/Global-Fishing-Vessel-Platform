@@ -252,7 +252,7 @@ class DarkVesselController extends Controller
 
         return redirect()
             ->route('dark-vessels.show', $detection->id)
-            ->with('success', 'Keputusan dan justifikasi peninjauan analis berhasil disimpan dan dicatat dalam audit trail.');
+            ->with('success', 'Analyst review decision and technical rationale saved and recorded in audit trail successfully.');
     }
 
     /**
@@ -439,7 +439,7 @@ class DarkVesselController extends Controller
         }
 
         $receptionStatus = 'insufficient_coverage';
-        $coverageDescription = 'Sektor laut lepas Samudra Selatan (lintang 58°-60° LS) berada di luar jangkauan stasiun penerima Terrestrial AIS (>3.000 km dari pantai terdekat). Umpan Satellite AIS (S-AIS) tidak aktif pada koordinat ini pada waktu akuisisi.';
+        $coverageDescription = 'Southern Ocean high seas sector (latitudes 58°-60° S) is beyond the range of terrestrial AIS receiver stations (>3,000 km from the nearest coastline). Satellite AIS (S-AIS) telemetry feed was inactive at these coordinates at acquisition time.';
 
         return [
             'closest_vessel' => $closestPosition?->vessel,
@@ -450,7 +450,7 @@ class DarkVesselController extends Controller
             'reception_status' => $receptionStatus,
             'coverage_description' => $coverageDescription,
             'ais_correlation_status' => $detection->correlation_status,
-            'legal_integrity_note' => 'Ketiadaan posisi AIS di lokasi ini adalah konsekuensi ketiadaan jangkauan penerima (coverage gap), BUKAN bukti bahwa target radar sengaja mematikan transponder AIS atau melakukan aktivitas ilegal.',
+            'legal_integrity_note' => 'The absence of AIS telemetry at this location is an objective consequence of receiver coverage gaps, NOT proof that the radar target deliberately deactivated its AIS transponder or engaged in illicit activity.',
         ];
     }
 

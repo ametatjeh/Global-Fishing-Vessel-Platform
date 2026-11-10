@@ -97,13 +97,13 @@ class ComplianceEngineService
 
                 if (!$hasActivePermit && ($logic['require_active_permit'] ?? false)) {
                     return [
-                        'summary' => "Kapal {$vessel->name} belum terverifikasi memiliki dokumen izin aktif dalam basis data sistem pada waktu observasi.",
+                        'summary' => "Vessel {$vessel->name} has not been verified to hold active authorization documents in system registry at observation time.",
                         'data' => [
                             'observed_at' => $position->observed_at->toIso8601String(),
                             'position' => [$position->longitude, $position->latitude],
                             'requirement' => 'Valid fishing/support authorization',
                             'confidence_level' => 'tentative_unverified',
-                            'legal_disclaimer' => 'Ketiadaan catatan izin dalam basis data lokal adalah indikasi perlunya verifikasi otoritas (unverified status), bukan bukti definitif bahwa izin tidak dimiliki dari negara bendera atau RFMO.',
+                            'legal_disclaimer' => 'Absence of authorization records in the local database indicates a requirement for authority verification (unverified status), not definitive proof of lack of permit from the flag state or RFMO.',
                         ]
                     ];
                 }

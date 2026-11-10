@@ -138,7 +138,7 @@ class DataRetentionPolicyService
 
         return [
             'success' => true,
-            'message' => 'Kebijakan retensi data AIS berhasil diperbarui.',
+            'message' => 'AIS data retention policies updated successfully.',
         ];
     }
 
@@ -700,7 +700,7 @@ class DataRetentionPolicyService
 
         return [
             'success' => true,
-            'message' => "Pembersihan retensi AIS berhasil dijalankan. {$totalPurged} record posisi non-fishing berhasil dibersihkan.",
+            'message' => "AIS retention cleanup executed successfully. {$totalPurged} non-fishing position records purged.",
             'records_purged' => $totalPurged,
             'summary' => $summary,
         ];

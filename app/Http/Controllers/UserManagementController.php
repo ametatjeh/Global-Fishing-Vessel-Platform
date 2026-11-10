@@ -7,85 +7,88 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 class UserManagementController extends Controller
 {
     /**
-     * Allowed active system roles with clear privilege boundaries.
-     * Role 'viewer' has been permanently decommissioned and disabled.
-     */
-    public const ROLES = [
-        'super_admin' => 'Super Administrator (Akses Penuh)',
-        'admin' => 'Administrator Sistem',
-        'research_lead' => 'Research Lead / Principal Investigator',
-        'researcher' => 'Maritime Researcher',
-        'analyst' => 'Intelligence Analyst',
-        'institutional_researcher' => 'Institutional / Partner Researcher',
-    ];
-
-    /**
-     * Display a listing of user accounts with pagination.
+     * Display a listing of all users for Super Admin.
      */
     public function index(Request $request): View
     {
-        $perPage = (int) $request->query('per_page', 50);
-        if (!in_array($perPage, [10, 25, 50, 100], true)) {
-            $perPage = 50;
+        $query = User::query();
+
+        // Search by name or email
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'ilike', "%{$search}%")
+                  ->orWhere('email', 'ilike', "%{$search}%")
+                  ->orWhere('organization', 'ilike', "%{$search}%");
+            });
         }
 
-        $users = User::orderBy('id', 'desc')->paginate($perPage)->withQueryString();
+        // Filter by role
+        if ($role = $request->input('role')) {
+            $query->where('role', $role);
+        }
+
+        // Filter by status (active / inactive)
+        if ($request->filled('status')) {
+            $query->where('is_active', $request->input('status') === 'active');
+        }
+
+        $users = $query->orderBy('name')
+            ->paginate(15)
+            ->withQueryString();
 
         $stats = [
             'total' => User::count(),
             'active' => User::where('is_active', true)->count(),
             'inactive' => User::where('is_active', false)->count(),
-            'super_admin' => User::where('role', 'super_admin')->where('is_active', true)->count(),
+            'super_admin' => User::where('role', 'super_admin')->count(),
+            'admin' => User::where('role', 'admin')->count(),
+            'analyst' => User::where('role', 'analyst')->count(),
+            'researcher' => User::whereIn('role', ['research_lead', 'researcher', 'institutional_researcher'])->count(),
             'google_sso' => User::whereNotNull('google_id')->count(),
         ];
 
-        return view('admin.users.index', [
-            'users' => $users,
-            'stats' => $stats,
-            'roles' => self::ROLES,
-        ]);
+        return view('admin.users.index', compact('users', 'stats'));
     }
 
     /**
-     * Show form to create a new user account.
+     * Show the form for creating a new user account.
      */
     public function create(): View
     {
-        return view('admin.users.create', [
-            'roles' => self::ROLES,
-        ]);
+        $roles = $this->getAvailableRoles();
+
+        return view('admin.users.create', compact('roles'));
     }
 
     /**
-     * Store a newly created user account.
+     * Store a newly created user in storage.
      */
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'min:2'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'role' => ['required', 'string', Rule::in(array_keys(self::ROLES))],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
+            'role' => ['required', 'string', 'in:super_admin,admin,analyst,research_lead,researcher,institutional_researcher'],
             'organization' => ['nullable', 'string', 'max:255'],
             'password' => ['required', 'string', Password::min(8), 'confirmed'],
             'is_active' => ['nullable', 'boolean'],
         ], [
-            'name.required' => 'Nama pengguna wajib diisi.',
-            'name.min' => 'Nama pengguna minimal 2 karakter.',
-            'email.required' => 'Alamat email wajib diisi.',
-            'email.email' => 'Format email tidak valid.',
-            'email.unique' => 'Alamat email sudah terdaftar dalam sistem.',
-            'role.required' => 'Peran pengguna wajib dipilih.',
-            'role.in' => 'Peran yang dipilih tidak valid atau telah dinonaktifkan (role viewer tidak lagi didukung).',
-            'password.required' => 'Kata sandi wajib diisi.',
-            'password.min' => 'Kata sandi minimal 8 karakter.',
-            'password.confirmed' => 'Konfirmasi kata sandi tidak cocok.',
+            'name.required' => 'User name is required.',
+            'name.min' => 'User name must be at least 2 characters.',
+            'email.required' => 'Email address is required.',
+            'email.email' => 'Invalid email address format.',
+            'email.unique' => 'Email address is already registered in the system.',
+            'role.required' => 'User role must be selected.',
+            'role.in' => 'The selected role is invalid or has been deprecated.',
+            'password.required' => 'Password is required.',
+            'password.min' => 'Password must be at least 8 characters.',
+            'password.confirmed' => 'Password confirmation does not match.',
         ]);
 
         $user = User::create([
@@ -109,7 +112,7 @@ class UserManagementController extends Controller
         ]);
 
         return redirect()->route('admin.users.show', $user->id)
-            ->with('status', "Akun pengguna {$user->name} ({$user->email}) berhasil dibuat.");
+            ->with('status', "User account {$user->name} ({$user->email}) created successfully.");
     }
 
     /**
@@ -125,28 +128,37 @@ class UserManagementController extends Controller
             ->take(15)
             ->get();
 
-        return view('admin.users.show', [
-            'targetUser' => $targetUser,
-            'roles' => self::ROLES,
-            'recentLogs' => $recentLogs,
-        ]);
+        return view('admin.users.show', compact('targetUser', 'recentLogs'));
     }
 
     /**
-     * Show form to edit user account information.
+     * Show the form for editing an existing user account.
      */
     public function edit(int $id): View
     {
         $targetUser = User::findOrFail($id);
+        $roles = $this->getAvailableRoles();
 
-        return view('admin.users.edit', [
-            'targetUser' => $targetUser,
-            'roles' => self::ROLES,
-        ]);
+        return view('admin.users.edit', compact('targetUser', 'roles'));
     }
 
     /**
-     * Update user account information, role, and active status.
+     * Get available user roles and their enterprise descriptions.
+     */
+    private function getAvailableRoles(): array
+    {
+        return [
+            'super_admin' => 'Super Administrator (Full System Authority)',
+            'admin' => 'Administrator (User & Operational Management)',
+            'analyst' => 'Maritime Intelligence Analyst',
+            'research_lead' => 'Research Lead (Private Investigations & Dossiers)',
+            'researcher' => 'Maritime Researcher',
+            'institutional_researcher' => 'Institutional Partner / External Researcher',
+        ];
+    }
+
+    /**
+     * Update an existing user in storage.
      */
     public function update(Request $request, int $id): RedirectResponse
     {
@@ -155,17 +167,17 @@ class UserManagementController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'min:2'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($targetUser->id)],
-            'role' => ['required', 'string', Rule::in(array_keys(self::ROLES))],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $targetUser->id],
+            'role' => ['required', 'string', 'in:super_admin,admin,analyst,research_lead,researcher,institutional_researcher'],
             'organization' => ['nullable', 'string', 'max:255'],
             'is_active' => ['nullable', 'boolean'],
         ], [
-            'name.required' => 'Nama pengguna wajib diisi.',
-            'name.min' => 'Nama pengguna minimal 2 karakter.',
-            'email.required' => 'Alamat email wajib diisi.',
-            'email.unique' => 'Alamat email telah digunakan akun lain.',
-            'role.required' => 'Peran akun wajib dipilih.',
-            'role.in' => 'Peran yang dipilih tidak valid atau telah dinonaktifkan (role viewer tidak lagi didukung).',
+            'name.required' => 'User name is required.',
+            'name.min' => 'User name must be at least 2 characters.',
+            'email.required' => 'Email address is required.',
+            'email.unique' => 'Email address is already in use by another account.',
+            'role.required' => 'User role must be selected.',
+            'role.in' => 'The selected role is invalid or has been deprecated.',
         ]);
 
         $newRole = $validated['role'];
@@ -174,10 +186,10 @@ class UserManagementController extends Controller
         // Safety Rule 1: Self-demotion / Self-deactivation protection
         if ($targetUser->id === $currentUser->id) {
             if ($newRole !== 'super_admin') {
-                return back()->withErrors(['role' => 'Anda tidak dapat menurunkan peran Super Admin untuk akun Anda sendiri.']);
+                return back()->withErrors(['role' => 'You cannot demote the Super Admin role for your own account.']);
             }
             if (!$newIsActive) {
-                return back()->withErrors(['is_active' => 'Anda tidak dapat menonaktifkan akun Anda sendiri saat sedang masuk.']);
+                return back()->withErrors(['is_active' => 'You cannot deactivate your own account while signed in.']);
             }
         }
 
@@ -190,10 +202,10 @@ class UserManagementController extends Controller
 
             if ($otherActiveSuperAdmins === 0) {
                 if ($newRole !== 'super_admin') {
-                    return back()->withErrors(['role' => 'Tidak dapat menurunkan peran Super Admin terakhir dalam sistem. Minimal harus ada satu Super Admin aktif.']);
+                    return back()->withErrors(['role' => 'Cannot demote the last remaining Super Admin in the system. At least one active Super Admin is required.']);
                 }
                 if (!$newIsActive) {
-                    return back()->withErrors(['is_active' => 'Tidak dapat menonaktifkan Super Admin terakhir yang masih aktif dalam sistem.']);
+                    return back()->withErrors(['is_active' => 'Cannot deactivate the last remaining active Super Admin in the system.']);
                 }
             }
         }
@@ -228,7 +240,7 @@ class UserManagementController extends Controller
         ]);
 
         return redirect()->route('admin.users.show', $targetUser->id)
-            ->with('status', "Data akun {$targetUser->name} berhasil diperbarui.");
+            ->with('status', "Account details for {$targetUser->name} updated successfully.");
     }
 
     /**
@@ -241,7 +253,7 @@ class UserManagementController extends Controller
 
         // Self-check
         if ($targetUser->id === $currentUser->id) {
-            return back()->with('error', 'Anda tidak dapat menonaktifkan akun Anda sendiri saat sedang masuk.');
+            return back()->with('error', 'You cannot deactivate your own account while signed in.');
         }
 
         // Last super admin check
@@ -252,14 +264,14 @@ class UserManagementController extends Controller
                 ->count();
 
             if ($otherActiveSuperAdmins === 0) {
-                return back()->with('error', 'Tidak dapat menonaktifkan Super Admin terakhir yang masih aktif dalam sistem.');
+                return back()->with('error', 'Cannot deactivate the last remaining active Super Admin in the system.');
             }
         }
 
         $targetUser->is_active = !$targetUser->is_active;
         $targetUser->save();
 
-        $actionText = $targetUser->is_active ? 'diaktifkan' : 'dinonaktifkan';
+        $actionText = $targetUser->is_active ? 'activated' : 'deactivated';
 
         AuditLog::log('toggle_user_status', 'user', (string) $targetUser->id, [
             'target_id' => $targetUser->id,
@@ -268,7 +280,7 @@ class UserManagementController extends Controller
             'performed_by' => $currentUser->email,
         ]);
 
-        return back()->with('status', "Akun {$targetUser->name} ({$targetUser->email}) berhasil {$actionText}.");
+        return back()->with('status', "Account {$targetUser->name} ({$targetUser->email}) {$actionText} successfully.");
     }
 
     /**
@@ -282,9 +294,9 @@ class UserManagementController extends Controller
         $validated = $request->validate([
             'password' => ['required', 'string', Password::min(8), 'confirmed'],
         ], [
-            'password.required' => 'Kata sandi baru wajib diisi.',
-            'password.min' => 'Kata sandi baru minimal harus 8 karakter.',
-            'password.confirmed' => 'Konfirmasi kata sandi baru tidak cocok.',
+            'password.required' => 'New password is required.',
+            'password.min' => 'New password must be at least 8 characters.',
+            'password.confirmed' => 'New password confirmation does not match.',
         ]);
 
         $targetUser->password = Hash::make($validated['password']);
@@ -297,7 +309,6 @@ class UserManagementController extends Controller
             'reset_by' => $currentUser->email,
         ]);
 
-        return back()->with('status', "Kata sandi untuk pengguna {$targetUser->name} berhasil direset.");
+        return back()->with('status', "Password for user {$targetUser->name} reset successfully.");
     }
 }
-

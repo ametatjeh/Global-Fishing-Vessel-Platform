@@ -1,5 +1,5 @@
-# GFVIP — ROLLBACK PLAN & EMERGENCY RECOVERY PROTOCOL
-**Platform:** Global Fishing Vessel Intelligence Platform  
+# GFVT — ROLLBACK PLAN & EMERGENCY RECOVERY PROTOCOL
+**Platform:** Global Fishing Vessel Tracking (GFVT)  
 **Target Environment:** Staging & Production (`https://gfw.nagakecil.site`)  
 **Production Server Path:** `/www/wwwroot/gfw.nagakecil.site`  
 **Actual Production Database Identity:** `gfvip_1` (PostgreSQL 18 + PostGIS 3.6.2)  

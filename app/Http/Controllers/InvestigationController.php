@@ -86,7 +86,7 @@ class InvestigationController extends Controller
     {
         $user = $request->user();
         if (!$user->hasPermission('investigations.create')) {
-            abort(403, 'Anda tidak memiliki hak otorisasi untuk membuat berkas investigasi.');
+            abort(403, 'You are not authorized to create investigation cases.');
         }
 
         $vessels = Vessel::orderBy('name')->limit(100)->get();
@@ -102,7 +102,7 @@ class InvestigationController extends Controller
     {
         $user = $request->user();
         if (!$user->hasPermission('investigations.create')) {
-            abort(403, 'Anda tidak memiliki hak otorisasi untuk membuat berkas investigasi.');
+            abort(403, 'You are not authorized to create investigation cases.');
         }
 
         $validated = $request->validate([
@@ -145,7 +145,7 @@ class InvestigationController extends Controller
         ]);
 
         return redirect()->route('investigations.show', $investigation->id)
-            ->with('status', "Dossier investigasi privat {$caseNumber} berhasil diinisiasi.");
+            ->with('status', "Private investigation dossier {$caseNumber} initiated successfully.");
     }
 
     public function updateFindings(Request $request, string $id)
@@ -154,7 +154,7 @@ class InvestigationController extends Controller
         $user = $request->user();
 
         if (!$this->investigationService->canUserManage($user, $investigation)) {
-            abort(403, 'Akses ditolak: Anda tidak memiliki wewenang untuk memperbarui kesimpulan investigasi ini.');
+            abort(403, 'Access Denied: You do not have permissions to update findings on this investigation case.');
         }
 
         $validated = $request->validate([
@@ -190,7 +190,7 @@ class InvestigationController extends Controller
         ]);
 
         return redirect()->route('investigations.show', $investigation->id)
-            ->with('status', 'Kesimpulan analisis dan matriks bukti investigasi berhasil diperbarui.');
+            ->with('status', 'Analysis findings and evidence matrix updated successfully.');
     }
 
     public function export(Request $request, string $id)
@@ -199,7 +199,7 @@ class InvestigationController extends Controller
         $user = $request->user();
 
         if (!$this->investigationService->canUserExport($user, $investigation)) {
-            abort(403, 'Akses ditolak: Anda tidak memiliki izin ekspor untuk dokumen investigasi ini.');
+            abort(403, 'Access Denied: You do not have export permissions for this investigation dossier.');
         }
 
         $dossier = $this->investigationService->exportDossier($user, $investigation);

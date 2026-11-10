@@ -141,9 +141,9 @@ class VesselClassificationReviewController extends Controller
             'evidence' => 'nullable|string|max:1000',
             'target_vessel_type' => 'nullable|string|max:50',
         ], [
-            'reason.required' => 'Alasan keputusan analis wajib diisi (minimal 5 karakter).',
-            'reason.min' => 'Alasan keputusan analis harus memiliki penjelasan yang bermakna (minimal 5 karakter).',
-            'action.in' => 'Tindakan keputusan klasifikasi tidak valid.',
+            'reason.required' => 'Analyst decision rationale is required (minimum 5 characters).',
+            'reason.min' => 'Analyst decision rationale must provide a meaningful explanation (minimum 5 characters).',
+            'action.in' => 'Invalid classification action selected.',
         ]);
 
         $action = $validated['action'];
@@ -154,14 +154,14 @@ class VesselClassificationReviewController extends Controller
         // Evidence validation: required for verification and reclassification
         if (in_array($action, ['verify_fishing', 'verify_non_fishing', 'reclassify'], true) && $evidence === '') {
             throw ValidationException::withMessages([
-                'evidence' => 'Bukti pendukung wajib dicantumkan untuk verifikasi atau reklasifikasi kapal.',
+                'evidence' => 'Supporting evidence is mandatory for vessel verification or reclassification.',
             ]);
         }
 
         // Target vessel type validation
         if (in_array($action, ['verify_non_fishing', 'reclassify'], true) && empty($targetVesselType)) {
             throw ValidationException::withMessages([
-                'target_vessel_type' => 'Silakan pilih jenis kapal target yang sesuai.',
+                'target_vessel_type' => 'Please select an appropriate target vessel category.',
             ]);
         }
 
@@ -171,7 +171,7 @@ class VesselClassificationReviewController extends Controller
         if ($action === 'verify_fishing') {
             if ($vessel->ais_ship_type_code !== null && (int) $vessel->ais_ship_type_code > 0 && (int) $vessel->ais_ship_type_code !== 30) {
                 throw ValidationException::withMessages([
-                    'action' => "Pelanggaran Aturan Non-Konflik: Kapal memiliki bukti objektif telemetri AIS ShipType {$vessel->ais_ship_type_code} (non-fishing). Kapal ini tidak dapat diverifikasi sebagai Fishing. Silakan gunakan tindakan 'Verify Non-Fishing' atau 'Reclassify'.",
+                    'action' => "Non-Conflict Rule Violation: Vessel has objective AIS ShipType {$vessel->ais_ship_type_code} (non-fishing) telemetry. It cannot be verified as Fishing. Please select 'Verify Non-Fishing' or 'Reclassify'.",
                 ]);
             }
         }
@@ -179,7 +179,7 @@ class VesselClassificationReviewController extends Controller
         if ($action === 'reclassify' && strtolower($targetVesselType) === 'fishing') {
             if ($vessel->ais_ship_type_code !== null && (int) $vessel->ais_ship_type_code > 0 && (int) $vessel->ais_ship_type_code !== 30) {
                 throw ValidationException::withMessages([
-                    'target_vessel_type' => "Pelanggaran Aturan Non-Konflik: Kapal memiliki bukti objektif telemetri AIS ShipType {$vessel->ais_ship_type_code} (non-fishing). Tidak dapat direklasifikasi menjadi Fishing.",
+                    'target_vessel_type' => "Non-Conflict Rule Violation: Vessel has objective AIS ShipType {$vessel->ais_ship_type_code} (non-fishing) telemetry. Cannot be reclassified as Fishing.",
                 ]);
             }
         }
@@ -299,7 +299,7 @@ class VesselClassificationReviewController extends Controller
         });
 
         return redirect()->route('vessels.classification-review.show', $vessel->id)
-            ->with('success', "Keputusan klasifikasi untuk kapal {$vessel->name} (MMSI: {$vessel->mmsi}) berhasil disimpan dan dicatat dalam audit log.");
+            ->with('success', "Classification decision for vessel {$vessel->name} (MMSI: {$vessel->mmsi}) saved and recorded in audit log successfully.");
     }
 }
 

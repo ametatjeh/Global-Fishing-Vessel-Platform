@@ -92,8 +92,8 @@ class SarAnalystReviewTest extends TestCase
 
         $detailResponse->assertStatus(200);
         $detailResponse->assertSee('Panel 2: Sentinel-1 SAR Evidence Viewer');
-        $detailResponse->assertSee('Panel 4: Evaluasi Korelasi Telemetri AIS Independen');
-        $detailResponse->assertSee('Panel 6: Keputusan');
+        $detailResponse->assertSee('Panel 4: Independent AIS Telemetry Correlation Evaluation');
+        $detailResponse->assertSee('Panel 6: Analyst Decision &amp; Technical Rationale', false);
     }
 
     public function test_candidate_list_filters_by_review_status_and_tcr(): void
@@ -224,6 +224,6 @@ class SarAnalystReviewTest extends TestCase
             ->get(route('dark-vessels.index', ['search' => 'NON_EXISTENT_IDENTIFIER']));
 
         $response->assertStatus(200);
-        $response->assertSee('Tidak Ditemukan Kandidat Deteksi SAR');
+        $response->assertSee('No SAR Detection Candidates Found');
     }
 }

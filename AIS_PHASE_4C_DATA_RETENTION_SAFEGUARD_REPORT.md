@@ -1,5 +1,5 @@
 # LAPORAN IMPLEMENTASI TAHAP 4C: DATA RETENTION SAFEGUARD
-## Global Fishing Vessel Intelligence Platform (GFVIP)
+## Global Fishing Vessel Tracking (GFVT)
 
 **Tanggal:** 8 November 2026  
 **Status Tahap 4C:** **IMPLEMENTASI SELESAI & SELURUH TEST BERHASIL (14/14 PASS)**  

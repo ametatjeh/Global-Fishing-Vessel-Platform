@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header_title', 'Detail Akun Pengguna — Root Control')
+@section('header_title', 'User Profile & Audit — Root Control')
 
 @section('content')
 <div class="space-y-6 max-w-5xl">
@@ -20,18 +20,18 @@
                 {{ $targetUser->name }}
             </h2>
             <p class="text-xs text-slate-400 mt-0.5">
-                Audit akun, detail hak akses, pengelolaan kredensial, dan rekam jejak aktivitas forensik.
+                Account audit, access rights, credential management, and forensic activity log.
             </p>
         </div>
 
         <div class="flex items-center gap-2">
             <a href="{{ route('admin.users.edit', $targetUser->id) }}" class="px-3.5 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer">
                 <span>✏️</span>
-                <span>Edit Akun</span>
+                <span>Edit Account</span>
             </a>
             <a href="{{ route('admin.users.index') }}" class="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 font-medium text-xs transition flex items-center gap-1.5">
                 <span>←</span>
-                <span>Daftar Akun</span>
+                <span>Back to Users</span>
             </a>
         </div>
     </div>
@@ -39,7 +39,7 @@
     @if($errors->any())
     <div class="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs space-y-1">
         <strong class="font-bold flex items-center gap-1.5">
-            <span>⚠️</span> Terdapat kendala:
+            <span>⚠️</span> Form Errors:
         </strong>
         <ul class="list-disc pl-5 space-y-0.5">
             @foreach($errors->all() as $error)
@@ -75,18 +75,18 @@
                             ANALYST
                         </span>
                     @else
-                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 uppercase" title="Peran viewer dinonaktifkan: Tidak memiliki akses">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 uppercase" title="Viewer role decommissioned: Account has no system access">
                             DISABLED ({{ strtoupper($targetUser->role) }})
                         </span>
                     @endif
 
                     @if($targetUser->is_active)
                         <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                            AKTIF
+                            ACTIVE
                         </span>
                     @else
                         <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                            NONAKTIF
+                            INACTIVE
                         </span>
                     @endif
                 </div>
@@ -94,46 +94,46 @@
 
             <div class="w-full border-t border-slate-800 pt-4 text-left text-xs space-y-2.5">
                 <div>
-                    <div class="text-[10px] uppercase font-bold text-slate-500 font-mono">Organisasi / Divisi</div>
+                    <div class="text-[10px] uppercase font-bold text-slate-500 font-mono">Organization / Division</div>
                     <div class="text-slate-200 font-medium">{{ $targetUser->organization ?? '-' }}</div>
                 </div>
 
                 <div>
-                    <div class="text-[10px] uppercase font-bold text-slate-500 font-mono">Autentikasi Google SSO</div>
+                    <div class="text-[10px] uppercase font-bold text-slate-500 font-mono">Google SSO Authentication</div>
                     <div class="text-slate-200">
                         @if($targetUser->google_id)
-                            <span class="text-emerald-400 font-mono text-[11px]">✓ Terhubung ({{ substr($targetUser->google_id, 0, 8) }}••••)</span>
+                            <span class="text-emerald-400 font-mono text-[11px]">✓ Connected ({{ substr($targetUser->google_id, 0, 8) }}••••)</span>
                         @else
-                            <span class="text-slate-400 text-[11px]">Belum ditautkan</span>
+                            <span class="text-slate-400 text-[11px]">Not linked</span>
                         @endif
                     </div>
                 </div>
 
                 <div>
-                    <div class="text-[10px] uppercase font-bold text-slate-500 font-mono">Kata Sandi Lokal</div>
+                    <div class="text-[10px] uppercase font-bold text-slate-500 font-mono">Local Password</div>
                     <div class="text-slate-200">
                         @if($targetUser->hasSetPassword())
-                            <span class="text-teal-400 font-mono text-[11px]">✓ Kredensial aktif</span>
+                            <span class="text-teal-400 font-mono text-[11px]">✓ Active credentials</span>
                         @else
-                            <span class="text-amber-300 font-mono text-[11px]">Belum ditetapkan</span>
+                            <span class="text-amber-300 font-mono text-[11px]">Not configured</span>
                         @endif
                     </div>
                 </div>
 
                 <div>
-                    <div class="text-[10px] uppercase font-bold text-slate-500 font-mono">Terakhir Masuk (Last Login)</div>
+                    <div class="text-[10px] uppercase font-bold text-slate-500 font-mono">Last Sign In</div>
                     <div class="text-slate-200 font-mono text-[11px]">
                         @if($targetUser->last_login_at)
                             <span class="text-teal-300">{{ $targetUser->last_login_at->format('d M Y, H:i') }}</span>
                             <span class="text-slate-500">({{ $targetUser->last_login_at->diffForHumans() }})</span>
                         @else
-                            <span class="text-slate-500 italic">Belum pernah login</span>
+                            <span class="text-slate-500 italic">Never signed in</span>
                         @endif
                     </div>
                 </div>
 
                 <div>
-                    <div class="text-[10px] uppercase font-bold text-slate-500 font-mono">Tanggal Terdaftar</div>
+                    <div class="text-[10px] uppercase font-bold text-slate-500 font-mono">Date Registered</div>
                     <div class="text-slate-200 font-mono text-[11px]">
                         {{ $targetUser->created_at ? $targetUser->created_at->format('d M Y, H:i') : '-' }}
                     </div>
@@ -143,10 +143,10 @@
             <!-- Toggle Status Form -->
             @if($targetUser->id !== auth()->id())
             <div class="w-full border-t border-slate-800 pt-3">
-                <form action="{{ route('admin.users.toggle-status', $targetUser->id) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin mengubah status aktif pengguna ini?');">
+                <form action="{{ route('admin.users.toggle-status', $targetUser->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to change the active status of this user?');">
                     @csrf
                     <button type="submit" class="w-full py-2 px-3 rounded-xl {{ $targetUser->is_active ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' }} font-bold text-xs transition cursor-pointer">
-                        {{ $targetUser->is_active ? 'Nonaktifkan Akun Ini' : 'Aktifkan Akun Ini' }}
+                        {{ $targetUser->is_active ? 'Deactivate Account' : 'Activate Account' }}
                     </button>
                 </form>
             </div>
@@ -161,31 +161,31 @@
                 <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-2">
                         <span>🔑</span>
-                        <span>Reset Kata Sandi Akun (Super Admin Override)</span>
+                        <span>Reset Account Password (Super Admin Override)</span>
                     </h3>
                     <span class="text-[10px] font-mono text-slate-400">Root Credential Reset</span>
                 </div>
 
                 <p class="text-[11px] text-slate-400 leading-relaxed">
-                    Sebagai Super Admin, Anda dapat mereset kata sandi akun ini secara langsung. Kata sandi baru akan di-hash secara aman dan langsung dapat digunakan oleh pengguna bersangkutan.
+                    As a Super Admin, you can directly reset this account's password. The new password will be securely hashed and will take effect immediately.
                 </p>
 
-                <form action="{{ route('admin.users.reset-password', $targetUser->id) }}" method="POST" class="space-y-4 text-xs" onsubmit="return confirm('Konfirmasi reset kata sandi untuk akun {{ $targetUser->name }}?');">
+                <form action="{{ route('admin.users.reset-password', $targetUser->id) }}" method="POST" class="space-y-4 text-xs" onsubmit="return confirm('Confirm password reset for account {{ $targetUser->name }}?');">
                     @csrf
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label for="reset_password" class="block font-semibold text-slate-300 mb-1">
-                                Kata Sandi Baru <span class="text-rose-400">*</span>
+                                New Password <span class="text-rose-400">*</span>
                             </label>
                             <input type="password" id="reset_password" name="password" required minlength="8"
                                 class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition text-xs font-mono">
-                            <p class="text-[10px] text-slate-400 mt-1">Minimal 8 karakter.</p>
+                            <p class="text-[10px] text-slate-400 mt-1">Minimum 8 characters.</p>
                         </div>
 
                         <div>
                             <label for="reset_password_confirmation" class="block font-semibold text-slate-300 mb-1">
-                                Konfirmasi Kata Sandi Baru <span class="text-rose-400">*</span>
+                                Confirm New Password <span class="text-rose-400">*</span>
                             </label>
                             <input type="password" id="reset_password_confirmation" name="password_confirmation" required minlength="8"
                                 class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition text-xs font-mono">
@@ -194,7 +194,7 @@
 
                     <div class="flex justify-end pt-1">
                         <button type="submit" class="py-2.5 px-5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-amber-500/20 cursor-pointer">
-                            Eksekusi Reset Kata Sandi
+                            Execute Password Reset
                         </button>
                     </div>
                 </form>
@@ -205,9 +205,9 @@
                 <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-teal-300 flex items-center gap-2">
                         <span>📜</span>
-                        <span>Rekam Jejak Aktivitas Forensik (Audit Log)</span>
+                        <span>Forensic Activity Logs (Audit Trail)</span>
                     </h3>
-                    <span class="text-[10px] font-mono text-slate-400">15 Entri Terakhir</span>
+                    <span class="text-[10px] font-mono text-slate-400">Last 15 Entries</span>
                 </div>
 
                 <div class="space-y-2 text-xs">
@@ -235,7 +235,7 @@
                     </div>
                     @empty
                     <div class="py-6 text-center text-slate-400 text-xs">
-                        Belum ada catatan aktivitas audit log untuk akun ini.
+                        No audit trail activity recorded for this user yet.
                     </div>
                     @endforelse
                 </div>

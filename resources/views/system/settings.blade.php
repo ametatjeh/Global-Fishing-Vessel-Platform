@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header_title', 'System Settings & Production Observability — Status Platform & Monitoring')
+@section('header_title', 'System Settings & Production Observability — Platform Status & Monitoring')
 
 @section('content')
 <div class="max-w-5xl space-y-6">
@@ -21,7 +21,7 @@
 
     @if($errors->any())
     <div class="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs space-y-1">
-        <strong class="font-bold">Gagal memperbarui konfigurasi:</strong>
+        <strong class="font-bold">Failed to update configuration:</strong>
         <ul class="list-disc pl-5 space-y-0.5">
             @foreach($errors->all() as $error)
             <li>{{ $error }}</li>
@@ -30,13 +30,13 @@
     </div>
     @endif
 
-    <!-- 1. Active System Alerts (Tahap L) -->
+    <!-- 1. Active System Alerts -->
     @if(!empty($alerts))
     <div class="glass-panel p-6 rounded-2xl border border-slate-800 shadow-xl space-y-3">
         <div class="flex items-center justify-between border-b border-slate-800 pb-3">
             <h2 class="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
                 <span>🚨</span>
-                <span>Active System Observability & Alert Signals</span>
+                <span>Active System Observability &amp; Alert Signals</span>
             </h2>
             <span class="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-slate-900 border border-slate-700 text-slate-300">
                 {{ count($alerts) }} Signal(s)
@@ -77,75 +77,75 @@
                     <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">FISHING 100% IMMUTABLE</span>
                 </h3>
                 <p class="text-xs text-slate-400 mt-0.5">
-                    Konfigurasi masa retensi posisi AIS historis, jadwal automatic cleanup, simulasi dry-run, dan perlindungan permanen armada kapal penangkap ikan.
+                    Configuration of historical AIS position retention periods, automatic cleanup scheduler, dry-run simulation, and permanent protection for the fishing fleet.
                 </p>
             </div>
         </div>
         <a href="{{ route('settings.retention.index') }}"
             class="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs transition shrink-0 flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20">
-            <span>Kelola Kebijakan Retensi</span>
-            <span>→</span>
+            <span>Manage Retention Policy</span>
+            <span>&rarr;</span>
         </a>
     </div>
 
-    <!-- 2. System Health & Infrastructure Matrix (Tahap A, I, M) -->
+    <!-- 2. System Health & Infrastructure Matrix -->
     <div class="glass-panel p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4 text-xs">
         <div class="flex items-center justify-between border-b border-slate-800 pb-3">
             <div>
                 <h2 class="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
                     <span>🖥️</span>
-                    <span>Status Kesehatan Infrastruktur & Observabilitas Runtime</span>
+                    <span>Infrastructure Health Status &amp; Runtime Observability</span>
                 </h2>
-                <p class="text-xs text-slate-400 mt-1">Pemantauan engine database, PostGIS spatial extension, queue worker, scheduler, dan disk storage.</p>
+                <p class="text-xs text-slate-400 mt-1">Monitoring database engine, PostGIS spatial extension, queue worker, scheduler heartbeat, and storage volumes.</p>
             </div>
             <a href="{{ route('api.health', ['detail' => 1]) }}" target="_blank" class="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-slate-900 text-cyan-300 border border-cyan-800 hover:bg-slate-800 transition">
-                JSON Probe: /api/health ↗
+                JSON Probe: /api/health &nearr;
             </a>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <!-- Application -->
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <span class="text-slate-400 text-[11px]">Aplikasi & Runtime:</span>
+                <span class="text-slate-400 text-[11px]">Application &amp; Runtime:</span>
                 <div class="text-sm font-bold font-mono text-cyan-300">Laravel {{ $health['application']['laravel_version'] ?? '13.x' }}</div>
                 <div class="text-[10px] text-slate-500">PHP {{ $health['application']['php_version'] ?? PHP_VERSION }} &bull; Env: <span class="text-amber-300 font-mono">{{ strtoupper(config('app.env')) }}</span></div>
             </div>
 
             <!-- Database & PostGIS -->
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <span class="text-slate-400 text-[11px]">Database & Spasial:</span>
+                <span class="text-slate-400 text-[11px]">Database &amp; Spatial Extension:</span>
                 <div class="text-sm font-bold font-mono text-emerald-400 flex items-center gap-1.5">
                     <span>✓ CONNECTED</span>
                     <span class="text-[10px] text-slate-500">({{ $health['database']['latency_ms'] ?? 0 }} ms)</span>
                 </div>
-                <div class="text-[10px] text-slate-500 truncate" title="{{ $health['database']['postgresql_version_summary'] ?? '' }}">PostgreSQL 18 + PostGIS 3.6 (Spasial: OK)</div>
+                <div class="text-[10px] text-slate-500 truncate" title="{{ $health['database']['postgresql_version_summary'] ?? '' }}">PostgreSQL 18 + PostGIS 3.6 (Spatial: OK)</div>
             </div>
 
             <!-- Queue & Background Workers -->
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <span class="text-slate-400 text-[11px]">Queue Worker & Scheduler:</span>
+                <span class="text-slate-400 text-[11px]">Queue Worker &amp; Scheduler:</span>
                 <div class="text-sm font-bold font-mono text-purple-300">{{ $health['queue']['pending_jobs'] ?? 0 }} pending &bull; {{ $health['queue']['failed_jobs'] ?? 0 }} failed</div>
-                <div class="text-[10px] text-slate-500">Scheduler Heartbeat: <span class="text-emerald-400">AKTIF</span></div>
+                <div class="text-[10px] text-slate-500">Scheduler Heartbeat: <span class="text-emerald-400">ACTIVE</span></div>
             </div>
 
             <!-- Storage / Disk Space -->
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <span class="text-slate-400 text-[11px]">Kapasitas Disk ({{ $diskStorage['drive'] ?? 'Storage' }}):</span>
+                <span class="text-slate-400 text-[11px]">Disk Capacity ({{ $diskStorage['drive'] ?? 'Storage' }}):</span>
                 <div class="text-sm font-bold font-mono text-white">{{ $diskStorage['free_gb'] ?? 0 }} GB Free ({{ $diskStorage['free_percent'] ?? 0 }}%)</div>
                 <div class="text-[10px] text-emerald-400 font-semibold">{{ $diskStorage['threshold_status'] ?? 'Healthy' }}</div>
             </div>
         </div>
     </div>
 
-    <!-- 3. AIS Telemetry Freshness Monitoring (Tahap H) -->
+    <!-- 3. AIS Telemetry Freshness Monitoring -->
     <div class="glass-panel p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4 text-xs">
         <div class="flex items-center justify-between border-b border-slate-800 pb-3">
             <div>
                 <h2 class="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
                     <span>📡</span>
-                    <span>Monitoring Kesegaran Telemetri AIS (Data Freshness Matrix)</span>
+                    <span>AIS Telemetry Freshness Monitoring (Data Freshness Matrix)</span>
                 </h2>
-                <p class="text-xs text-slate-400 mt-1">Klasifikasi waktu telemetri: Live (&lt; 2 jam), Stale (2–6 jam), dan Very Stale (&gt; 6 jam). Seluruh data historis dipelihara sebagai bukti forensik.</p>
+                <p class="text-xs text-slate-400 mt-1">Telemetry age classification: Live (&lt; 2h), Stale (2–6h), and Very Stale (&gt; 6h). All historical data is preserved for forensic evidence.</p>
             </div>
             <span class="px-2.5 py-1 rounded-lg text-xs font-mono font-bold
                 @if(($aisFreshness['freshness_rating'] ?? '') === 'LIVE') bg-emerald-500/20 text-emerald-300 border border-emerald-500/40
@@ -157,44 +157,44 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <span class="text-emerald-400 font-semibold text-[11px]">LIVE (&lt; 2 Jam):</span>
+                <span class="text-emerald-400 font-semibold text-[11px]">LIVE (&lt; 2 Hours):</span>
                 <div class="text-lg font-bold font-mono text-emerald-300">{{ number_format($aisFreshness['metrics']['live_under_2h'] ?? 0) }}</div>
-                <div class="text-[10px] text-slate-500">Posisi segar real-time</div>
+                <div class="text-[10px] text-slate-500">Real-time fresh positions</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <span class="text-amber-400 font-semibold text-[11px]">STALE (2 Jam – 6 Jam):</span>
+                <span class="text-amber-400 font-semibold text-[11px]">STALE (2h – 6h):</span>
                 <div class="text-lg font-bold font-mono text-amber-300">{{ number_format($aisFreshness['metrics']['stale_2h_to_6h'] ?? 0) }}</div>
-                <div class="text-[10px] text-slate-500">Transisi historis</div>
+                <div class="text-[10px] text-slate-500">Historical transition</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <span class="text-slate-400 font-semibold text-[11px]">VERY STALE (&gt; 6 Jam):</span>
+                <span class="text-slate-400 font-semibold text-[11px]">VERY STALE (&gt; 6 Hours):</span>
                 <div class="text-lg font-bold font-mono text-slate-300">{{ number_format($aisFreshness['metrics']['very_stale_over_6h'] ?? 0) }}</div>
-                <div class="text-[10px] text-slate-500">Arsip jejak forensik</div>
+                <div class="text-[10px] text-slate-500">Forensic track archive</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <span class="text-slate-400 font-semibold text-[11px]">Total Kapal & Posisi:</span>
+                <span class="text-slate-400 font-semibold text-[11px]">Total Vessels &amp; Positions:</span>
                 <div class="text-lg font-bold font-mono text-cyan-300">{{ number_format($aisFreshness['metrics']['total_vessels'] ?? 0) }} / {{ number_format($aisFreshness['metrics']['total_positions'] ?? 0) }}</div>
-                <div class="text-[10px] text-slate-500 truncate">Obs Terakhir: {{ $aisFreshness['latest_observation'] ? \Carbon\Carbon::parse($aisFreshness['latest_observation'])->format('H:i:s') . ' UTC' : 'None' }}</div>
+                <div class="text-[10px] text-slate-500 truncate">Last Obs: {{ $aisFreshness['latest_observation'] ? \Carbon\Carbon::parse($aisFreshness['latest_observation'])->format('H:i:s') . ' UTC' : 'None' }}</div>
             </div>
         </div>
 
         <div class="p-3 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] text-slate-400">
-            <strong>Integritas Data Maritim:</strong> Sistem tidak menghapus posisi lama. Data <em>stale</em> tetap dipertahankan secara utuh dalam basis data spasial untuk verifikasi alibi, investigasi tabrakan, dan korelasi radar satelit SAR masa lalu.
+            <strong>Maritime Data Integrity:</strong> The system never deletes legacy positions without explicit policy. <em>Stale</em> data remains fully retained in the spatial database for alibi verification, encounter collision investigations, and historical SAR satellite radar correlation.
         </div>
     </div>
 
-    <!-- 4. Operational Backup & Disaster Recovery Monitoring (Tahap D & E) -->
+    <!-- 4. Operational Backup & Disaster Recovery Monitoring -->
     <div class="glass-panel p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4 text-xs">
         <div class="flex items-center justify-between border-b border-slate-800 pb-3">
             <div>
                 <h2 class="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
                     <span>💾</span>
-                    <span>Status Backup Otomatis & Disaster Recovery Terisolasi</span>
+                    <span>Automated Backup Status &amp; Isolated Disaster Recovery</span>
                 </h2>
-                <p class="text-xs text-slate-400 mt-1">Pemantauan snapshot database PostgreSQL dan penyimpanan arsip SAFE / Evidence SAR.</p>
+                <p class="text-xs text-slate-400 mt-1">PostgreSQL database snapshot monitoring and Sentinel-1 SAR evidence / SAFE archive storage tracking.</p>
             </div>
             <div class="flex items-center gap-2">
                 @if(($backupManifest['status'] ?? '') === 'HEALTHY' || ($backupManifest['status'] ?? '') === 'SUCCESS')
@@ -222,46 +222,46 @@
         @if($backupManifest && isset($backupManifest['last_backup_utc']))
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <span class="text-slate-400 text-[11px]">Waktu Backup Terakhir:</span>
+                <span class="text-slate-400 text-[11px]">Last Backup Time:</span>
                 <div class="text-sm font-bold font-mono text-teal-300">{{ \Carbon\Carbon::parse($backupManifest['last_backup_utc'])->format('Y-m-d H:i:s') }} UTC</div>
-                <div class="text-[10px] text-slate-500">Usia: {{ $backupManifest['age_hours'] }} jam &bull; Durasi: {{ $backupManifest['duration_seconds'] ?? 0 }}s</div>
+                <div class="text-[10px] text-slate-500">Age: {{ $backupManifest['age_hours'] }} hours &bull; Duration: {{ $backupManifest['duration_seconds'] ?? 0 }}s</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <span class="text-slate-400 text-[11px]">Ukuran Dump PostgreSQL:</span>
+                <span class="text-slate-400 text-[11px]">PostgreSQL Dump Size:</span>
                 <div class="text-sm font-bold font-mono text-white">{{ $backupManifest['dump_size_mb'] }} MB</div>
                 <div class="text-[10px] text-slate-500 font-mono truncate" title="{{ $backupManifest['dump_file'] }}">{{ $backupManifest['dump_file'] }}</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <span class="text-slate-400 text-[11px]">Arsip Citra & Bukti SAR:</span>
-                <div class="text-sm font-bold font-mono text-purple-300">{{ $backupManifest['sar_evidence_file_count'] ?? 0 }} file bukti</div>
-                <div class="text-[10px] text-slate-500 font-mono">{{ $backupManifest['sar_products_file_count'] ?? 0 }} file SAFE archive</div>
+                <span class="text-slate-400 text-[11px]">SAR Imagery &amp; Evidence Archive:</span>
+                <div class="text-sm font-bold font-mono text-purple-300">{{ $backupManifest['sar_evidence_file_count'] ?? 0 }} evidence files</div>
+                <div class="text-[10px] text-slate-500 font-mono">{{ $backupManifest['sar_products_file_count'] ?? 0 }} SAFE archive files</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <span class="text-slate-400 text-[11px]">Uji Pemulihan (Disaster Recovery):</span>
+                <span class="text-slate-400 text-[11px]">Disaster Recovery Test:</span>
                 <div class="text-sm font-bold font-mono text-emerald-400">✓ ISOLATED TEST PASSED</div>
-                <div class="text-[10px] text-slate-500 font-mono">Ditebak pada: {{ $recoveryReport['isolated_database'] ?? 'gfvip_isolated_recovery_test' }}</div>
+                <div class="text-[10px] text-slate-500 font-mono">Tested on: {{ $recoveryReport['isolated_database'] ?? 'gfvip_isolated_recovery_test' }}</div>
             </div>
         </div>
 
         <div class="p-3 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-            <span>Lokasi Penyimpanan: <code class="text-slate-300 font-mono">C:\backups\gfvip</code> &bull; Kebijakan Retensi: <strong>{{ $backupManifest['retention_days'] ?? 14 }} hari</strong></span>
+            <span>Storage Location: <code class="text-slate-300 font-mono">C:\backups\gfvip</code> &bull; Retention Policy: <strong>{{ $backupManifest['retention_days'] ?? 14 }} days</strong></span>
             <span class="text-slate-500 font-mono text-[10px]">Format: PostgreSQL Custom (-F c)</span>
         </div>
         @endif
     </div>
 
-    <!-- 5. Offsite Backup Activation Gate (Tahap F) -->
+    <!-- 5. Offsite Backup Activation Gate -->
     <div class="glass-panel p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4 text-xs">
         <div class="flex items-center justify-between border-b border-slate-800 pb-3">
             <div>
                 <h2 class="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
                     <span>☁️</span>
-                    <span>Offsite Backup Activation Gate & Governance</span>
+                    <span>Offsite Backup Activation Gate &amp; Governance</span>
                 </h2>
-                <p class="text-xs text-slate-400 mt-1">Gerbang aktivasi sinkronisasi cadangan offsite terenkripsi dengan proteksi anti-ransomware (WORM / Object Lock).</p>
+                <p class="text-xs text-slate-400 mt-1">Encrypted offsite backup synchronization gateway with anti-ransomware protection (WORM / Object Lock).</p>
             </div>
             <span class="px-2.5 py-1 rounded-lg text-xs font-mono font-bold
                 @if(($offsiteGate['status'] ?? '') === 'ACTIVE') bg-emerald-500/20 text-emerald-300 border border-emerald-500/40
@@ -273,21 +273,21 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <span class="text-slate-400 text-[11px]">Enkripsi Data:</span>
+                <span class="text-slate-400 text-[11px]">Data Encryption:</span>
                 <div class="text-xs font-bold text-emerald-300 font-mono">{{ $offsiteGate['encryption_in_transit'] }}</div>
                 <div class="text-[10px] text-slate-500">{{ $offsiteGate['encryption_at_rest'] }}</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <span class="text-slate-400 text-[11px]">Proteksi Immutability (WORM):</span>
+                <span class="text-slate-400 text-[11px]">Immutability Protection (WORM):</span>
                 <div class="text-xs font-bold text-purple-300 font-mono">Object Lock Compliance Mode</div>
-                <div class="text-[10px] text-slate-500">Mencegah overwrite/deletion oleh ransomware</div>
+                <div class="text-[10px] text-slate-500">Prevents overwrite/deletion by ransomware</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <span class="text-slate-400 text-[11px]">Pemisahan Hak Akses (Least Privilege):</span>
+                <span class="text-slate-400 text-[11px]">Least Privilege Access:</span>
                 <div class="text-xs font-bold text-cyan-300 font-mono">Write-Once PutObject Only</div>
-                <div class="text-[10px] text-slate-500">Akun pengunggah tidak memiliki izin hapus</div>
+                <div class="text-[10px] text-slate-500">Uploader account has no delete permissions</div>
             </div>
         </div>
 
@@ -296,22 +296,22 @@
             @csrf
             <div class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
                 <span>🔐</span>
-                <span>Otorisasi & Konfigurasi Gerbang Offsite (Super Admin Only)</span>
+                <span>Authorization &amp; Offsite Gate Configuration (Super Admin Only)</span>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                    <label class="block text-[11px] text-slate-400 mb-1">Status Target:</label>
+                    <label class="block text-[11px] text-slate-400 mb-1">Target Status:</label>
                     <select name="status" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500">
-                        <option value="DISABLED" {{ ($offsiteGate['status'] ?? '') === 'DISABLED' ? 'selected' : '' }}>DISABLED (Nonaktif / Blokir Jaringan)</option>
-                        <option value="DRY_RUN" {{ ($offsiteGate['status'] ?? '') === 'DRY_RUN' ? 'selected' : '' }}>DRY_RUN (Simulasi Pengujian)</option>
-                        <option value="READY" {{ ($offsiteGate['status'] ?? '') === 'READY' ? 'selected' : '' }}>READY (Siap Diaktifkan)</option>
-                        <option value="ACTIVE" {{ ($offsiteGate['status'] ?? '') === 'ACTIVE' ? 'selected' : '' }}>ACTIVE (Sinkronisasi Otomatis Aktif)</option>
+                        <option value="DISABLED" {{ ($offsiteGate['status'] ?? '') === 'DISABLED' ? 'selected' : '' }}>DISABLED (Network Blocked)</option>
+                        <option value="DRY_RUN" {{ ($offsiteGate['status'] ?? '') === 'DRY_RUN' ? 'selected' : '' }}>DRY_RUN (Simulation / Test Mode)</option>
+                        <option value="READY" {{ ($offsiteGate['status'] ?? '') === 'READY' ? 'selected' : '' }}>READY (Ready for Activation)</option>
+                        <option value="ACTIVE" {{ ($offsiteGate['status'] ?? '') === 'ACTIVE' ? 'selected' : '' }}>ACTIVE (Automated Synchronization Active)</option>
                     </select>
                 </div>
 
                 <div>
-                    <label class="block text-[11px] text-slate-400 mb-1">Provider Target:</label>
+                    <label class="block text-[11px] text-slate-400 mb-1">Target Provider:</label>
                     <select name="provider" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500">
                         <option value="S3_COMPATIBLE" {{ ($offsiteGate['provider'] ?? '') === 'S3_COMPATIBLE' ? 'selected' : '' }}>S3-Compatible (Wasabi / MinIO / B2)</option>
                         <option value="AWS_S3" {{ ($offsiteGate['provider'] ?? '') === 'AWS_S3' ? 'selected' : '' }}>Amazon Web Services (AWS S3 + Glacier)</option>
@@ -330,60 +330,60 @@
             <div class="pt-2 flex items-center justify-between">
                 <label class="flex items-center gap-2 cursor-pointer text-[11px] text-slate-300">
                     <input type="checkbox" name="confirm_operator" value="1" class="rounded border-slate-800 bg-slate-950 text-cyan-500 focus:ring-0">
-                    <span>Saya mengonfirmasi otorisasi perubahan kebijakan offsite backup dan menyetujui pencatatan audit forensik.</span>
+                    <span>I confirm authorization for the offsite backup policy change and agree to forensic audit logging.</span>
                 </label>
 
                 <button type="submit" class="px-4 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs shadow-md transition">
-                    Simpan Perubahan Gerbang
+                    Save Gate Changes
                 </button>
             </div>
         </form>
         @else
         <div class="p-3 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] text-slate-400">
-            🔒 Gerbang otorisasi offsite backup hanya dapat dikonfigurasi oleh pengguna dengan hak akses <strong>super_admin</strong>.
+            🔒 The offsite backup authorization gate may only be configured by users with <strong>super_admin</strong> privileges.
         </div>
         @endif
     </div>
 
-    <!-- 6. Production Hardening Guidance (Tahap T) -->
+    <!-- 6. Production Hardening Guidance -->
     <div class="glass-panel p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4 text-xs">
         <div class="border-b border-slate-800 pb-3">
             <h2 class="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
                 <span>🛡️</span>
-                <span>Production Environment Hardening & Security State</span>
+                <span>Production Environment Hardening &amp; Security State</span>
             </h2>
-            <p class="text-xs text-slate-400 mt-1">Status konfigurasi runtime aplikasi terhadap parameter keamanan standar produksi.</p>
+            <p class="text-xs text-slate-400 mt-1">Runtime application configuration compliance against enterprise production security parameters.</p>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <span class="text-slate-400 text-[11px]">Environment Runtime (APP_ENV):</span>
+                <span class="text-slate-400 text-[11px]">Runtime Environment (APP_ENV):</span>
                 <div class="text-sm font-bold font-mono {{ config('app.env') === 'production' ? 'text-emerald-300' : 'text-amber-300' }}">
                     {{ strtoupper(config('app.env')) }}
                 </div>
-                <div class="text-[10px] text-slate-500">{{ config('app.env') === 'production' ? 'Mode produksi aktif' : 'Mode pengembangan lokal (Sengaja dipertahankan)' }}</div>
+                <div class="text-[10px] text-slate-500">{{ config('app.env') === 'production' ? 'Production mode active' : 'Local development mode (Intentionally preserved)' }}</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
                 <span class="text-slate-400 text-[11px]">Debug Mode (APP_DEBUG):</span>
                 <div class="text-sm font-bold font-mono {{ config('app.debug') ? 'text-amber-400' : 'text-emerald-300' }}">
-                    {{ config('app.debug') ? 'TRUE (AKTIF PADA WORKSTATION)' : 'FALSE (AMAN)' }}
+                    {{ config('app.debug') ? 'TRUE (ACTIVE ON WORKSTATION)' : 'FALSE (SECURE)' }}
                 </div>
-                <div class="text-[10px] text-slate-500">{{ config('app.debug') ? 'Wajib FALSE pada server deployment rilis' : 'Stack trace disembunyikan' }}</div>
+                <div class="text-[10px] text-slate-500">{{ config('app.debug') ? 'Must be FALSE on production deployment server' : 'Stack traces hidden' }}</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
                 <span class="text-slate-400 text-[11px]">Application Encryption Key:</span>
-                <div class="text-sm font-bold font-mono text-emerald-300">✓ TERSEDIA</div>
-                <div class="text-[10px] text-slate-500">AES-256-CBC cipher aktif</div>
+                <div class="text-sm font-bold font-mono text-emerald-300">✓ PRESENT</div>
+                <div class="text-[10px] text-slate-500">AES-256-CBC cipher active</div>
             </div>
         </div>
 
         <div class="p-3 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] text-slate-400 leading-relaxed space-y-1">
-            <strong class="text-slate-300">Panduan Hardening Menuju Rilis Publik:</strong>
-            <div>1. Set <code>APP_ENV=production</code> dan <code>APP_DEBUG=false</code> pada file lingkungan server tujuan. Workstation development tetap lokal.</div>
-            <div>2. Jalankan <code>php artisan config:cache</code> dan <code>php artisan route:cache</code> untuk akselerasi dan proteksi konfigurasi.</div>
-            <div>3. Pastikan reverse proxy menegakkan HTTPS TLS 1.3 dan header <code>X-Content-Type-Options: nosniff</code>.</div>
+            <strong class="text-slate-300">Enterprise Hardening Deployment Guide:</strong>
+            <div>1. Set <code>APP_ENV=production</code> and <code>APP_DEBUG=false</code> in the target production server environment file. Local development workstations remain in local mode.</div>
+            <div>2. Run <code>php artisan config:cache</code> and <code>php artisan route:cache</code> for configuration protection and execution acceleration.</div>
+            <div>3. Ensure the reverse proxy enforces HTTPS TLS 1.3 and the <code>X-Content-Type-Options: nosniff</code> header.</div>
         </div>
     </div>
 
@@ -392,39 +392,39 @@
         <div class="border-b border-slate-800 pb-3">
             <h2 class="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
                 <span>⚙️</span>
-                <span>Parameter Algoritma Proximity & Geodataset Terkonfigurasi</span>
+                <span>Proximity Algorithm Parameters &amp; Configured Geodatasets</span>
             </h2>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <span class="text-slate-400">Jarak Proximity Maksimum:</span>
-                <div class="text-lg font-bold font-mono text-teal-300">{{ $config['encounters']['max_distance_meters'] }} meter</div>
-                <div class="text-[10px] text-slate-500">Radius deteksi pertemuan rendezvous</div>
+                <span class="text-slate-400">Maximum Proximity Distance:</span>
+                <div class="text-lg font-bold font-mono text-teal-300">{{ $config['encounters']['max_distance_meters'] }} meters</div>
+                <div class="text-[10px] text-slate-500">Rendezvous encounter detection radius</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <span class="text-slate-400">Durasi Minimum Kedekatan:</span>
-                <div class="text-lg font-bold font-mono text-teal-300">{{ $config['encounters']['min_duration_minutes'] }} menit</div>
-                <div class="text-[10px] text-slate-500">Mencegah false positive berpapasan sesaat</div>
+                <span class="text-slate-400">Minimum Proximity Duration:</span>
+                <div class="text-lg font-bold font-mono text-teal-300">{{ $config['encounters']['min_duration_minutes'] }} minutes</div>
+                <div class="text-[10px] text-slate-500">Filters out transient passing vessels</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <span class="text-slate-400">Toleransi Timestamp Telemetri:</span>
-                <div class="text-lg font-bold font-mono text-teal-300">{{ $config['encounters']['timestamp_tolerance_minutes'] }} menit</div>
-                <div class="text-[10px] text-slate-500">Jendela pencocokan posisi temporal</div>
+                <span class="text-slate-400">Telemetry Timestamp Tolerance:</span>
+                <div class="text-lg font-bold font-mono text-teal-300">{{ $config['encounters']['timestamp_tolerance_minutes'] }} minutes</div>
+                <div class="text-[10px] text-slate-500">Temporal position matching window</div>
             </div>
         </div>
 
         <div class="space-y-3 pt-2 text-slate-300">
             <div class="p-3 rounded-xl bg-slate-900 border border-slate-800">
                 <div class="font-bold text-indigo-300">{{ $config['fao']['name'] }}</div>
-                <div class="text-[11px] text-slate-400">Versi: {{ $config['fao']['version'] }} &bull; Lisensi: {{ $config['fao']['license'] }}</div>
+                <div class="text-[11px] text-slate-400">Version: {{ $config['fao']['version'] }} &bull; License: {{ $config['fao']['license'] }}</div>
             </div>
 
             <div class="p-3 rounded-xl bg-slate-900 border border-slate-800">
                 <div class="font-bold text-teal-300">{{ $config['eez']['name'] }}</div>
-                <div class="text-[11px] text-slate-400">Versi: {{ $config['eez']['version'] }} &bull; Lisensi: {{ $config['eez']['license'] }}</div>
+                <div class="text-[11px] text-slate-400">Version: {{ $config['eez']['version'] }} &bull; License: {{ $config['eez']['license'] }}</div>
             </div>
         </div>
     </div>

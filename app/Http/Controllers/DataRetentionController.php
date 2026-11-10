@@ -54,9 +54,9 @@ class DataRetentionController extends Controller
             'settings.cleanup_schedule' => ['required', 'string', 'in:daily,weekly,monthly'],
             'settings.cleanup_time' => ['required', 'string', 'regex:/^(?:2[0-3]|[01][0-9]):[0-5][0-9]$/'],
         ], [
-            'settings.cleanup_time.regex' => 'Format waktu pembersihan harus HH:MM (contoh 03:00).',
-            'policies.*.retention_days.min' => 'Durasi retensi minimal 1 hari.',
-            'policies.*.retention_days.max' => 'Durasi retensi maksimal 3650 hari (10 tahun).',
+            'settings.cleanup_time.regex' => 'Cleanup time must be in HH:MM format (e.g. 03:00).',
+            'policies.*.retention_days.min' => 'Retention duration must be at least 1 day.',
+            'policies.*.retention_days.max' => 'Retention duration cannot exceed 3650 days (10 years).',
         ]);
 
         $policiesData = $validated['policies'] ?? [];
@@ -84,7 +84,7 @@ class DataRetentionController extends Controller
 
         return redirect()->route('settings.retention.index')
             ->with('simulation', $simulation)
-            ->with('status', 'Simulasi dry-run retensi berhasil diselesaikan. Tidak ada data yang dihapus dari database.');
+            ->with('status', 'Retention dry-run simulation completed successfully. No records were modified or deleted from the database.');
     }
 
     /**
@@ -95,7 +95,7 @@ class DataRetentionController extends Controller
         $request->validate([
             'confirm_purge' => ['required', 'accepted'],
         ], [
-            'confirm_purge.accepted' => 'Anda harus mencentang konfirmasi pembersihan manual untuk mengeksekusi tindakan ini.',
+            'confirm_purge.accepted' => 'You must check the confirmation box to authorize manual cleanup execution.',
         ]);
 
         $result = $this->retentionService->executeRetentionPurge(

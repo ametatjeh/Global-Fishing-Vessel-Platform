@@ -1,15 +1,15 @@
-# Global Fishing Vessel Monitoring Platform (GFVM)
+# Global Fishing Vessel Tracking (GFVT)
 
-Platform pemantauan maritim global (Global Fishing Vessel Monitoring Platform) berbasis Laravel 13, PostgreSQL/PostGIS, dan MapLibre GL JS untuk pemantauan armada perikanan dunia, analisis spasial, dan observasi aktivitas maritim dengan tiga pilar utama:
+Global Fishing Vessel Tracking platform built on Laravel 13, PostgreSQL/PostGIS, and MapLibre GL JS for worldwide fishing fleet surveillance, maritime spatial analysis, and vessel intelligence with three core operational pillars:
 
-1. **Live Vessel Monitoring** (Pemantauan telemetri posisi AIS kapal secara waktu nyata).
-2. **Maritime Compliance Monitoring** (Mesin audit kepatuhan berbasis aturan hukum maritim internasional, izin kapal, dan zona tangkap).
-3. **Unusual Vessel Activity** (Analisis anomali kapal tanpa transponder aktif melalui korelasi citra satelit SAR Sentinel-1 dan celah transmisi AIS).
+1. **Live Vessel Monitoring** (Real-time AIS position telemetry and tracking).
+2. **Maritime Compliance Monitoring** (Rule-based compliance engine grounded in international maritime law, authorizations, and conservation zones).
+3. **Dark Vessel Detection** (Sentinel-1 SAR radar satellite correlation, transponder gap analysis, and unclassified craft detection).
 
-Platform ini dilengkapi layer geospasial resmi:
+The platform integrates official spatial layers:
 
-- **ASEAN Exclusive Economic Zones (EEZ)** (Garis batas Zona Ekonomi Eksklusif resmi regional ASEAN dari Flanders Marine Institute Marine Regions).
-- **Vessel Encounter Analysis** (Deteksi dan analisis pertemuan serta kedekatan spasio-temporal antar kapal di laut lepas).
+- **ASEAN Exclusive Economic Zones (EEZ)** (Flanders Marine Institute / Marine Regions official maritime boundaries).
+- **Vessel Encounter Analysis** (Spatio-temporal rendezvous detection and transshipment monitoring in international and domestic waters).
 
 ---
 

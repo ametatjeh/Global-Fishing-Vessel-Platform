@@ -23,7 +23,7 @@
                 <input type="text" id="inputVesselSearch" placeholder="Search vessel, MMSI, or candidate..."
                     class="pl-8 pr-7 py-1.5 rounded-lg bg-slate-900/90 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-teal-400 w-44 sm:w-64 text-xs font-mono transition-all">
                 <span class="absolute left-2.5 text-slate-400 pointer-events-none text-xs">🔍</span>
-                <button type="button" id="btnClearSearch" class="hidden absolute right-2 text-slate-400 hover:text-white text-xs font-bold p-0.5 leading-none" title="Hapus pencarian">&times;</button>
+                <button type="button" id="btnClearSearch" class="hidden absolute right-2 text-slate-400 hover:text-white text-xs font-bold p-0.5 leading-none" title="Clear search">&times;</button>
             </div>
 
             <!-- Unified Search Dropdown Panel (Live Query Results) -->
@@ -31,14 +31,14 @@
                 <!-- Injected via JavaScript from /api/map/search -->
             </div>
 
-            <button type="button" id="btnFilterSearch" class="px-2.5 py-1.5 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold transition flex items-center gap-1" title="Cari kapal atau radar target">
-                <span>Cari</span>
+            <button type="button" id="btnFilterSearch" class="px-2.5 py-1.5 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold transition flex items-center gap-1" title="Search vessel or radar target">
+                <span>Search</span>
             </button>
 
             <div class="h-4 w-px bg-slate-700/80 mx-0.5"></div>
 
             <!-- B. FILTER BUTTON -->
-            <button type="button" id="btnToggleAdvancedFilters" class="btn-popover-trigger px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-teal-300 font-medium transition border border-slate-700 flex items-center gap-1.5" title="Buka panel filter kapal & radar">
+            <button type="button" id="btnToggleAdvancedFilters" class="btn-popover-trigger px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-teal-300 font-medium transition border border-slate-700 flex items-center gap-1.5" title="Open vessel & radar filter panel">
                 <svg class="w-3.5 h-3.5 text-teal-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line>
                     <line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line>
@@ -50,7 +50,7 @@
             </button>
 
             <!-- C. MARITIME LAYERS BUTTON -->
-            <button type="button" id="btnToggleLayers" class="btn-popover-trigger px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-sky-300 font-medium transition border border-slate-700 flex items-center gap-1.5" title="Buka pilihan layer maritim">
+            <button type="button" id="btnToggleLayers" class="btn-popover-trigger px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-sky-300 font-medium transition border border-slate-700 flex items-center gap-1.5" title="Open maritime layer options">
                 <svg class="w-3.5 h-3.5 text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
                     <polyline points="2 17 12 22 22 17"></polyline>
@@ -61,7 +61,7 @@
             </button>
 
             <!-- D. SCIENTIFIC LEGEND BUTTON -->
-            <button type="button" id="btnToggleLegend" class="btn-popover-trigger px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-amber-300 font-medium transition border border-slate-700 flex items-center gap-1.5" title="Buka legenda simbolik & taksonomi kapal">
+            <button type="button" id="btnToggleLegend" class="btn-popover-trigger px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-amber-300 font-medium transition border border-slate-700 flex items-center gap-1.5" title="Open symbolic legend & vessel taxonomy">
                 <svg class="w-3.5 h-3.5 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
                     <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
@@ -70,7 +70,7 @@
             </button>
 
             <!-- E. MAP SETTINGS / BASEMAP BUTTON -->
-            <button type="button" id="btnToggleSettings" class="btn-popover-trigger px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-emerald-300 font-medium transition border border-slate-700 flex items-center gap-1.5" title="Pengaturan tampilan basemap & atribusi">
+            <button type="button" id="btnToggleSettings" class="btn-popover-trigger px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-emerald-300 font-medium transition border border-slate-700 flex items-center gap-1.5" title="Basemap display settings & attribution">
                 <svg class="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="3"></circle>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -79,7 +79,7 @@
             </button>
 
             <!-- F. RESET VIEW BUTTON -->
-            <button type="button" id="btnResetView" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-medium transition border border-slate-700 flex items-center gap-1" title="Pusatkan peta ke kawasan regional ASEAN default">
+            <button type="button" id="btnResetView" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-medium transition border border-slate-700 flex items-center gap-1" title="Center map to default ASEAN regional view">
                 <span>🧭</span>
                 <span class="hidden sm:inline">Reset View</span>
             </button>
@@ -94,12 +94,12 @@
                 <span class="text-base text-teal-400">🎚️</span>
                 <div>
                     <h3 class="font-bold uppercase tracking-wider text-white text-[12px]">Advanced Maritime Filters</h3>
-                    <p class="text-[10px] text-slate-400">Filter pemantauan armada &amp; satelit radar</p>
+                    <p class="text-[10px] text-slate-400">Fleet surveillance &amp; radar satellite filters</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <span class="active-filter-badge hidden px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-teal-500/20 text-teal-300 border border-teal-500/40">0 Aktif</span>
-                <button type="button" id="btnCloseFiltersPanel" class="text-slate-400 hover:text-white text-lg font-bold p-1 leading-none transition" title="Tutup panel (Esc)">&times;</button>
+                <span class="active-filter-badge hidden px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-teal-500/20 text-teal-300 border border-teal-500/40">0 Active</span>
+                <button type="button" id="btnCloseFiltersPanel" class="text-slate-400 hover:text-white text-lg font-bold p-1 leading-none transition" title="Close panel (Esc)">&times;</button>
             </div>
         </div>
 
@@ -107,15 +107,15 @@
             <!-- SECTION A: VESSEL IDENTITY -->
             <div class="space-y-2 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800">
                 <div class="text-[10px] uppercase font-bold text-sky-400 tracking-wider flex items-center justify-between">
-                    <span>1. Identitas Armada Kapal (AIS)</span>
+                    <span>1. Vessel Fleet Identity (AIS)</span>
                     <span>🚢</span>
                 </div>
 
                 <!-- Flag State -->
                 <div>
-                    <label for="filter-vessel-flag" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Bendera Negara (Flag State)</label>
+                    <label for="filter-vessel-flag" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Flag State</label>
                     <select id="filter-vessel-flag" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400">
-                        <option value="">Semua Bendera Negara (All Flags)</option>
+                        <option value="">All Flags</option>
                         @foreach($flags as $f)
                             <option value="{{ $f['code'] }}">{{ $f['label'] }}</option>
                         @endforeach
@@ -124,9 +124,9 @@
 
                 <!-- Vessel Type -->
                 <div>
-                    <label for="filter-vessel-type" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Tipe Kapal (Vessel Type)</label>
+                    <label for="filter-vessel-type" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Vessel Type</label>
                     <select id="filter-vessel-type" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400 capitalize">
-                        <option value="">Semua Tipe Kapal</option>
+                        <option value="">All Vessel Types</option>
                         @foreach($vesselTypes as $vt)
                             <option value="{{ $vt }}">{{ ucfirst($vt) }}</option>
                         @endforeach
@@ -135,7 +135,7 @@
 
                 <!-- SOG Range -->
                 <div>
-                    <label class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Rentang Kecepatan SOG (knots)</label>
+                    <label class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Speed SOG Range (knots)</label>
                     <div class="grid grid-cols-2 gap-2">
                         <input type="number" id="filter-min-sog" placeholder="Min (0 kn)" min="0" max="60" step="0.5" class="px-2 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400 font-mono">
                         <input type="number" id="filter-max-sog" placeholder="Max (kn)" min="0" max="60" step="0.5" class="px-2 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400 font-mono">
@@ -144,7 +144,7 @@
 
                 <!-- COG Range -->
                 <div>
-                    <label class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Rentang Arah Gerak COG (derajat)</label>
+                    <label class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Course COG Range (degrees)</label>
                     <div class="grid grid-cols-2 gap-2">
                         <input type="number" id="filter-min-cog" placeholder="Min (0°)" min="0" max="360" step="1" class="px-2 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400 font-mono">
                         <input type="number" id="filter-max-cog" placeholder="Max (360°)" min="0" max="360" step="1" class="px-2 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400 font-mono">
@@ -153,22 +153,22 @@
 
                 <!-- Heading Availability -->
                 <div>
-                    <label for="filter-heading-status" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Ketersediaan Haluan (Heading)</label>
+                    <label for="filter-heading-status" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Heading Availability</label>
                     <select id="filter-heading-status" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400">
-                        <option value="">Semua Status Orientasi</option>
-                        <option value="has_heading">Heading Valid (Arah Haluan Lambung)</option>
-                        <option value="cog_fallback">COG Fallback (Arah Vektor Gerak)</option>
-                        <option value="unavailable">Direction Unavailable (Beacon Netral)</option>
+                        <option value="">All Orientation Statuses</option>
+                        <option value="has_heading">Valid Heading (True Vessel Heading)</option>
+                        <option value="cog_fallback">COG Fallback (Course Vector)</option>
+                        <option value="unavailable">Direction Unavailable (Neutral Beacon)</option>
                     </select>
                 </div>
 
                 <!-- Data Freshness -->
                 <div>
-                    <label for="filter-freshness" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Usia Telemetri AIS (Freshness)</label>
+                    <label for="filter-freshness" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">AIS Telemetry Freshness</label>
                     <select id="filter-freshness" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400">
-                        <option value="">Semua Usia Telemetri</option>
-                        <option value="live">● Live AIS (&lt; 2 Jam Terakhir)</option>
-                        <option value="stale">⏳ Stale AIS (&ge; 2 Jam Terakhir)</option>
+                        <option value="">All Telemetry Ages</option>
+                        <option value="live">● Live AIS (&lt; 2h)</option>
+                        <option value="stale">⏳ Stale AIS (&ge; 2h)</option>
                     </select>
                 </div>
             </div>
@@ -176,14 +176,14 @@
             <!-- SECTION B: SAR CANDIDATES -->
             <div class="space-y-2 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800">
                 <div class="text-[10px] uppercase font-bold text-amber-400 tracking-wider flex items-center justify-between">
-                    <span>2. Kandidat Anomali Radar SAR</span>
+                    <span>2. SAR Radar Anomaly Candidates</span>
                     <span>🎯</span>
                 </div>
 
                 <div>
-                    <label for="filter-sar-review" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Status Review Analis</label>
+                    <label for="filter-sar-review" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Analyst Review Status</label>
                     <select id="filter-sar-review" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400">
-                        <option value="">Semua Status Review</option>
+                        <option value="">All Review Statuses</option>
                         @foreach($reviewStatuses as $val => $lbl)
                             <option value="{{ $val }}">{{ $lbl }}</option>
                         @endforeach
@@ -191,9 +191,9 @@
                 </div>
 
                 <div>
-                    <label for="filter-sar-correlation" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Status Korelasi AIS</label>
+                    <label for="filter-sar-correlation" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">AIS Correlation Status</label>
                     <select id="filter-sar-correlation" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400">
-                        <option value="">Semua Status Korelasi</option>
+                        <option value="">All Correlation Statuses</option>
                         @foreach($correlationStatuses as $cVal => $cLbl)
                             <option value="{{ $cVal }}">{{ $cLbl }}</option>
                         @endforeach
@@ -201,7 +201,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Rentang TCR Hamburan Radar (dB)</label>
+                    <label class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Radar Backscatter TCR Range (dB)</label>
                     <div class="grid grid-cols-2 gap-2">
                         <input type="number" id="filter-min-tcr" placeholder="Min (dB)" step="0.5" class="px-2 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400 font-mono">
                         <input type="number" id="filter-max-tcr" placeholder="Max (dB)" step="0.5" class="px-2 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400 font-mono">
@@ -209,9 +209,9 @@
                 </div>
 
                 <div>
-                    <label for="filter-sar-platform" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Platform Satelit Radar</label>
+                    <label for="filter-sar-platform" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Radar Satellite Platform</label>
                     <select id="filter-sar-platform" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400">
-                        <option value="">Semua Platform Satelit</option>
+                        <option value="">All Satellite Platforms</option>
                         @foreach($platforms as $p)
                             <option value="{{ $p }}">{{ $p }}</option>
                         @endforeach
@@ -222,39 +222,39 @@
             <!-- SECTION C: TEMPORAL & TRACK WINDOW -->
             <div class="space-y-2 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800">
                 <div class="text-[10px] uppercase font-bold text-teal-400 tracking-wider flex items-center justify-between">
-                    <span>3. Rentang Waktu &amp; Trajektori</span>
+                    <span>3. Time Range &amp; Trajectory</span>
                     <span>⏱️</span>
                 </div>
 
                 <div>
-                    <label for="filter-date-range" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Rentang Waktu Observasi</label>
+                    <label for="filter-date-range" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Observation Time Window</label>
                     <select id="filter-date-range" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400">
-                        <option value="all">Semua Waktu Observasi</option>
-                        <option value="24h">24 Jam Terakhir</option>
-                        <option value="7d">7 Hari Terakhir</option>
-                        <option value="30d">30 Hari Terakhir</option>
-                        <option value="custom">Rentang Tanggal Khusus...</option>
+                        <option value="all">All Observation Times</option>
+                        <option value="24h">Last 24 Hours</option>
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                        <option value="custom">Custom Date Range...</option>
                     </select>
                 </div>
 
                 <div id="customDateRangeContainer" class="hidden grid grid-cols-2 gap-2 pt-1">
                     <div>
-                        <label class="block text-[9px] text-slate-400 font-mono mb-0.5">Mulai:</label>
+                        <label class="block text-[9px] text-slate-400 font-mono mb-0.5">Start:</label>
                         <input type="date" id="filter-start-date" class="w-full px-2 py-1 rounded bg-slate-950 border border-slate-700 text-slate-200 text-[11px] font-mono">
                     </div>
                     <div>
-                        <label class="block text-[9px] text-slate-400 font-mono mb-0.5">Selesai:</label>
+                        <label class="block text-[9px] text-slate-400 font-mono mb-0.5">End:</label>
                         <input type="date" id="filter-end-date" class="w-full px-2 py-1 rounded bg-slate-950 border border-slate-700 text-slate-200 text-[11px] font-mono">
                     </div>
                 </div>
 
                 <div>
-                    <label for="filter-track-window" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Jendela Historis AIS Track</label>
+                    <label for="filter-track-window" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">AIS Track History Window</label>
                     <select id="filter-track-window" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400">
-                        <option value="off">Off (Hanya Posisi Terkini)</option>
-                        <option value="60">Jendela 60 Menit</option>
-                        <option value="180">Jendela 180 Menit (3 Jam)</option>
-                        <option value="360">Jendela 360 Menit (6 Jam)</option>
+                        <option value="off">Off (Current Position Only)</option>
+                        <option value="60">60-Minute Window</option>
+                        <option value="180">180-Minute Window (3 Hours)</option>
+                        <option value="360">360-Minute Window (6 Hours)</option>
                     </select>
                 </div>
             </div>
@@ -263,7 +263,7 @@
             <div class="pt-2 flex items-center gap-2 border-t border-slate-800">
                 <button type="button" id="btnApplyFilters" class="flex-1 py-2 px-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-center transition flex items-center justify-center gap-1.5 shadow-md">
                     <span>✓</span>
-                    <span>Terapkan Filter</span>
+                    <span>Apply Filters</span>
                 </button>
                 <button type="button" id="btnResetFilters" class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold transition border border-slate-700 text-center">
                     Reset
@@ -280,13 +280,13 @@
                 <span class="text-base text-sky-400">🎛️</span>
                 <h3 class="font-bold uppercase tracking-wider text-white text-[12px]">Maritime Layers</h3>
             </div>
-            <button type="button" id="btnCloseLayersPopover" class="text-slate-400 hover:text-white text-lg font-bold p-1 leading-none transition" title="Tutup panel (Esc)">&times;</button>
+            <button type="button" id="btnCloseLayersPopover" class="text-slate-400 hover:text-white text-lg font-bold p-1 leading-none transition" title="Close panel (Esc)">&times;</button>
         </div>
 
         <div class="space-y-3">
             <!-- 1. AIS & Navigation -->
             <div class="space-y-1.5">
-                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">1. AIS &amp; Navigasi</div>
+                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">1. AIS &amp; Navigation</div>
 
                 <label class="flex items-start justify-between p-2 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-sky-500/50 transition cursor-pointer">
                     <div class="flex items-start gap-2.5">
@@ -296,7 +296,7 @@
                                 <span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
                                 <span>Live AIS Vessels</span>
                             </div>
-                            <p class="text-[10px] text-slate-400 mt-0.5">Telemetri kapal broadcast aktif real-time</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Active real-time broadcast vessel telemetry</p>
                         </div>
                     </div>
                     <div class="text-right shrink-0">
@@ -308,7 +308,7 @@
 
             <!-- 2. Maritime Boundaries -->
             <div class="space-y-1.5 pt-1 border-t border-slate-800">
-                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">2. Batas Maritim Regional (EEZ)</div>
+                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">2. Regional Maritime Boundaries (EEZ)</div>
 
                 <label class="flex items-start justify-between p-2 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-emerald-500/50 transition cursor-pointer">
                     <div class="flex items-start gap-2.5">
@@ -318,7 +318,7 @@
                                 <span class="w-2.5 h-2.5 rounded-sm bg-emerald-500/20 border border-emerald-500"></span>
                                 <span>ASEAN Exclusive Economic Zones (EEZ)</span>
                             </div>
-                            <p class="text-[10px] text-slate-400 mt-0.5">Garis Batas ZEE &amp; Batas Maritim Resmi ASEAN (v12)</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Official ASEAN EEZ &amp; Maritime Boundaries (v12)</p>
                         </div>
                     </div>
                     <div class="text-right shrink-0">
@@ -335,7 +335,7 @@
                                 <span class="w-2.5 h-2.5 rounded-sm bg-sky-500/20 border border-sky-400"></span>
                                 <span>Australia Exclusive Economic Zone (EEZ)</span>
                             </div>
-                            <p class="text-[10px] text-slate-400 mt-0.5">Garis Batas ZEE &amp; Batas Maritim Resmi Australia (AMSIS / AMB / v12)</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Official Australia EEZ &amp; Maritime Boundaries (AMSIS / AMB / v12)</p>
                         </div>
                     </div>
                     <div class="text-right shrink-0">
@@ -347,7 +347,7 @@
 
             <!-- 3. Monitoring & Analysis -->
             <div class="space-y-1.5 pt-1 border-t border-slate-800">
-                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">3. Analisis &amp; Anomali</div>
+                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">3. Analysis &amp; Anomalies</div>
 
                 <label class="flex items-start justify-between p-2 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-amber-500/50 transition cursor-pointer">
                     <div class="flex items-start gap-2.5">
@@ -357,7 +357,7 @@
                                 <span class="w-2.5 h-2.5 rounded-full bg-amber-400 border border-amber-300"></span>
                                 <span>Unusual Activity / SAR Targets</span>
                             </div>
-                            <p class="text-[10px] text-slate-400 mt-0.5">Anomali radar tanpa korelasi AIS aktif</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Radar anomaly without active AIS correlation</p>
                         </div>
                     </div>
                     <div class="text-right shrink-0">
@@ -374,7 +374,7 @@
                                 <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
                                 <span>Vessel Encounters</span>
                             </div>
-                            <p class="text-[10px] text-slate-400 mt-0.5">Deteksi perjumpaan pasangan kapal di laut lepas</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Vessel pair rendezvous and encounter detection</p>
                         </div>
                     </div>
                     <div class="text-right shrink-0">
@@ -391,7 +391,7 @@
                                 <span class="w-2.5 h-2.5 rounded-sm bg-purple-500 border border-purple-300"></span>
                                 <span>SAR Footprint Scene</span>
                             </div>
-                            <p class="text-[10px] text-slate-400 mt-0.5">Poligon cakupan radar Sentinel-1 Copernicus</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Sentinel-1 Copernicus radar footprint polygons</p>
                         </div>
                     </div>
                     <div class="text-right shrink-0">
@@ -408,15 +408,15 @@
         <div class="flex items-center justify-between border-b border-slate-700/80 pb-2">
             <div class="flex items-center gap-2">
                 <span class="text-base text-amber-400">🧭</span>
-                <h3 class="font-bold uppercase tracking-wider text-white text-[12px]">Legenda &amp; Simbologi Ilmiah</h3>
+                <h3 class="font-bold uppercase tracking-wider text-white text-[12px]">Scientific Legend &amp; Symbology</h3>
             </div>
-            <button type="button" id="btnCloseLegendPopover" class="text-slate-400 hover:text-white text-lg font-bold p-1 leading-none transition" title="Tutup panel (Esc)">&times;</button>
+            <button type="button" id="btnCloseLegendPopover" class="text-slate-400 hover:text-white text-lg font-bold p-1 leading-none transition" title="Close panel (Esc)">&times;</button>
         </div>
 
         <div class="space-y-3">
             <!-- 1. Klasifikasi Armada Kapal (Directional Triangles) -->
             <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2 text-[10px] font-mono">
-                <div class="text-[9px] uppercase font-bold text-slate-400 tracking-wider">1. Tipe Kapal (Vessel Type)</div>
+                <div class="text-[9px] uppercase font-bold text-slate-400 tracking-wider">1. Vessel Classification (Type)</div>
                 <div class="grid grid-cols-2 gap-2 text-slate-300">
                     <div class="flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 32 32">
@@ -468,7 +468,7 @@
             <!-- 2. Status Data AIS & Simbologi Haluan -->
             <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2 text-[10px] font-mono">
                 <div class="text-[9px] uppercase font-bold text-sky-400 tracking-wider flex items-center justify-between">
-                    <span>Arah Gerak (Course Over Ground / COG)</span>
+                    <span>Course Over Ground (COG)</span>
                     <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>
                 </div>
                 <div class="space-y-1.5 text-slate-300">
@@ -476,15 +476,15 @@
                         Triangle orientation indicates Course Over Ground (COG).
                     </p>
                     <div class="flex items-center justify-between">
-                        <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Posisi Terbaru (&lt; 2 Jam)</span>
+                        <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Latest Position (&lt; 2h)</span>
                         <span class="text-emerald-300 font-bold">● Live</span>
                     </div>
                     <div class="flex items-center justify-between">
-                        <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-amber-400"></span> Posisi Usang (2 - 24 Jam)</span>
+                        <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-amber-400"></span> Stale Position (2 - 24h)</span>
                         <span class="text-amber-300 font-bold">⏳ Stale</span>
                     </div>
                     <div class="flex items-center justify-between">
-                        <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-slate-500"></span> Tidak Tersedia (&gt; 24 Jam)</span>
+                        <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-slate-500"></span> Offline (&gt; 24h)</span>
                         <span class="text-slate-400 font-bold">○ Offline</span>
                     </div>
                     <div class="pt-1 border-t border-slate-800/80 space-y-1">
@@ -493,20 +493,20 @@
                                 <path d="M 16 2 L 28 27.5 L 16 22.5 L 4 27.5 Z" fill="#F59E0B" stroke="#FFFFFF" stroke-width="2"/>
                                 <line x1="9" y1="17" x2="23" y2="17" stroke="#FFFFFF" stroke-width="1.6"/>
                             </svg>
-                            <span>COG Direction: Segitiga berorientasi mengikuti arah gerak kapal</span>
+                            <span>COG Direction: Triangle oriented along vessel track</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
                                 <circle cx="12" cy="12" r="4.5" fill="#F59E0B" stroke="#451a03" stroke-width="1.5"/>
                             </svg>
-                            <span>Direction unavailable: Orientasi tidak diketahui (Beacon lingkaran)</span>
+                            <span>Direction unavailable: Omnidirectional circular beacon</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
                                 <circle cx="12" cy="12" r="5" stroke="#F59E0B" stroke-width="1.5" stroke-dasharray="2 2"/>
                                 <circle cx="12" cy="12" r="1.5" fill="#F59E0B"/>
                             </svg>
-                            <span>Selected vessel: Cincin sorot kapal terpilih</span>
+                            <span>Selected vessel: Highlight ring indicator</span>
                         </div>
                     </div>
                 </div>
@@ -517,7 +517,7 @@
                 <!-- ASEAN EEZ Header & Metadata -->
                 <div class="space-y-1.5">
                     <div class="text-[9px] uppercase font-bold text-emerald-400 tracking-wider flex items-center justify-between">
-                        <span>Status Batas Maritim ASEAN &bull; ASEAN EEZ (Marine Regions v12)</span>
+                        <span>ASEAN Maritime Boundary Status &bull; ASEAN EEZ (Marine Regions v12)</span>
                         <span class="text-slate-400 text-[8px] bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">1–1.2px &bull; Opacity 70%</span>
                     </div>
 
@@ -541,7 +541,7 @@
                         </div>
                         <div class="flex items-center gap-1.5">
                             <span class="w-3 h-1 rounded-sm bg-[#22c55e] shrink-0 shadow-sm"></span>
-                            <span class="truncate"><span class="text-slate-400 font-semibold">PHL</span> Filipina (Green)</span>
+                            <span class="truncate"><span class="text-slate-400 font-semibold">PHL</span> Philippines (Green)</span>
                         </div>
                         <div class="flex items-center gap-1.5">
                             <span class="w-3 h-1 rounded-sm bg-[#8b5cf6] shrink-0 shadow-sm"></span>
@@ -549,11 +549,11 @@
                         </div>
                         <div class="flex items-center gap-1.5">
                             <span class="w-3 h-1 rounded-sm bg-[#fb7185] shrink-0 shadow-sm"></span>
-                            <span class="truncate"><span class="text-slate-400 font-semibold">SGP</span> Singapura (Coral)</span>
+                            <span class="truncate"><span class="text-slate-400 font-semibold">SGP</span> Singapore (Coral)</span>
                         </div>
                         <div class="flex items-center gap-1.5">
                             <span class="w-3 h-1 rounded-sm bg-[#3b82f6] shrink-0 shadow-sm"></span>
-                            <span class="truncate"><span class="text-slate-400 font-semibold">KHM</span> Kamboja (Blue)</span>
+                            <span class="truncate"><span class="text-slate-400 font-semibold">KHM</span> Cambodia (Blue)</span>
                         </div>
                         <div class="flex items-center gap-1.5">
                             <span class="w-3 h-1 rounded-sm bg-[#ec4899] shrink-0 shadow-sm"></span>
@@ -573,7 +573,7 @@
                     <div class="pt-1.5 border-t border-slate-800/80 space-y-1 text-[9px] text-slate-300">
                         <div class="flex items-center gap-2">
                             <span class="w-4 h-0.5 bg-slate-300 shrink-0"></span>
-                            <span class="truncate">Agreed / Delimitated (Traktat Bilateral Resmi)</span>
+                            <span class="truncate">Agreed / Delimited (Official Bilateral Treaty)</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="w-4 h-0.5 border-b border-dashed border-slate-400 shrink-0"></span>
@@ -585,11 +585,11 @@
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="w-4 h-0.5 border-b border-dotted border-purple-400 shrink-0"></span>
-                            <span class="truncate">Joint Regime Area (Zona Bersama)</span>
+                            <span class="truncate">Joint Regime Area</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="w-4 h-0.5 border-b border-dashed border-slate-400 shrink-0"></span>
-                            <span class="truncate">Garis Batas Luar ZEE (200 NM)</span>
+                            <span class="truncate">EEZ Outer Limit (200 NM)</span>
                         </div>
                     </div>
                 </div>
@@ -598,7 +598,7 @@
                 <div class="pt-2 border-t border-slate-800 space-y-1.5">
                     <div class="text-[9px] uppercase font-bold text-red-400 tracking-wider flex items-center justify-between">
                         <span>Australia EEZ (AMSIS / AMB / v12)</span>
-                        <span class="text-red-400 text-[8px] font-bold bg-red-950/60 px-1.5 py-0.5 rounded border border-red-800/80">AUS &bull; Merah-Oranye</span>
+                        <span class="text-red-400 text-[8px] font-bold bg-red-950/60 px-1.5 py-0.5 rounded border border-red-800/80">AUS &bull; Red-Orange</span>
                     </div>
                     <div class="space-y-1 text-[9px] text-slate-300">
                         <div class="flex items-center gap-2">
@@ -607,7 +607,7 @@
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="w-4 h-0.5 border-b border-dashed border-[#ef4444] shrink-0"></span>
-                            <span class="truncate">Australia 200 NM Outer Limit (ZEE)</span>
+                            <span class="truncate">Australia 200 NM Outer Limit (EEZ)</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="w-4 h-0.5 border-b border-dotted border-[#ef4444] shrink-0"></span>
@@ -619,17 +619,17 @@
                 <!-- Operational Layers Legend -->
                 <div class="pt-1.5 border-t border-slate-800/80 grid grid-cols-2 gap-1.5">
                     <div class="flex items-center gap-1.5"><span class="w-2.5 h-0.5 bg-amber-400"></span> AIS Track</div>
-                    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span> Dark Vessel</div>
-                    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Encounter Event</div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2 rounded-full bg-amber-400"></span> Dark Vessel</div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2 rounded-full bg-amber-500"></span> Encounter Event</div>
                     <div class="flex items-center gap-1.5"><span class="w-2.5 h-2 bg-purple-500/30 border border-purple-400"></span> SAR Footprint</div>
                 </div>
             </div>
 
             <!-- 4. Prinsip Ilmiah (Scientific Invariants) -->
             <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1 text-[9px] text-slate-400 leading-relaxed font-mono">
-                <div class="font-bold text-slate-300 uppercase">Prinsip Validitas Forensik:</div>
-                <div>&bull; Deteksi target pada citra SAR tidak sama dengan konfirmasi identitas kapal (SAR Target Detection &ne; Vessel Confirmation).</div>
-                <div>&bull; Ketiadaan sinyal AIS tidak otomatis membuktikan aktivitas ilegal (AIS Absence &ne; Dark Vessel Confirmation).</div>
+                <div class="font-bold text-slate-300 uppercase">Forensic Validity Principles:</div>
+                <div>&bull; SAR target detection does not constitute vessel identity confirmation (SAR Target Detection &ne; Vessel Confirmation).</div>
+                <div>&bull; Absence of AIS broadcast does not prove illicit activity (AIS Absence &ne; Dark Vessel Confirmation).</div>
             </div>
         </div>
     </div>
@@ -639,15 +639,15 @@
         <div class="flex items-center justify-between border-b border-slate-700/80 pb-2">
             <div class="flex items-center gap-2">
                 <span class="text-base text-emerald-400">⚙️</span>
-                <h3 class="font-bold uppercase tracking-wider text-white text-[12px]">Pengaturan Peta</h3>
+                <h3 class="font-bold uppercase tracking-wider text-white text-[12px]">Map Settings</h3>
             </div>
-            <button type="button" id="btnCloseSettingsPopover" class="text-slate-400 hover:text-white text-lg font-bold p-1 leading-none transition" title="Tutup panel (Esc)">&times;</button>
+            <button type="button" id="btnCloseSettingsPopover" class="text-slate-400 hover:text-white text-lg font-bold p-1 leading-none transition" title="Close panel (Esc)">&times;</button>
         </div>
 
         <div class="space-y-3">
             <div class="space-y-1.5">
                 <div class="flex items-center justify-between">
-                    <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Gaya Tampilan Basemap</div>
+                    <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Basemap Display Style</div>
                     <span id="currentBasemapLabel" class="text-[10px] text-teal-400 font-mono">Positron High Contrast Clean</span>
                 </div>
                 <div class="space-y-1" id="basemapRadioGroup">
@@ -683,17 +683,17 @@
             </div>
 
             <div class="pt-2 border-t border-slate-800 space-y-1.5">
-                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Proyeksi Geospasial</div>
+                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Geospatial Projection</div>
                 <div class="p-2 rounded-xl bg-slate-900/90 border border-slate-800 text-[10px] text-slate-300 font-mono">
-                    <div>Sistem: <strong class="text-teal-300">WGS 84 (EPSG:4326)</strong></div>
-                    <div>Tampilan: <span class="text-slate-400">Web Mercator (EPSG:3857)</span></div>
+                    <div>System: <strong class="text-teal-300">WGS 84 (EPSG:4326)</strong></div>
+                    <div>Display: <span class="text-slate-400">Web Mercator (EPSG:3857)</span></div>
                 </div>
             </div>
 
             <div class="pt-2 border-t border-slate-800">
                 <button type="button" id="btnSettingsOpenMetadata" class="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700 font-semibold transition text-center flex items-center justify-center gap-1.5">
                     <span>📜</span>
-                    <span>Lihat Atribusi &amp; Lisensi Lengkap</span>
+                    <span>View Full Attribution &amp; Licenses</span>
                 </button>
             </div>
         </div>
@@ -710,11 +710,11 @@
         </div>
         <div class="pointer-events-auto px-2.5 py-1 rounded-lg glass-panel border border-slate-700/80 shadow-md text-slate-300 flex items-center gap-1.5">
             <span class="text-sky-400 font-bold">🚢</span>
-            <span id="statusVesselCount" class="text-sky-300 font-bold">0 kapal</span>
+            <span id="statusVesselCount" class="text-sky-300 font-bold">0 vessels</span>
         </div>
         <div class="pointer-events-auto hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-panel border border-slate-700/80 shadow-md text-emerald-400">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>Telemetri Live</span>
+            <span>Live Telemetry</span>
         </div>
     </div>
 
@@ -725,7 +725,7 @@
             <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2">
                     <span id="panelVesselFlagEmoji" class="text-xl shrink-0">🌐</span>
-                    <h2 id="panelVesselName" class="font-bold text-white text-sm truncate font-sans tracking-wide">Nama Kapal</h2>
+                    <h2 id="panelVesselName" class="font-bold text-white text-sm truncate font-sans tracking-wide">Vessel Name</h2>
                 </div>
                 <div class="flex items-center gap-2 mt-1 text-[11px] font-mono">
                     <span id="panelVesselFlagName" class="text-slate-400 truncate">Indonesia</span>
@@ -734,7 +734,7 @@
             </div>
             <div class="flex items-center gap-1.5 shrink-0">
                 <span id="panelVesselFreshnessBadge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">● LIVE</span>
-                <button type="button" id="btnCloseVesselPanel" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition text-lg font-bold leading-none" title="Tutup panel detail (Esc)">&times;</button>
+                <button type="button" id="btnCloseVesselPanel" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition text-lg font-bold leading-none" title="Close vessel details (Esc)">&times;</button>
             </div>
         </div>
 
@@ -742,34 +742,34 @@
         <div class="flex-1 overflow-y-auto p-3.5 space-y-3.5">
             <!-- A. IDENTITAS KAPAL -->
             <div class="space-y-1 font-mono text-[11px]">
-                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">A. Identitas Kapal</div>
+                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">A. Vessel Identity</div>
                 <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1 divide-y divide-slate-800/80">
                     <div class="flex items-center justify-between pt-1 first:pt-0">
                         <span class="text-slate-400">MMSI:</span>
-                        <strong id="panelVesselMmsi" class="text-white font-bold select-all">Tidak tersedia</strong>
+                        <strong id="panelVesselMmsi" class="text-white font-bold select-all">Not available</strong>
                     </div>
                     <div class="flex items-center justify-between pt-1">
                         <span class="text-slate-400">IMO:</span>
-                        <strong id="panelVesselImo" class="text-white">Tidak tersedia</strong>
+                        <strong id="panelVesselImo" class="text-white">Not available</strong>
                     </div>
                     <div class="flex items-center justify-between pt-1">
                         <span class="text-slate-400">Callsign:</span>
-                        <strong id="panelVesselCallsign" class="text-white">Tidak tersedia</strong>
+                        <strong id="panelVesselCallsign" class="text-white">Not available</strong>
                     </div>
                     <div class="flex items-center justify-between pt-1">
-                        <span class="text-slate-400">Bendera:</span>
-                        <span id="panelVesselFlagFull" class="text-slate-200 font-semibold truncate max-w-[160px]">Tidak tersedia</span>
+                        <span class="text-slate-400">Flag State:</span>
+                        <span id="panelVesselFlagFull" class="text-slate-200 font-semibold truncate max-w-[160px]">Not available</span>
                     </div>
                     <div class="flex items-center justify-between pt-1">
-                        <span class="text-slate-400">Tipe Kapal:</span>
-                        <span id="panelVesselTypeDesc" class="text-slate-200 capitalize">Tidak tersedia</span>
+                        <span class="text-slate-400">Vessel Type:</span>
+                        <span id="panelVesselTypeDesc" class="text-slate-200 capitalize">Not available</span>
                     </div>
                 </div>
             </div>
 
             <!-- B. NAVIGASI & POSISI TERKINI -->
             <div class="space-y-1">
-                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider font-mono">B. Navigasi &amp; Posisi Terkini</div>
+                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider font-mono">B. Navigation &amp; Current Position</div>
                 <div class="grid grid-cols-2 gap-2 font-mono">
                     <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
                         <div class="text-[10px] text-slate-400 uppercase tracking-wider">Speed (SOG)</div>
@@ -787,11 +787,11 @@
                     <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
                         <div class="text-[10px] text-slate-400 uppercase tracking-wider">True Heading</div>
                         <div class="text-base font-bold text-emerald-300 mt-0.5 flex items-baseline gap-1">
-                            <span id="panelVesselHeading">Tidak tersedia</span>
+                            <span id="panelVesselHeading">Not available</span>
                         </div>
                     </div>
                     <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
-                        <div class="text-[10px] text-slate-400 uppercase tracking-wider">Status Nav</div>
+                        <div class="text-[10px] text-slate-400 uppercase tracking-wider">Nav Status</div>
                         <div id="panelVesselNavStatus" class="text-xs font-semibold text-slate-200 mt-0.5 truncate capitalize">
                             Under way
                         </div>
@@ -800,30 +800,30 @@
 
                 <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1 font-mono text-[11px]">
                     <div class="flex items-center justify-between">
-                        <span class="text-slate-400">Koordinat:</span>
+                        <span class="text-slate-400">Coordinates:</span>
                         <span id="panelVesselCoords" class="text-slate-200 font-bold select-all">0.0000°, 0.0000°</span>
                     </div>
                     <div class="flex items-center justify-between">
-                        <span class="text-slate-400">Orientasi:</span>
-                        <span id="panelVesselOrientation" class="text-slate-300 font-semibold">Tidak tersedia</span>
+                        <span class="text-slate-400">Orientation:</span>
+                        <span id="panelVesselOrientation" class="text-slate-300 font-semibold">Not available</span>
                     </div>
                 </div>
             </div>
 
             <!-- C. KUALITAS DATA AIS -->
             <div class="space-y-1 font-mono text-[11px]">
-                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">C. Kualitas Data AIS</div>
+                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">C. AIS Data Quality</div>
                 <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5 divide-y divide-slate-800/80">
                     <div class="flex items-center justify-between pt-1 first:pt-0">
-                        <span class="text-slate-400">Waktu Laporan:</span>
-                        <span id="panelVesselTime" class="text-slate-200 truncate max-w-[170px]" title="Tidak tersedia">Tidak tersedia</span>
+                        <span class="text-slate-400">Reported At:</span>
+                        <span id="panelVesselTime" class="text-slate-200 truncate max-w-[170px]" title="Not available">Not available</span>
                     </div>
                     <div class="flex items-center justify-between pt-1">
-                        <span class="text-slate-400">Umur Data:</span>
-                        <span id="panelVesselAge" class="text-teal-300 font-bold">Baru saja</span>
+                        <span class="text-slate-400">Data Freshness:</span>
+                        <span id="panelVesselAge" class="text-teal-300 font-bold">Just now</span>
                     </div>
                     <div class="flex items-center justify-between pt-1">
-                        <span class="text-slate-400">Sumber Gateway:</span>
+                        <span class="text-slate-400">Gateway Source:</span>
                         <span id="panelVesselProvider" class="text-slate-300 font-semibold">AISStream Gateway</span>
                     </div>
                 </div>
@@ -831,42 +831,42 @@
 
             <!-- D. ANALISIS & KORELASI -->
             <div class="space-y-1.5 font-mono text-[11px]">
-                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">D. Analisis &amp; Korelasi</div>
+                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">D. Analysis &amp; Correlation</div>
                 
                 <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
                     <div class="space-y-1">
                         <div class="flex items-center justify-between">
-                            <span class="text-slate-400">Riwayat Lintasan:</span>
-                            <span id="panelTrackPointBadge" class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-cyan-950 text-cyan-300 border border-cyan-800">0 titik</span>
+                            <span class="text-slate-400">Track History:</span>
+                            <span id="panelTrackPointBadge" class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-cyan-950 text-cyan-300 border border-cyan-800">0 points</span>
                         </div>
                         <div class="grid grid-cols-4 gap-1 text-[11px]">
-                            <button type="button" class="btn-track-range px-2 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="1h">1 Jam</button>
-                            <button type="button" class="btn-track-range px-2 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="6h">6 Jam</button>
-                            <button type="button" class="btn-track-range px-2 py-1 rounded-lg bg-cyan-950 border border-cyan-500 text-cyan-300 font-bold transition text-center" data-range="24h">24 Jam</button>
-                            <button type="button" class="btn-track-range px-2 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="7d">7 Hari</button>
+                            <button type="button" class="btn-track-range px-2 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="1h">1 Hour</button>
+                            <button type="button" class="btn-track-range px-2 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="6h">6 Hours</button>
+                            <button type="button" class="btn-track-range px-2 py-1 rounded-lg bg-cyan-950 border border-cyan-500 text-cyan-300 font-bold transition text-center" data-range="24h">24 Hours</button>
+                            <button type="button" class="btn-track-range px-2 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="7d">7 Days</button>
                         </div>
                         <div class="flex items-center gap-1.5 pt-1">
                             <button type="button" id="panelBtnFitTrack" class="flex-1 px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 font-semibold text-center transition flex items-center justify-center gap-1">
                                 <span>🧭</span> <span>Fit Track</span>
                             </button>
                             <button type="button" id="panelBtnToggleTrack" class="flex-1 px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-semibold text-center transition flex items-center justify-center gap-1">
-                                <span id="panelToggleTrackIcon">👁️</span> <span id="panelToggleTrackText">Sembunyikan</span>
+                                <span id="panelToggleTrackIcon">👁️</span> <span id="panelToggleTrackText">Hide Track</span>
                             </button>
                         </div>
                     </div>
 
                     <div class="pt-2 border-t border-slate-800/80 space-y-1.5">
                         <div class="flex items-center justify-between">
-                            <span class="text-slate-400">Anomali / Dark:</span>
-                            <span id="panelVesselDarkVesselStatus" class="text-slate-300 font-semibold">Tidak ada anomali terdeteksi</span>
+                            <span class="text-slate-400">Anomaly / Dark:</span>
+                            <span id="panelVesselDarkVesselStatus" class="text-slate-300 font-semibold">No anomaly detected</span>
                         </div>
                         <div class="flex items-center justify-between">
-                            <span class="text-slate-400">Pertemuan Encounter:</span>
-                            <span id="panelVesselEncounterStatus" class="text-slate-300 font-semibold">0 kejadian terdeteksi</span>
+                            <span class="text-slate-400">Vessel Encounters:</span>
+                            <span id="panelVesselEncounterStatus" class="text-slate-300 font-semibold">0 events detected</span>
                         </div>
                         <div class="flex items-center justify-between">
-                            <span class="text-slate-400">Korelasi Citra SAR:</span>
-                            <span id="panelVesselSarStatus" class="text-slate-300 font-semibold">Tidak ada korelasi citra</span>
+                            <span class="text-slate-400">SAR Image Correlation:</span>
+                            <span id="panelVesselSarStatus" class="text-slate-300 font-semibold">No image correlation</span>
                         </div>
                     </div>
                 </div>
@@ -876,18 +876,18 @@
         <!-- E. AKSI CEPAT (Footer) -->
         <div class="p-3 border-t border-slate-700/80 bg-slate-950/80 flex flex-wrap items-center gap-1.5 shrink-0">
             <a id="panelVesselProfileLink" href="#" class="flex-1 px-3 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-center transition shadow-sm flex items-center justify-center gap-1.5">
-                <span>Profil Lengkap</span>
+                <span>Full Profile</span>
                 <span>&rarr;</span>
             </a>
-            <button type="button" id="panelBtnCenterVessel" class="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 font-semibold transition flex items-center gap-1" title="Pusatkan peta ke kapal">
+            <button type="button" id="panelBtnCenterVessel" class="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 font-semibold transition flex items-center gap-1" title="Center map on vessel">
                 <span>🎯</span>
-                <span class="hidden sm:inline">Pusatkan</span>
+                <span class="hidden sm:inline">Center</span>
             </button>
-            <button type="button" id="panelBtnCopyMmsi" class="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold transition flex items-center gap-1" title="Salin nomor MMSI">
+            <button type="button" id="panelBtnCopyMmsi" class="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold transition flex items-center gap-1" title="Copy MMSI">
                 <span>📋</span>
                 <span class="hidden sm:inline">MMSI</span>
             </button>
-            <button type="button" id="panelBtnShareUrl" class="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold transition flex items-center gap-1" title="Salin tautan posisi kapal ini">
+            <button type="button" id="panelBtnShareUrl" class="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold transition flex items-center gap-1" title="Copy link to vessel position">
                 <span>🔗</span>
             </button>
         </div>
@@ -901,7 +901,7 @@
         <div class="flex items-center justify-between border-b border-slate-800 pb-3">
             <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                 <span>📜</span>
-                <span>Sumber Data, Lisensi &amp; Atribusi Geospasial</span>
+                <span>Data Sources, Licenses &amp; Geospatial Attribution</span>
             </h3>
             <button type="button" id="btnCloseMetadataModal" class="text-slate-400 hover:text-white text-lg font-bold">&times;</button>
         </div>
@@ -909,16 +909,16 @@
         <div class="space-y-3 max-h-[60vh] overflow-y-auto pr-2 text-slate-300">
             <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
                 <div class="font-bold text-purple-300">1. Sentinel-1 C-SAR Radar Scenes (Copernicus)</div>
-                <div>Sumber: European Space Agency (ESA) &bull; Copernicus Data Space Ecosystem</div>
-                <div>Lisensi: Copernicus Sentinel Data Legal Notice (Open Access)</div>
-                <div class="text-[11px] text-slate-400 italic">Cakupan citra SAR C-band Synthetic Aperture Radar untuk deteksi anomali maritim.</div>
+                <div>Source: European Space Agency (ESA) &bull; Copernicus Data Space Ecosystem</div>
+                <div>License: Copernicus Sentinel Data Legal Notice (Open Access)</div>
+                <div class="text-[11px] text-slate-400 italic">C-band Synthetic Aperture Radar coverage for maritime anomaly detection.</div>
             </div>
 
             <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
                 <div class="font-bold text-emerald-300">2. ASEAN Exclusive Economic Zones (EEZ) &amp; Maritime Boundaries</div>
-                <div>Sumber: Flanders Marine Institute (VLIZ) Marine Regions v12</div>
-                <div>Lisensi: Creative Commons Attribution 4.0 International (CC BY 4.0)</div>
-                <div class="text-[11px] text-slate-400 italic">Batas yurisdiksi maritim 200 NM dan garis delimitasi resmi negara anggota ASEAN &amp; Timor-Leste (UNCLOS 1982).</div>
+                <div>Source: Flanders Marine Institute (VLIZ) Marine Regions v12</div>
+                <div>License: Creative Commons Attribution 4.0 International (CC BY 4.0)</div>
+                <div class="text-[11px] text-slate-400 italic">200 NM maritime jurisdiction limits and official boundary delimitation for ASEAN member states &amp; Timor-Leste (UNCLOS 1982).</div>
             </div>
 
             <div class="p-3.5 rounded-xl bg-slate-900 border border-teal-500/30 space-y-1.5">
@@ -928,20 +928,20 @@
                         NON-COMMERCIAL RESEARCH
                     </span>
                 </div>
-                <div>Sumber: <a href="https://globalfishingwatch.org" target="_blank" rel="noopener noreferrer" class="text-teal-400 hover:underline">Global Fishing Watch</a></div>
-                <div>Lisensi: GFW Research &amp; Non-Commercial Terms</div>
+                <div>Source: <a href="https://globalfishingwatch.org" target="_blank" rel="noopener noreferrer" class="text-teal-400 hover:underline">Global Fishing Watch</a></div>
+                <div>License: GFW Research &amp; Non-Commercial Terms</div>
                 <blockquote class="p-2.5 rounded-lg bg-slate-950/70 border border-slate-800 text-[10px] text-slate-300 italic leading-relaxed">
                     &ldquo;This application uses data and services provided by Global Fishing Watch (GFW) for non-commercial research, educational, and public-interest purposes. GFW data are subject to applicable licensing, attribution, and usage restrictions.&rdquo;
                 </blockquote>
                 <div class="text-[10px] text-amber-300/90">
-                    Pemberitahuan: Aktivitas kapal yang ditampilkan merupakan estimasi atau hasil analisis berdasarkan sumber data, bukan bukti final pelanggaran.
+                    Notice: Displayed vessel activity represents estimates or analytical findings based on available data sources, not conclusive proof of infractions.
                 </div>
             </div>
         </div>
 
         <div class="pt-3 border-t border-slate-800 text-right">
             <button type="button" id="btnConfirmCloseMetadata" class="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold">
-                Tutup Informasi
+                Close Information
             </button>
         </div>
     </div>
@@ -1092,7 +1092,7 @@
             searchDropdown.classList.remove('hidden');
             searchDropdown.innerHTML = `
                 <div class="p-3 text-center text-slate-400 font-mono flex items-center justify-center gap-2">
-                    <span class="animate-spin text-teal-400">⏳</span> Memindai data kapal & SAR...
+                    <span class="animate-spin text-teal-400">⏳</span> Scanning vessel telemetry & SAR...
                 </div>
             `;
 
@@ -1104,7 +1104,7 @@
                 if (!data.results || data.results.length === 0) {
                     searchDropdown.innerHTML = `
                         <div class="p-3 text-center text-slate-400 font-mono">
-                            Tidak ada kapal atau kandidat SAR yang cocok dengan "<strong>${escapeHtml(query)}</strong>".
+                            No vessels or SAR candidates matching "<strong>${escapeHtml(query)}</strong>".
                         </div>
                     `;
                     return;
@@ -1120,7 +1120,7 @@
                     html += `
                         <div class="pt-1 first:pt-0">
                             <div class="px-2 py-1 text-[10px] uppercase font-bold text-sky-400 font-mono tracking-wider flex items-center justify-between">
-                                <span>Armada Kapal AIS (${vessels.length})</span>
+                                <span>AIS Fleet (${vessels.length})</span>
                                 <span>🚢</span>
                             </div>
                             <div class="space-y-1 mt-1">
@@ -1145,7 +1145,7 @@
                                             </div>
                                             <div class="text-right shrink-0">
                                                 <span class="px-1.5 py-0.5 rounded text-[9px] font-mono ${badgeStyle}">${v.badge}</span>
-                                                <div class="text-[9px] text-teal-400 mt-1 font-mono">Fokus &rarr;</div>
+                                                <div class="text-[9px] text-teal-400 mt-1 font-mono">Focus &rarr;</div>
                                             </div>
                                         </div>
                                     `;
@@ -1159,7 +1159,7 @@
                     html += `
                         <div class="pt-2">
                             <div class="px-2 py-1 text-[10px] uppercase font-bold text-amber-400 font-mono tracking-wider flex items-center justify-between">
-                                <span>Kandidat Radar SAR (${sars.length})</span>
+                                <span>SAR Radar Candidates (${sars.length})</span>
                                 <span>🎯</span>
                             </div>
                             <div class="space-y-1 mt-1">
@@ -1175,7 +1175,7 @@
                                         </div>
                                         <div class="text-right shrink-0">
                                             <span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-950 text-amber-300 border border-amber-800">${s.badge}</span>
-                                            <div class="text-[9px] text-teal-400 mt-1 font-mono">Fokus &rarr;</div>
+                                            <div class="text-[9px] text-teal-400 mt-1 font-mono">Focus &rarr;</div>
                                         </div>
                                     </div>
                                 `).join('')}
@@ -1206,7 +1206,7 @@
                 console.error('[Search] Error fetching autocomplete:', err);
                 searchDropdown.innerHTML = `
                     <div class="p-3 text-center text-rose-400 font-mono">
-                        Terjadi kesalahan saat memuat hasil pencarian.
+                        An error occurred while loading search results.
                     </div>
                 `;
             }
@@ -1301,7 +1301,7 @@
 
                 const feedback = document.getElementById('filterFeedbackMsg');
                 if (feedback) {
-                    feedback.textContent = '✓ Filter diterapkan pada peta';
+                    feedback.textContent = '✓ Filters applied to map';
                     feedback.classList.remove('hidden');
                     setTimeout(() => feedback.classList.add('hidden'), 2500);
                 }
@@ -1322,7 +1322,7 @@
 
                 const feedback = document.getElementById('filterFeedbackMsg');
                 if (feedback) {
-                    feedback.textContent = '✓ Filter di-reset ke nilai awal';
+                    feedback.textContent = '✓ Filters reset to default';
                     feedback.classList.remove('hidden');
                     setTimeout(() => feedback.classList.add('hidden'), 2000);
                 }
@@ -1364,11 +1364,11 @@
             panelBtnToggleTrack.addEventListener('click', () => {
                 if (mapController.trackVisible) {
                     mapController.hideVesselTrack();
-                    if (panelToggleText) panelToggleText.textContent = 'Tampilkan';
+                    if (panelToggleText) panelToggleText.textContent = 'Show Track';
                     if (panelToggleIcon) panelToggleIcon.textContent = '🙈';
                 } else {
                     mapController.showTrackLayer();
-                    if (panelToggleText) panelToggleText.textContent = 'Sembunyikan';
+                    if (panelToggleText) panelToggleText.textContent = 'Hide Track';
                     if (panelToggleIcon) panelToggleIcon.textContent = '👁️';
                 }
             });
@@ -1395,17 +1395,17 @@
                 if (navigator.clipboard) {
                     navigator.clipboard.writeText(url).then(() => {
                         const originalHtml = panelBtnShareUrl.innerHTML;
-                        panelBtnShareUrl.innerHTML = '<span>✓</span> <span class="hidden sm:inline">Tersalin!</span>';
+                        panelBtnShareUrl.innerHTML = '<span>✓</span> <span class="hidden sm:inline">Copied!</span>';
                         panelBtnShareUrl.classList.add('text-emerald-300', 'border-emerald-500/50');
                         setTimeout(() => {
                             panelBtnShareUrl.innerHTML = originalHtml;
                             panelBtnShareUrl.classList.remove('text-emerald-300', 'border-emerald-500/50');
                         }, 2000);
                     }).catch(() => {
-                        prompt('Salin tautan posisi kapal ini:', url);
+                        prompt('Copy link to this vessel position:', url);
                     });
                 } else {
-                    prompt('Salin tautan posisi kapal ini:', url);
+                    prompt('Copy link to this vessel position:', url);
                 }
             });
         }

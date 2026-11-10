@@ -169,6 +169,11 @@ class VesselController extends Controller
 
         $vessels = $query->orderBy('name')->paginate($perPage)->withQueryString();
 
+        // Total registered vessels in registry (Cached for performance)
+        $totalVessels = Cache::remember('vessels_total_count', 30, function () {
+            return Vessel::count();
+        });
+
         // Summary KPI Metrics for Awaiting Static Data Module (Cached for performance)
         $awaitingStats = Cache::remember('vessels_awaiting_summary_metrics', 30, function () {
             $baseAwaiting = Vessel::awaitingStatic();
@@ -248,6 +253,7 @@ class VesselController extends Controller
 
         return view('vessels.index', compact(
             'vessels',
+            'totalVessels',
             'availableFlagCountries',
             'hasUnknownFlag',
             'activeFiltersCount',
@@ -295,14 +301,14 @@ class VesselController extends Controller
 
         if (!$vessel->isEligibleForGfwSync()) {
             return redirect()->route('vessels.show', $vessel->id)
-                ->with('warning', 'Kapal tidak memenuhi syarat sinkronisasi GFW (memerlukan IMO valid 7 digit atau MMSI valid 9 digit).');
+                ->with('warning', 'Vessel is not eligible for GFW synchronization (requires a valid 7-digit IMO or valid 9-digit MMSI).');
         }
 
         // Dispatch background job with force = true
         EnrichVesselGfwJob::dispatch($vessel->id, force: true);
 
         return redirect()->route('vessels.show', $vessel->id)
-            ->with('success', 'Permintaan sinkronisasi intelijen GFW API v3 telah dijadwalkan dan sedang diproses di latar belakang.');
+            ->with('success', 'GFW API v3 intelligence synchronization request scheduled and processing in background.');
     }
 
     /**
@@ -314,13 +320,13 @@ class VesselController extends Controller
 
         if ($request->boolean('sync')) {
             $result = $manager->enrichVessel($vessel, dryRun: false);
-            $msg = "Enrichment selesai: {$result['message']}";
+            $msg = "Enrichment completed: {$result['message']}";
             return back()->with('success', $msg);
         }
 
         EnrichAwaitingVesselJob::dispatch($vessel->id, force: true);
 
-        return back()->with('success', "Proses pengayaan multi-sumber untuk kapal {$vessel->name} (MMSI: {$vessel->mmsi}) telah dijadwalkan di latar belakang.");
+        return back()->with('success', "Multi-source enrichment for vessel {$vessel->name} (MMSI: {$vessel->mmsi}) scheduled in background.");
     }
 
     /**
@@ -343,14 +349,14 @@ class VesselController extends Controller
         $targets = $query->orderByDesc('last_seen_at')->limit($limit)->get();
 
         if ($targets->isEmpty()) {
-            return back()->with('warning', 'Tidak ditemukan kapal aktif yang sedang menunggu data statis untuk diperkaya.');
+            return back()->with('warning', 'No active vessels found awaiting static data for enrichment.');
         }
 
         foreach ($targets as $vessel) {
             EnrichAwaitingVesselJob::dispatch($vessel->id, force: false);
         }
 
-        return back()->with('success', "Berhasil menjadwalkan {$targets->count()} pekerjaan pengayaan latar belakang (Awaiting Static Data Multi-Source Enrichment).");
+        return back()->with('success', "Successfully scheduled {$targets->count()} background enrichment jobs (Awaiting Static Data Multi-Source Enrichment).");
     }
 
     /**
@@ -373,7 +379,7 @@ class VesselController extends Controller
         ];
 
         if (!in_array($attrName, $allowed, true)) {
-            return back()->with('error', "Atribut '{$attrName}' tidak diizinkan untuk pembaruan profil.");
+            return back()->with('error', "Attribute '{$attrName}' is not permitted for vessel profile update.");
         }
 
         // Apply update to vessel
@@ -385,9 +391,9 @@ class VesselController extends Controller
         // Resolve conflict on observation
         $observation->update([
             'is_conflicting' => false,
-            'conflict_reason' => 'Disetujui secara manual oleh analis.',
+            'conflict_reason' => 'Manually approved by analyst.',
         ]);
 
-        return back()->with('success', "Atribut '{$attrName}' berhasil diperbarui ke nilai: {$attrVal} (berdasarkan observasi {$observation->source_name}).");
+        return back()->with('success', "Attribute '{$attrName}' updated successfully to: {$attrVal} (based on {$observation->source_name} observation).");
     }
 }

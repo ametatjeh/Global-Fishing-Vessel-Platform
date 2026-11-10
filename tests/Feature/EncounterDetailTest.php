@@ -81,7 +81,7 @@ class EncounterDetailTest extends TestCase
 
         $response->assertSee($expectedUrl1, false);
         $response->assertSee($expectedUrl2, false);
-        $response->assertSee('Buka Profil Kapal &rarr;', false);
+        $response->assertSee('View Vessel Profile &rarr;', false);
     }
 
     public function test_encounter_detail_page_handles_missing_or_unlinked_vessel_gracefully(): void
@@ -112,7 +112,7 @@ class EncounterDetailTest extends TestCase
         // Must render cleanly without throwing UrlGenerationException
         $view->assertSee('ENC-UNLINKED-002');
         $view->assertSee('KM SAMUDRA JAYA 01');
-        $view->assertSee('Profil kapal tidak tersedia');
+        $view->assertSee('Vessel profile unavailable');
 
         $expectedUrl1 = route('vessels.show', ['id' => $this->vessel1->id]);
         $view->assertSee($expectedUrl1, false);
@@ -142,7 +142,7 @@ class EncounterDetailTest extends TestCase
 
         $view = $this->actingAs($this->analyst)->view('encounters.show', ['encounter' => $encounter]);
 
-        $view->assertSee('Profil kapal tidak tersedia');
+        $view->assertSee('Vessel profile unavailable');
         $view->assertSee(route('vessels.show', ['id' => $this->vessel1->id]), false);
     }
 

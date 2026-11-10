@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header_title', 'Fishing Compliance — Rule Engine & Peringatan Pelanggaran')
+@section('header_title', 'Fishing Compliance — Rule Engine & Infraction Alerts')
 
 @section('content')
 <div class="space-y-6">
@@ -9,7 +9,7 @@
         <div>
             <h2 class="text-xl font-bold text-white tracking-wide uppercase">Fishing Compliance Engine</h2>
             <p class="text-xs text-slate-400 mt-1">
-                Mesin audit aturan kepatuhan maritim global: validitas izin kapal, yurisdiksi perairan, larangan musiman, dan anomali perilaku di laut.
+                Global maritime compliance audit engine: vessel permit validity, jurisdictional waters, seasonal moratoria, and anomalous behavior at sea.
             </p>
         </div>
     </div>
@@ -17,7 +17,7 @@
     <!-- Metrics Cards -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div class="glass-panel p-4 rounded-xl border border-slate-800 text-center">
-            <div class="text-[10px] uppercase font-bold text-slate-400">Total Peringatan</div>
+            <div class="text-[10px] uppercase font-bold text-slate-400">Total Alerts</div>
             <div class="text-xl font-black text-white font-mono mt-0.5">{{ number_format($stats['total_alerts']) }}</div>
         </div>
         <div class="glass-panel p-4 rounded-xl border border-slate-800 text-center">
@@ -25,11 +25,11 @@
             <div class="text-xl font-black text-amber-300 font-mono mt-0.5">{{ number_format($stats['open_alerts']) }}</div>
         </div>
         <div class="glass-panel p-4 rounded-xl border border-slate-800 text-center">
-            <div class="text-[10px] uppercase font-bold text-rose-400">Tingkat Kritis (Critical)</div>
+            <div class="text-[10px] uppercase font-bold text-rose-400">Critical Severity</div>
             <div class="text-xl font-black text-rose-400 font-mono mt-0.5">{{ number_format($stats['critical_alerts']) }}</div>
         </div>
         <div class="glass-panel p-4 rounded-xl border border-slate-800 text-center">
-            <div class="text-[10px] uppercase font-bold text-teal-400">Aturan Aktif (Rule Base)</div>
+            <div class="text-[10px] uppercase font-bold text-teal-400">Active Rules (Rule Catalog)</div>
             <div class="text-xl font-black text-teal-300 font-mono mt-0.5">{{ number_format($stats['active_rules']) }}</div>
         </div>
     </div>
@@ -39,20 +39,20 @@
         <div class="flex items-center justify-between border-b border-slate-800 pb-2">
             <h3 class="text-xs font-bold uppercase tracking-wider text-teal-300 flex items-center gap-2">
                 <span>📜</span>
-                <span>Basis Aturan Kepatuhan Maritim Global (Rule Catalog)</span>
+                <span>Global Maritime Compliance Rule Catalog</span>
             </h3>
-            <span class="text-[10px] text-slate-400 font-mono">{{ $rules->count() }} Aturan Aktif</span>
+            <span class="text-[10px] text-slate-400 font-mono">{{ $rules->count() }} Active Rules</span>
         </div>
 
         <div class="overflow-x-auto text-xs responsive-table-container">
             <table class="w-full text-left min-w-[700px]">
                 <thead class="text-slate-400 uppercase text-[10px] border-b border-slate-800">
                     <tr>
-                        <th class="py-2.5">Kode Aturan</th>
-                        <th class="py-2.5">Nama & Deskripsi Regulasi</th>
-                        <th class="py-2.5">Yurisdiksi & Dasar Hukum</th>
-                        <th class="py-2.5">Kategori</th>
-                        <th class="py-2.5">Tingkat Keparahan</th>
+                        <th class="py-2.5">Rule Code</th>
+                        <th class="py-2.5">Regulation Name &amp; Description</th>
+                        <th class="py-2.5">Jurisdiction &amp; Legal Basis</th>
+                        <th class="py-2.5">Category</th>
+                        <th class="py-2.5">Severity</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-800/60">
@@ -74,7 +74,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="5" class="py-4 text-center text-slate-500">Belum ada aturan yang dikonfigurasi.</td>
+                        <td colspan="5" class="py-4 text-center text-slate-500">No compliance rules configured.</td>
                     </tr>
                     @endforelse
                 </tbody>
@@ -87,7 +87,7 @@
         <div class="flex items-center justify-between border-b border-slate-800 pb-2">
             <h3 class="text-xs font-bold uppercase tracking-wider text-rose-400 flex items-center gap-2">
                 <span>⚠️</span>
-                <span>Peringatan Kejadian Pelanggaran Terbuka</span>
+                <span>Open Infraction Incident Alerts</span>
             </h3>
         </div>
 
@@ -95,20 +95,20 @@
             <table class="w-full text-left min-w-[700px]">
                 <thead class="text-slate-400 uppercase text-[10px] border-b border-slate-800">
                     <tr>
-                        <th class="py-2.5">Kode Alert</th>
-                        <th class="py-2.5">Kapal Terduga</th>
-                        <th class="py-2.5">Aturan Kepatuhan</th>
-                        <th class="py-2.5">Waktu Kejadian</th>
-                        <th class="py-2.5">Keparahan</th>
-                        <th class="py-2.5">Status Review</th>
-                        <th class="py-2.5 text-right">Aksi</th>
+                        <th class="py-2.5">Alert Code</th>
+                        <th class="py-2.5">Subject Vessel</th>
+                        <th class="py-2.5">Compliance Rule</th>
+                        <th class="py-2.5">Incident Time</th>
+                        <th class="py-2.5">Severity</th>
+                        <th class="py-2.5">Review Status</th>
+                        <th class="py-2.5 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-800/60">
                     @forelse($events as $event)
                     <tr>
                         <td class="py-2.5 font-mono font-bold text-rose-300">{{ $event->event_code }}</td>
-                        <td class="py-2.5 font-bold text-white">{{ $event->vessel?->name ?? 'Kapal' }}</td>
+                        <td class="py-2.5 font-bold text-white">{{ $event->vessel?->name ?? 'Vessel' }}</td>
                         <td class="py-2.5 text-slate-300">{{ $event->rule?->rule_name ?? '-' }}</td>
                         <td class="py-2.5 text-slate-400 font-mono text-[11px]">{{ $event->event_time->format('Y-m-d H:i') }} UTC</td>
                         <td class="py-2.5">
@@ -124,14 +124,14 @@
                         </td>
                         <td class="py-2.5 text-right">
                             <a href="{{ route('compliance.show', $event->id) }}" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-teal-300 font-semibold transition border border-slate-700">
-                                Telaah
+                                Review
                             </a>
                         </td>
                     </tr>
                     @empty
                     <tr>
                         <td colspan="7" class="py-8 text-center text-slate-500">
-                            Tidak ada alert peringatan kepatuhan yang tercatat.
+                            No compliance alert incidents recorded.
                         </td>
                     </tr>
                     @endforelse

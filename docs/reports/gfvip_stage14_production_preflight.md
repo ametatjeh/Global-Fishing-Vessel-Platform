@@ -1,7 +1,7 @@
 # GFVIP — TAHAP 14: PRODUCTION READINESS PREFLIGHT REPORT
 
 **Document ID:** `GFVIP-PREFLIGHT-014`  
-**Platform:** Global Fishing Vessel Intelligence Platform (GFVIP)  
+**Platform:** Global Fishing Vessel Tracking (GFVT)  
 **Location:** `C:\XPROJECT\global-fishing-vessel-intelligence`  
 **Stack:** Laravel 13.37.0, PHP 8.4.16, PostgreSQL 18.6, PostGIS 3.6.2, MapLibre GL JS  
 **Audit Date:** 2026-10-22  

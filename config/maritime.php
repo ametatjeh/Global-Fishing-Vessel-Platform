@@ -86,7 +86,7 @@ return [
             'research_access_url' => 'https://globalfishingwatch.org/our-apis/tokens',
             'badge' => 'NON-COMMERCIAL RESEARCH',
             'attribution' => 'This application uses data and services provided by Global Fishing Watch (GFW) for non-commercial research, educational, and public-interest purposes. GFW data are subject to applicable licensing, attribution, and usage restrictions.',
-            'disclaimer' => 'Aktivitas kapal yang ditampilkan merupakan estimasi atau hasil analisis berdasarkan sumber data, bukan bukti final pelanggaran.',
+            'disclaimer' => 'Notice: Displayed vessel activity represents estimates or analytical findings based on available data sources, not conclusive proof of infractions.',
             'unknown_policy' => [
                 'allow_limited_monitoring' => true,
                 'exempt_from_fishing_compliance' => true,

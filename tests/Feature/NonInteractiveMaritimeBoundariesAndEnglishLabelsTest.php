@@ -37,8 +37,8 @@ class NonInteractiveMaritimeBoundariesAndEnglishLabelsTest extends TestCase
         // Ensure maritime boundary layers toggle and legends exist
         $response->assertSee('ASEAN Exclusive Economic Zones (EEZ)');
         $response->assertSee('toggle-layer-asean-eez');
-        $response->assertSee('Garis Batas ZEE &amp; Batas Maritim Resmi ASEAN (v12)', false);
-        $response->assertSee('Garis Batas Luar ZEE (200 NM)');
+        $response->assertSee('Official ASEAN EEZ &amp; Maritime Boundaries (v12)', false);
+        $response->assertSee('EEZ Outer Limit (200 NM)');
     }
 
     /**

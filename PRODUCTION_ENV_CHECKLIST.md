@@ -1,5 +1,5 @@
 # PRODUCTION ENVIRONMENT CHECKLIST
-**Platform:** Global Fishing Vessel Intelligence Platform (GFVIP)  
+**Platform:** Global Fishing Vessel Tracking (GFVT)  
 **Host Target:** `https://gfw.nagakecil.site`  
 **Root Path:** `/www/wwwroot/gfw.nagakecil.site`  
 **File Target:** `/www/wwwroot/gfw.nagakecil.site/.env`  

@@ -89,7 +89,7 @@ class PasswordManagementTest extends TestCase
         ]);
 
         $response->assertRedirect();
-        $response->assertSessionHas('status', 'Kata sandi berhasil diperbarui.');
+        $response->assertSessionHas('status', 'Password updated successfully.');
 
         $user->refresh();
         $this->assertTrue(Hash::check('BrandNewPassword123!', $user->password));
@@ -157,7 +157,7 @@ class PasswordManagementTest extends TestCase
         ]);
 
         $response->assertRedirect();
-        $response->assertSessionHas('status', 'Kata sandi lokal berhasil dibuat. Anda kini dapat masuk menggunakan email & kata sandi selain Google SSO.');
+        $response->assertSessionHas('status', 'Local password created successfully. You can now sign in using email & password in addition to Google SSO.');
 
         $googleUser->refresh();
         $this->assertTrue($googleUser->hasSetPassword());
@@ -229,10 +229,10 @@ class PasswordManagementTest extends TestCase
         $response = $this->actingAs($user)->get('/settings/profile');
 
         $response->assertStatus(200);
-        $response->assertSee('Ubah Kata Sandi');
-        $response->assertSee('Kata Sandi Saat Ini');
-        $response->assertSee('Kata Sandi Baru');
-        $response->assertSee('Konfirmasi Kata Sandi Baru');
+        $response->assertSee('Change Password');
+        $response->assertSee('Current Password');
+        $response->assertSee('New Password');
+        $response->assertSee('Confirm New Password');
     }
 }
 

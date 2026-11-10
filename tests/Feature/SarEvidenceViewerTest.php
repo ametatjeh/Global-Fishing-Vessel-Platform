@@ -199,7 +199,7 @@ class SarEvidenceViewerTest extends TestCase
 
         $response->assertStatus(200);
         // Panel 1: Candidate Summary
-        $response->assertSee('Tahap 8 Evidence-Based Inspector');
+        $response->assertSee('Stage 8 Evidence-Based Inspector');
         $response->assertSee('Radar-object dimensions are estimated from SAR backscatter');
         // Panel 2: SAR Image Evidence
         $response->assertSee('Panel 2: Sentinel-1 SAR Evidence Viewer');
@@ -207,16 +207,16 @@ class SarEvidenceViewerTest extends TestCase
         $response->assertSee('Sigma⁰ Linear');
         $response->assertSee('Sigma⁰ dB');
         // Panel 3: MapLibre Spatial Context
-        $response->assertSee('Panel 3: Konteks Spasial MapLibre');
+        $response->assertSee('Panel 3: MapLibre Spatial Context &amp; AIS Track', false);
         $response->assertSee('candidate-detail-map');
         // Panel 4: AIS Correlation
-        $response->assertSee('Panel 4: Evaluasi Korelasi Telemetri AIS Independen');
+        $response->assertSee('Panel 4: Independent AIS Telemetry Correlation Evaluation');
         $response->assertSee('No AIS correlation available');
         $response->assertSee('Absence of AIS data does not independently establish that the target is a dark vessel');
         // Panel 5: Checklist
-        $response->assertSee('Panel 5: Checklist Bukti Analis Maritim');
+        $response->assertSee('Panel 5: Maritime Analyst Evidence Checklist');
         // Panel 6: Decision
-        $response->assertSee('Panel 6: Keputusan');
+        $response->assertSee('Panel 6: Analyst Decision &amp; Technical Rationale', false);
     }
 
     public function test_analyst_can_submit_review_with_checklist_and_audit_trail_records_it(): void
@@ -273,7 +273,7 @@ class SarEvidenceViewerTest extends TestCase
             ->get(route('dark-vessels.show', $orphan->id));
 
         $response->assertStatus(200);
-        $response->assertSee('Crop Raster SAR Belum Tersedia');
+        $response->assertSee('SAR Raster Crop Unavailable');
 
         // Requesting missing image returns 404
         $imgResp = $this->actingAs($this->analyst)

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header_title', 'Activity Logs — Jejak Audit Operasional Pemantauan Maritim')
+@section('header_title', 'Activity Logs — Operational Maritime Surveillance Audit Trail')
 
 @section('content')
 <div class="space-y-6">
@@ -9,7 +9,7 @@
         <div>
             <h2 class="text-xl font-bold text-white tracking-wide uppercase">Operational Audit Trail</h2>
             <p class="text-xs text-slate-400 mt-1">
-                Pencatatan aktivitas login, disposisi verifikasi analis, eksekusi deteksi algoritma, dan audit akses data.
+                Recorded user access, analyst verification dispositions, detection algorithm executions, and data governance events.
             </p>
         </div>
     </div>
@@ -20,12 +20,12 @@
             <table class="w-full text-left min-w-[750px]">
                 <thead class="bg-slate-900/90 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
                     <tr>
-                        <th class="py-3 px-4">Waktu (UTC)</th>
-                        <th class="py-3 px-4">Pengguna / Analis</th>
-                        <th class="py-3 px-4">Tindakan (Action)</th>
-                        <th class="py-3 px-4">Entitas Target</th>
+                        <th class="py-3 px-4">Timestamp (UTC)</th>
+                        <th class="py-3 px-4">User / Analyst</th>
+                        <th class="py-3 px-4">Action</th>
+                        <th class="py-3 px-4">Target Entity</th>
                         <th class="py-3 px-4">IP Address</th>
-                        <th class="py-3 px-4">Rincian Metadata</th>
+                        <th class="py-3 px-4">Metadata Details</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-800/60 font-mono">
@@ -44,7 +44,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="6" class="py-8 text-center text-slate-500 font-sans">Belum ada catatan aktivitas audit yang tersimpan.</td>
+                        <td colspan="6" class="py-8 text-center text-slate-500 font-sans">No audit log activity records found.</td>
                     </tr>
                     @endforelse
                 </tbody>

@@ -1,6 +1,6 @@
 /**
  * Global Vessel Map Controller using MapLibre GL JS
- * Global Fishing Vessel Monitoring Platform
+ * Global Fishing Vessel Tracking
  * ESRI World Dark Gray Canvas Basemap & Live Maritime Monitoring
  */
 import * as maplibregl from 'maplibre-gl';
@@ -1690,7 +1690,7 @@ export class GlobalMapController {
             const sog = props.speed_knots !== null && props.speed_knots !== undefined ? `${props.speed_knots} kn` : '-';
             const cog = props.course_degrees !== null && props.course_degrees !== undefined ? `${props.course_degrees}°` : '-';
             const heading = props.heading_degrees !== null && props.heading_degrees !== undefined ? `${props.heading_degrees}°` : '-';
-            const pointType = props.is_start ? '🚀 Titik Keberangkatan Awal' : (props.is_latest ? '📍 Posisi Terkini' : '🛰️ Titik Observasi AIS');
+            const pointType = props.is_start ? '🚀 Departure Origin' : (props.is_latest ? '📍 Latest Position' : '🛰️ AIS Observation Point');
 
             const html = `
                 <div class="space-y-1 text-xs font-mono p-1">
@@ -1826,27 +1826,27 @@ export class GlobalMapController {
                 freshnessBadgeEl.innerHTML = '● LIVE (&lt; 2h)';
             } else {
                 freshnessBadgeEl.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-amber-300 border border-amber-500/30';
-                freshnessBadgeEl.innerHTML = '⏳ KEDALUWARSA';
+                freshnessBadgeEl.innerHTML = '⏳ STALE';
             }
         }
 
-        if (mmsiEl) mmsiEl.textContent = props.mmsi || 'Tidak tersedia';
-        if (imoEl) imoEl.textContent = props.imo || 'Tidak tersedia';
-        if (callsignEl) callsignEl.textContent = props.callsign || 'Tidak tersedia';
+        if (mmsiEl) mmsiEl.textContent = props.mmsi || 'Not available';
+        if (imoEl) imoEl.textContent = props.imo || 'Not available';
+        if (callsignEl) callsignEl.textContent = props.callsign || 'Not available';
 
         const sogVal = props.speed_knots !== null && props.speed_knots !== undefined && isFinite(Number(props.speed_knots))
             ? Number(props.speed_knots).toFixed(1)
-            : 'Tidak tersedia';
+            : 'Not available';
         if (sogEl) sogEl.textContent = sogVal;
 
         const cogVal = props.course_degrees !== null && props.course_degrees !== undefined && isFinite(Number(props.course_degrees))
             ? `${Number(props.course_degrees).toFixed(1)}°`
-            : 'Tidak tersedia';
+            : 'Not available';
         if (cogEl) cogEl.textContent = cogVal;
 
         const headingVal = props.heading_degrees !== null && props.heading_degrees !== undefined && isFinite(Number(props.heading_degrees))
             ? `${Number(props.heading_degrees).toFixed(1)}°`
-            : 'Tidak tersedia';
+            : 'Not available';
         if (headingEl) headingEl.textContent = headingVal;
 
         if (navStatusEl) navStatusEl.textContent = (props.nav_status || 'under_way').replace(/_/g, ' ');
@@ -1855,14 +1855,14 @@ export class GlobalMapController {
         const cLat = coords?.lat !== undefined ? coords.lat : (coords ? coords[1] : 0);
         if (coordsEl) coordsEl.textContent = `${Number(cLat).toFixed(5)}°, ${Number(cLng).toFixed(5)}°`;
 
-        let oriText = 'Tidak diketahui';
+        let oriText = 'Unknown';
         if (props.orientation_source === 'heading') oriText = `🧭 True Heading (${headingVal})`;
         else if (props.orientation_source === 'cog') oriText = `⚓ COG Fallback (${cogVal})`;
         if (orientationEl) orientationEl.textContent = oriText;
 
         if (timeEl) {
             const d = props.observed_at ? new Date(props.observed_at) : null;
-            timeEl.textContent = d ? d.toUTCString() : 'Tidak tersedia';
+            timeEl.textContent = d ? d.toUTCString() : 'Not available';
             timeEl.title = props.observed_at || '';
         }
 
@@ -1871,12 +1871,12 @@ export class GlobalMapController {
         if (ageEl) {
             if (props.observed_at) {
                 const diffSec = Math.floor((Date.now() - new Date(props.observed_at).getTime()) / 1000);
-                if (diffSec < 60) ageEl.textContent = 'Baru saja';
-                else if (diffSec < 3600) ageEl.textContent = `${Math.floor(diffSec / 60)} menit lalu`;
-                else if (diffSec < 86400) ageEl.textContent = `${Math.floor(diffSec / 3600)} jam lalu`;
-                else ageEl.textContent = `${Math.floor(diffSec / 86400)} hari lalu`;
+                if (diffSec < 60) ageEl.textContent = 'Just now';
+                else if (diffSec < 3600) ageEl.textContent = `${Math.floor(diffSec / 60)} min ago`;
+                else if (diffSec < 86400) ageEl.textContent = `${Math.floor(diffSec / 3600)} h ago`;
+                else ageEl.textContent = `${Math.floor(diffSec / 86400)} d ago`;
             } else {
-                ageEl.textContent = 'Tidak tersedia';
+                ageEl.textContent = 'Not available';
             }
         }
 
@@ -1886,9 +1886,9 @@ export class GlobalMapController {
         const darkStatusEl = document.getElementById('panelVesselDarkVesselStatus');
         if (darkStatusEl) {
             if (props.dark_vessel_candidate || props.is_dark_vessel || props.anomaly_flag) {
-                darkStatusEl.innerHTML = '<span class="text-amber-400 font-bold">⚠️ Terindikasi Anomali</span>';
+                darkStatusEl.innerHTML = '<span class="text-amber-400 font-bold">⚠️ Anomaly Indicated</span>';
             } else {
-                darkStatusEl.textContent = 'Tidak ada anomali terdeteksi';
+                darkStatusEl.textContent = 'No anomalies detected';
             }
         }
 
@@ -1896,9 +1896,9 @@ export class GlobalMapController {
         const encStatusEl = document.getElementById('panelVesselEncounterStatus');
         if (encStatusEl) {
             if (props.encounter_count && Number(props.encounter_count) > 0) {
-                encStatusEl.innerHTML = `<span class="text-amber-400 font-bold">⚠️ ${props.encounter_count} Kejadian</span>`;
+                encStatusEl.innerHTML = `<span class="text-amber-400 font-bold">⚠️ ${props.encounter_count} Events</span>`;
             } else {
-                encStatusEl.textContent = '0 kejadian terdeteksi';
+                encStatusEl.textContent = '0 events detected';
             }
         }
 
@@ -1906,9 +1906,9 @@ export class GlobalMapController {
         const sarStatusEl = document.getElementById('panelVesselSarStatus');
         if (sarStatusEl) {
             if (props.sar_scene_id || props.sar_correlated) {
-                sarStatusEl.innerHTML = `<span class="text-purple-400 font-bold">🛰️ Korelasi Sentinel-1</span>`;
+                sarStatusEl.innerHTML = `<span class="text-purple-400 font-bold">🛰️ Correlated Sentinel-1</span>`;
             } else {
-                sarStatusEl.textContent = 'Tidak ada korelasi citra';
+                sarStatusEl.textContent = 'No imagery correlation';
             }
         }
 
@@ -2082,32 +2082,32 @@ export class GlobalMapController {
                     <div><span class="text-slate-400">MMSI:</span> <strong class="text-white">${props.mmsi || '-'}</strong></div>
                     <div><span class="text-slate-400">IMO:</span> <strong class="text-white">${props.imo || '-'}</strong></div>
                     <div><span class="text-slate-400">Callsign:</span> <strong class="text-white">${props.callsign || '-'}</strong></div>
-                    <div><span class="text-slate-400">Tipe:</span> ${props.vessel_type === 'fishing' ? '<span class="text-[#F59E0B] font-bold uppercase">🎣 Fishing</span>' : `<span class="text-slate-300 capitalize">${props.vessel_type || 'vessel'}</span>`}</div>
-                    <div><span class="text-slate-400">SOG (Kecepatan):</span> <strong class="${props.vessel_type === 'fishing' ? 'text-[#F59E0B]' : 'text-sky-300'}">${sogDisplay}</strong></div>
-                    <div><span class="text-slate-400">COG (Arah Gerak):</span> <strong class="text-sky-300">${cogDisplay}</strong></div>
-                    <div><span class="text-slate-400">Heading (Haluan):</span> <strong class="text-emerald-300">${headingDisplay}</strong></div>
-                    <div><span class="text-slate-400">Status Nav:</span> <span class="text-slate-300 capitalize">${props.nav_status || 'under_way'}</span></div>
+                    <div><span class="text-slate-400">Type:</span> ${props.vessel_type === 'fishing' ? '<span class="text-[#F59E0B] font-bold uppercase">🎣 Fishing</span>' : `<span class="text-slate-300 capitalize">${props.vessel_type || 'vessel'}</span>`}</div>
+                    <div><span class="text-slate-400">Speed (SOG):</span> <strong class="${props.vessel_type === 'fishing' ? 'text-[#F59E0B]' : 'text-sky-300'}">${sogDisplay}</strong></div>
+                    <div><span class="text-slate-400">Course (COG):</span> <strong class="text-sky-300">${cogDisplay}</strong></div>
+                    <div><span class="text-slate-400">True Heading:</span> <strong class="text-emerald-300">${headingDisplay}</strong></div>
+                    <div><span class="text-slate-400">Nav Status:</span> <span class="text-slate-300 capitalize">${props.nav_status || 'under_way'}</span></div>
                 </div>
                 <div class="p-1 rounded bg-slate-900 border border-slate-800 text-[10px] font-mono flex items-center justify-between">
                     <span class="text-slate-400">Orientation Source:</span>
                     <div>${orientationSourceBadge}</div>
                 </div>
                 <div class="text-[10px] font-mono text-slate-400">
-                    Posisi: <span class="text-slate-200">${coordsStr}</span>
+                    Position: <span class="text-slate-200">${coordsStr}</span>
                 </div>
                 <div class="text-[10px] text-slate-400 pt-1 border-t border-slate-800 flex justify-between">
-                    <span>Waktu: ${dateStr}</span>
+                    <span>Time: ${dateStr}</span>
                     <span>${props.provider || 'AIS Live Gateway'}</span>
                 </div>
                 <div class="pt-2 border-t border-slate-800 flex items-center justify-between gap-1.5">
                     <button type="button" class="btn-popup-show-track px-2 py-1 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 font-mono text-[10px] font-bold flex items-center gap-1 transition"
-                            data-vessel-id="${props.vessel_id || ''}" data-mmsi="${props.mmsi || ''}" title="Tampilkan riwayat lintasan kapal AIS ini">
+                            data-vessel-id="${props.vessel_id || ''}" data-mmsi="${props.mmsi || ''}" title="Display AIS track history for this vessel">
                         <span>🗺️</span>
                         <span>Show Track</span>
                     </button>
                     ${props.vessel_id ? `
                     <a href="/vessels/${props.vessel_id}" class="text-[11px] text-sky-400 hover:text-sky-300 font-semibold underline truncate">
-                        Profil &rarr;
+                        Profile &rarr;
                     </a>` : ''}
                 </div>
             </div>
@@ -2370,7 +2370,7 @@ export class GlobalMapController {
         if (layerKey === 'vessels') {
             const statusCount = document.getElementById('statusVesselCount');
             if (statusCount) {
-                statusCount.innerText = `${count.toLocaleString()} kapal`;
+                statusCount.innerText = `${count.toLocaleString()} vessels`;
             }
         }
     }
@@ -2570,17 +2570,17 @@ export class GlobalMapController {
                     Target ID: <strong>${props.identifier || props.id}</strong>
                 </div>
                 <div class="grid grid-cols-2 gap-2 text-[11px] font-mono text-slate-300">
-                    <div>Koordinat: <span class="text-teal-300">${Number(lat).toFixed(4)}°, ${Number(lng).toFixed(4)}°</span></div>
+                    <div>Coordinates: <span class="text-teal-300">${Number(lat).toFixed(4)}°, ${Number(lng).toFixed(4)}°</span></div>
                     <div>Peak TCR: <span class="text-emerald-300">${props.tcr_db !== null && props.tcr_db !== undefined ? props.tcr_db + ' dB' : '-'}</span></div>
-                    <div>Radar Dimensi: <span class="text-white">${props.estimated_length_meters || '-'}m &times; ${props.estimated_width_meters || '-'}m</span></div>
+                    <div>Radar Dimensions: <span class="text-white">${props.estimated_length_meters || '-'}m &times; ${props.estimated_width_meters || '-'}m</span></div>
                     <div>Review Status: <span class="text-amber-300">${reviewBadge}</span></div>
                 </div>
                 ${props.scene_id ? `<div class="text-[10px] font-mono text-slate-400 truncate">Scene: ${props.scene_id}</div>` : ''}
-                <div class="text-[10px] font-mono text-slate-400">Waktu Akuisisi: ${props.detected_at ? props.detected_at.replace('T', ' ').substring(0, 19) : '-'} UTC</div>
+                <div class="text-[10px] font-mono text-slate-400">Acquisition Time: ${props.detected_at ? props.detected_at.replace('T', ' ').substring(0, 19) : '-'} UTC</div>
 
                 ${isInsufficient ? `
                 <div class="text-[10px] text-amber-300/90 bg-amber-950/60 p-2 rounded border border-amber-800/40 leading-snug">
-                    <strong>INSUFFICIENT AIS COVERAGE:</strong> Ketiadaan data AIS pada zona ini tidak membuktikan bahwa objek adalah dark vessel terkonfirmasi.
+                    <strong>INSUFFICIENT AIS COVERAGE:</strong> Absence of AIS telemetry in this maritime zone does not confirm that the detected object is an illicit dark vessel.
                 </div>` : ''}
 
                 <div class="text-[9px] text-slate-400 italic">
@@ -2588,7 +2588,7 @@ export class GlobalMapController {
                 </div>
 
                 <div class="pt-1 text-right">
-                    <a href="/dark-vessels/${props.id}" class="text-[11px] text-teal-400 hover:text-teal-300 font-bold underline">Buka Evidence Inspector &rarr;</a>
+                    <a href="/dark-vessels/${props.id}" class="text-[11px] text-teal-400 hover:text-teal-300 font-bold underline">Open Evidence Dossier &rarr;</a>
                 </div>
             </div>
         `;
@@ -2752,8 +2752,8 @@ export class GlobalMapController {
             : '<span class="text-slate-500 italic">Not available</span>';
 
         const badge = isLatest
-            ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">● POSISI TERAKHIR</span>'
-            : '<span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">TITIK HISTORIS</span>';
+            ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">● LATEST POSITION</span>'
+            : '<span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">HISTORICAL POINT</span>';
 
         const html = `
             <div class="space-y-1.5 text-xs font-sans max-w-xs">
@@ -2771,8 +2771,8 @@ export class GlobalMapController {
                     <div>Heading: <strong class="text-emerald-300">${headingStr}</strong></div>
                 </div>
                 <div class="text-[10px] font-mono text-slate-400">
-                    <div>Waktu: <strong class="text-slate-200">${dateStr}</strong></div>
-                    <div>Koordinat: ${coords[1].toFixed(4)}°, ${coords[0].toFixed(4)}°</div>
+                    <div>Time: <strong class="text-slate-200">${dateStr}</strong></div>
+                    <div>Coordinates: ${coords[1].toFixed(4)}°, ${coords[0].toFixed(4)}°</div>
                 </div>
             </div>
         `;
@@ -2791,15 +2791,15 @@ export class GlobalMapController {
 
         // Prevent race conditions when user switches vessels quickly
         this.activeTrackVesselId = idStr;
-        this.notifyTrackStatus('loading', `Memuat lintasan historis AIS (${range})...`);
+        this.notifyTrackStatus('loading', `Loading historical AIS track (${range})...`);
 
         try {
             const res = await fetch(`/api/vessels/${encodeURIComponent(idStr)}/track?range=${encodeURIComponent(range)}`);
             if (!res.ok) {
                 if (res.status === 404) {
-                    this.notifyTrackStatus('error', `Kapal identifier '${idStr}' tidak ditemukan.`);
+                    this.notifyTrackStatus('error', `Vessel identifier '${idStr}' not found.`);
                 } else {
-                    this.notifyTrackStatus('error', `Gagal memuat track AIS (HTTP ${res.status}).`);
+                    this.notifyTrackStatus('error', `Failed to load AIS track (HTTP ${res.status}).`);
                 }
                 return;
             }
@@ -2821,17 +2821,17 @@ export class GlobalMapController {
             const vesselName = geoJson.properties?.name || geoJson.properties?.mmsi || idStr;
 
             if (count === 0) {
-                this.notifyTrackStatus('warning', `No historical AIS track available (${range}) untuk ${vesselName}.`);
+                this.notifyTrackStatus('warning', `No historical AIS track available (${range}) for ${vesselName}.`);
             } else if (count === 1) {
-                this.notifyTrackStatus('info', `Hanya 1 posisi AIS tersedia untuk ${vesselName} (titik observasi tunggal).`);
+                this.notifyTrackStatus('info', `Only 1 AIS position available for ${vesselName} (single point).`);
             } else {
-                this.notifyTrackStatus('success', `Lintasan AIS (${range}): ${vesselName} (${count} titik observasi).`);
+                this.notifyTrackStatus('success', `AIS Track (${range}): ${vesselName} (${count} points).`);
             }
 
             // Update badge in side panel if present
             const panelTrackBadge = document.getElementById('panelTrackPointBadge');
             if (panelTrackBadge) {
-                panelTrackBadge.textContent = `${count} titik`;
+                panelTrackBadge.textContent = `${count} points`;
             }
 
             if (fitBounds && count > 0) {
@@ -2843,7 +2843,7 @@ export class GlobalMapController {
             }
         } catch (err) {
             console.error('[GlobalMap] Error loading vessel track:', err);
-            this.notifyTrackStatus('error', 'Terjadi kesalahan jaringan saat memuat track.');
+            this.notifyTrackStatus('error', 'Network error while loading vessel track.');
         }
     }
 

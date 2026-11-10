@@ -57,7 +57,7 @@ class EncounterDetectionService
                 'detected' => 0,
                 'skipped' => 0,
                 'encounters' => $newEncounters,
-                'message' => 'Data posisi AIS tidak mencukupi untuk analisis spasio-temporal (minimal 2 kapal aktif diperlukan).'
+                'message' => 'Insufficient AIS telemetry data for spatio-temporal analysis (minimum 2 active vessels required).'
             ];
         }
 
