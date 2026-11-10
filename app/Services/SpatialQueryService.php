@@ -833,11 +833,13 @@ class SpatialQueryService
 
         // Base query on vessel_positions to leverage indexes on lat/lng/observed_at
         // Exclude quarantined or invalid coordinate records (data_quality_score <= 0.0)
+        // Strictly exclude default (0, 0) unacquired GPS sentinel positions
         $posQuery = VesselPosition::query()
             ->where(function ($q) {
                 $q->whereNull('data_quality_score')
                   ->orWhere('data_quality_score', '>', 0.0);
-            });
+            })
+            ->whereRaw('NOT (latitude = 0.0 AND longitude = 0.0)');
 
         if ($bbox && count($bbox) === 4) {
             $minLng = (float) $bbox[0];
@@ -1008,7 +1010,7 @@ class SpatialQueryService
 
             $lat = (float) $pos->latitude;
             $lng = (float) $pos->longitude;
-            if (!is_finite($lat) || !is_finite($lng) || $lat < -90.0 || $lat > 90.0 || $lng < -180.0 || $lng > 180.0) {
+            if (!is_finite($lat) || !is_finite($lng) || $lat < -90.0 || $lat > 90.0 || $lng < -180.0 || $lng > 180.0 || ($lat === 0.0 && $lng === 0.0)) {
                 continue;
             }
 
@@ -1127,7 +1129,7 @@ class SpatialQueryService
                 'id' => $enc->id,
                 'geometry' => [
                     'type' => 'Point',
-                    'coordinates' => [$enc->longitude, $enc->latitude],
+                    'coordinates' => [(float) $enc->longitude, (float) $enc->latitude],
                 ],
                 'properties' => [
                     'id' => $enc->id,
@@ -1240,7 +1242,7 @@ class SpatialQueryService
                 'id' => $det->id,
                 'geometry' => [
                     'type' => 'Point',
-                    'coordinates' => [$det->longitude, $det->latitude],
+                    'coordinates' => [(float) $det->longitude, (float) $det->latitude],
                 ],
                 'properties' => [
                     'id' => $det->id,
@@ -1401,7 +1403,7 @@ class SpatialQueryService
             $lat = (float) $pos->latitude;
             $lng = (float) $pos->longitude;
 
-            if (!is_finite($lat) || !is_finite($lng) || $lat < -90.0 || $lat > 90.0 || $lng < -180.0 || $lng > 180.0) {
+            if (!is_finite($lat) || !is_finite($lng) || $lat < -90.0 || $lat > 90.0 || $lng < -180.0 || $lng > 180.0 || ($lat === 0.0 && $lng === 0.0)) {
                 continue;
             }
 

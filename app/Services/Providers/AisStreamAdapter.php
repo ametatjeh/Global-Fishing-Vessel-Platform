@@ -1660,8 +1660,8 @@ class AisStreamAdapter implements ProviderAdapterInterface
         $lat = (float) $lat;
         $lng = (float) $lng;
 
-        // Validate coordinate bounds
-        if ($lat < -90.0 || $lat > 90.0 || $lng < -180.0 || $lng > 180.0) {
+        // Validate coordinate bounds and reject unacquired GPS sentinel (0, 0)
+        if ($lat < -90.0 || $lat > 90.0 || $lng < -180.0 || $lng > 180.0 || ($lat == 0.0 && $lng == 0.0)) {
             return null;
         }
 
