@@ -337,9 +337,10 @@ class AisStreamIngestionRebuildTest extends TestCase
                 'timestamp' => '2026-11-07T06:00:00Z',
             ]);
 
-            // Under Section C, cargo is rejected and blocked from ingestion
-            $this->assertNull($pos);
-            $this->assertTrue(\App\Models\ProhibitedVessel::isProhibited($mmsi));
+            // All vessel types including cargo are accepted and positions stored
+            $this->assertNotNull($pos);
+            $this->assertEquals('cargo', $pos->vessel->vessel_type);
+            $this->assertEquals($code, $pos->vessel->ais_ship_type_code);
         }
     }
 
@@ -359,9 +360,10 @@ class AisStreamIngestionRebuildTest extends TestCase
                 'timestamp' => '2026-11-07T06:05:00Z',
             ]);
 
-            // Under Section C, tanker is rejected and blocked from ingestion
-            $this->assertNull($vessel);
-            $this->assertTrue(\App\Models\ProhibitedVessel::isProhibited($mmsi));
+            // All vessel types including tanker are accepted and static data stored
+            $this->assertNotNull($vessel);
+            $this->assertEquals('tanker', $vessel->vessel_type);
+            $this->assertEquals($code, $vessel->ais_ship_type_code);
         }
     }
 

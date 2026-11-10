@@ -521,16 +521,8 @@ function processAisFrame(json) {
     const meta = json.MetaData || {};
     const mmsi = String(meta.MMSI || messageObj[msgType]?.UserID || '').replace(/\D/g, '');
 
-    // A. Check if message is a position-only frame
-    const isPositionOnly = (msgType === 'PositionReport' || msgType === 'StandardClassBPositionReport');
-
-    // B. Early Position Suppression applies ONLY to position-only frames!
-    if (isPositionOnly && mmsi && isMmsiProhibited(mmsi)) {
-        totalFilteredOut++;
-        return; // Early drop - 0 bytes sent to backend
-    }
-
-    // C. Inspect static metadata frames for vessel type classification & cache update
+    // A. All vessel types accepted: Position reports (Type 1, 2, 3, 18, 19, 27) are NEVER dropped locally.
+    // Static metadata frames are inspected for compliance caching, but all messages are forwarded.
     if (msgType === 'ShipStaticData') {
         const staticData = messageObj.ShipStaticData || {};
         const shipType = staticData.Type;
@@ -538,7 +530,6 @@ function processAisFrame(json) {
             setProhibitedMmsi(mmsi, Date.now() + BLOCKED_CACHE_TTL_MS);
             enforceCacheLimits();
         }
-        // STATIC FRAMES ARE ALWAYS FORWARDED TO BACKEND!
     } else if (msgType === 'StaticDataReport') {
         const staticReport = messageObj.StaticDataReport || {};
         const shipType = staticReport.ReportB?.ShipType;
@@ -546,16 +537,13 @@ function processAisFrame(json) {
             setProhibitedMmsi(mmsi, Date.now() + BLOCKED_CACHE_TTL_MS);
             enforceCacheLimits();
         }
-        // STATIC FRAMES ARE ALWAYS FORWARDED TO BACKEND!
     } else if (msgType === 'ExtendedClassBPositionReport') {
-        // Type 19: Inspect metadata to update local cache, but ALWAYS forward to backend!
         const extReport = messageObj.ExtendedClassBPositionReport || {};
         const shipType = extReport.Type ?? extReport.ShipType;
         if (isProhibitedShipType(shipType) && mmsi) {
             setProhibitedMmsi(mmsi, Date.now() + BLOCKED_CACHE_TTL_MS);
             enforceCacheLimits();
         }
-        // TYPE 19 IS ALWAYS FORWARDED FOR STATIC METADATA EXTRACTION!
     }
 
     // D. Enqueue message with bounded memory protection
@@ -661,7 +649,7 @@ async function gracefulShutdown(signal) {
     console.log(' [SUMMARY] AIS Worker Session Closed:');
     console.log(` Total Received:     ${totalReceived}`);
     console.log(` Total Sent:         ${totalSent}`);
-    console.log(` Filtered Locally:   ${totalFilteredOut} (Cargo/Tanker/Pleasure positions dropped)`);
+    console.log(` Filtered Locally:   ${totalFilteredOut} (All vessel types accepted; no position suppression)`);
     console.log(` Quarantined (422):  ${totalQuarantined}`);
     console.log(` Persisted to Disk:  ${persisted} messages saved to ${DISK_QUEUE_PATH}`);
     console.log(` Total Dropped:      ${totalDropped}`);
@@ -686,7 +674,7 @@ async function initWorker() {
     console.log(` Queue Capacity:  ${MAX_QUEUE_SIZE} (bounded memory guard)`);
     console.log(` Disk Queue Path: ${DISK_QUEUE_PATH}`);
     console.log(` Cache Policy:    Max ${MAX_BLOCKED_CACHE_SIZE} MMSIs, 24h TTL, LRU Pruning`);
-    console.log(` Type 19 Policy:  Dual Ingestion (Metadata preserved even if prohibited)`);
+    console.log(` Ingestion Policy: Accept all vessel types (Cargo, Tanker, Fishing, Pleasure, Passenger, Tug, Other, Unknown)`);
     console.log('='.repeat(65));
 
     if (!AIS_STREAM_API_KEY) {

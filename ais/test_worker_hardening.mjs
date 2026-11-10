@@ -401,30 +401,39 @@ async function runTests() {
         });
 
         // -------------------------------------------------------------
-        // TEST 8: Type 19 prohibited is still forwarded to backend
+        // TEST 8: All vessel types and positions forwarded to backend
         // -------------------------------------------------------------
-        await test('Type 19 with prohibited MMSI is forwarded to backend while PositionReport is dropped', async () => {
+        await test('PositionReport, StandardClassBPositionReport, and Type 19 are all enqueued and forwarded even if MMSI is in prohibited cache', async () => {
             const cargoMmsi = '525888999';
             worker.setProhibitedMmsi(cargoMmsi, Date.now() + 3600000);
 
-            // 1. Regular PositionReport -> MUST BE DROPPED
+            // 1. Regular PositionReport -> MUST BE ENQUEUED FOR FORWARDING
             const posFrame = {
                 MessageType: 'PositionReport',
                 MetaData: { MMSI: cargoMmsi },
                 Message: { PositionReport: { UserID: cargoMmsi, Latitude: -5.0, Longitude: 106.0 } },
             };
             worker.processAisFrame(posFrame);
-            assert.strictEqual(worker.messageQueue.length, 0, 'PositionReport for prohibited MMSI must be dropped locally');
+            assert.strictEqual(worker.messageQueue.length, 1, 'PositionReport must be enqueued even if MMSI is in prohibited cache');
 
-            // 2. Type 19 ExtendedClassBPositionReport -> MUST BE ENQUEUED FOR FORWARDING
+            // 2. StandardClassBPositionReport -> MUST BE ENQUEUED FOR FORWARDING
+            const stdFrame = {
+                MessageType: 'StandardClassBPositionReport',
+                MetaData: { MMSI: cargoMmsi },
+                Message: { StandardClassBPositionReport: { UserID: cargoMmsi, Latitude: -5.1, Longitude: 106.1 } },
+            };
+            worker.processAisFrame(stdFrame);
+            assert.strictEqual(worker.messageQueue.length, 2, 'StandardClassBPositionReport must be enqueued even if MMSI is in prohibited cache');
+
+            // 3. Type 19 ExtendedClassBPositionReport -> MUST BE ENQUEUED FOR FORWARDING
             const type19Frame = {
                 MessageType: 'ExtendedClassBPositionReport',
                 MetaData: { MMSI: cargoMmsi, ShipName: 'CARGO VESSEL' },
                 Message: { ExtendedClassBPositionReport: { UserID: cargoMmsi, Type: 70, Name: 'CARGO VESSEL' } },
             };
             worker.processAisFrame(type19Frame);
-            assert.strictEqual(worker.messageQueue.length, 1, 'Type 19 must be enqueued even if MMSI is in prohibited cache');
-            assert.strictEqual(worker.messageQueue[0].MessageType, 'ExtendedClassBPositionReport');
+            assert.strictEqual(worker.messageQueue.length, 3, 'Type 19 must be enqueued even if MMSI is in prohibited cache');
+            assert.strictEqual(worker.messageQueue[2].MessageType, 'ExtendedClassBPositionReport');
         });
 
         // -------------------------------------------------------------

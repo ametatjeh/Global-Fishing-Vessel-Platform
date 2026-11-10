@@ -1444,11 +1444,6 @@ class AisStreamAdapter implements ProviderAdapterInterface
             return null;
         }
 
-        // Strictly reject static messages from prohibited MMSIs
-        if (\App\Models\ProhibitedVessel::isProhibited($cleanMmsi)) {
-            return null;
-        }
-
         $existingVessel = Vessel::where('mmsi', $cleanMmsi)->first();
 
         $shipName = !empty($message['vessel_name']) ? trim(trim((string) $message['vessel_name']), '@') : null;
@@ -1465,18 +1460,6 @@ class AisStreamAdapter implements ProviderAdapterInterface
             $aisTypeCode = is_numeric($rawShipType) ? (int) $rawShipType : null;
             $vesselType = self::normalizeVesselType($rawShipType);
             $classificationSource = 'AIS_STATIC_MESSAGE_SHIPTYPE';
-
-            if (empty($existingVessel) && empty($message['allow_classification_review']) && in_array($vesselType, ['cargo', 'tanker', 'pleasure'])) {
-                \App\Models\ProhibitedVessel::firstOrCreate(
-                    ['mmsi' => $cleanMmsi],
-                    [
-                        'reason' => 'non_fishing_policy',
-                        'original_name' => $shipName,
-                        'original_type' => $vesselType,
-                    ]
-                );
-                return null;
-            }
         }
 
         $length = isset($message['length_meters']) && is_numeric($message['length_meters']) && (float) $message['length_meters'] > 0
@@ -1667,11 +1650,6 @@ class AisStreamAdapter implements ProviderAdapterInterface
             return null;
         }
 
-        // Strictly reject positions from prohibited MMSIs
-        if (\App\Models\ProhibitedVessel::isProhibited($cleanMmsi)) {
-            return null;
-        }
-
         $lat = $message['latitude'] ?? null;
         $lng = $message['longitude'] ?? null;
 
@@ -1743,17 +1721,6 @@ class AisStreamAdapter implements ProviderAdapterInterface
         if ($rawShipType !== null && $rawShipType !== '') {
             $aisTypeCode = is_numeric($rawShipType) ? (int) $rawShipType : null;
             $vesselType = self::normalizeVesselType($rawShipType);
-            if (in_array($vesselType, ['cargo', 'tanker', 'pleasure'])) {
-                \App\Models\ProhibitedVessel::firstOrCreate(
-                    ['mmsi' => $cleanMmsi],
-                    [
-                        'reason' => 'non_fishing_policy',
-                        'original_name' => $shipName,
-                        'original_type' => $vesselType,
-                    ]
-                );
-                return null;
-            }
         }
 
         $provider = DataProvider::firstOrCreate(

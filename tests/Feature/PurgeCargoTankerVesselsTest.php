@@ -149,11 +149,18 @@ class PurgeCargoTankerVesselsTest extends TestCase
         $this->assertTrue(ProhibitedVessel::isProhibited('525005005'));
     }
 
-    public function test_subsequent_ingestion_rejects_cargo_tanker_pleasure_and_prohibited_mmsi(): void
+    public function test_subsequent_ingestion_accepts_cargo_tanker_pleasure_and_prohibited_mmsi(): void
     {
         $adapter = app(AisStreamAdapter::class);
 
-        // 1. Ingestion of AIS Position Report with ShipType 70 (Cargo) is rejected
+        // Pre-register an MMSI in prohibited vessel registry to test non-rejection
+        ProhibitedVessel::create([
+            'mmsi' => '525777001',
+            'reason' => 'legacy_policy',
+            'original_type' => 'cargo',
+        ]);
+
+        // 1. Ingestion of AIS Position Report with ShipType 70 (Cargo) is accepted
         $posCargo = $adapter->ingestPositionMessage([
             'mmsi' => '525777001',
             'latitude' => 1.2,
@@ -161,33 +168,33 @@ class PurgeCargoTankerVesselsTest extends TestCase
             'ship_type' => 70, // Cargo
             'timestamp' => '2026-11-07T07:00:00Z',
         ]);
-        $this->assertNull($posCargo);
-        $this->assertEquals(0, Vessel::where('mmsi', '525777001')->count());
-        $this->assertTrue(ProhibitedVessel::isProhibited('525777001'));
+        $this->assertNotNull($posCargo);
+        $this->assertEquals(1, Vessel::where('mmsi', '525777001')->count());
+        $this->assertEquals('cargo', $posCargo->vessel->vessel_type);
 
-        // 2. Ingestion of AIS Static Report with ShipType 80 (Tanker) is rejected
+        // 2. Ingestion of AIS Static Report with ShipType 80 (Tanker) is accepted
         $vesselTanker = $adapter->ingestStaticMessage([
             'mmsi' => '525888002',
             'vessel_name' => 'NEW TANKER',
             'ship_type' => 80, // Tanker
             'timestamp' => '2026-11-07T07:05:00Z',
         ]);
-        $this->assertNull($vesselTanker);
-        $this->assertEquals(0, Vessel::where('mmsi', '525888002')->count());
-        $this->assertTrue(ProhibitedVessel::isProhibited('525888002'));
+        $this->assertNotNull($vesselTanker);
+        $this->assertEquals(1, Vessel::where('mmsi', '525888002')->count());
+        $this->assertEquals('tanker', $vesselTanker->vessel_type);
 
-        // 3. Ingestion of AIS Static Report with ShipType 37 (Pleasure) is rejected
+        // 3. Ingestion of AIS Static Report with ShipType 37 (Pleasure) is accepted
         $vesselPleasure = $adapter->ingestStaticMessage([
             'mmsi' => '525999003',
             'vessel_name' => 'YACHT DREAM',
             'ship_type' => 37, // Pleasure
             'timestamp' => '2026-11-07T07:06:00Z',
         ]);
-        $this->assertNull($vesselPleasure);
-        $this->assertEquals(0, Vessel::where('mmsi', '525999003')->count());
-        $this->assertTrue(ProhibitedVessel::isProhibited('525999003'));
+        $this->assertNotNull($vesselPleasure);
+        $this->assertEquals(1, Vessel::where('mmsi', '525999003')->count());
+        $this->assertEquals('pleasure', $vesselPleasure->vessel_type);
 
-        // 4. Ingestion of AIS Position Report with ShipType 37 (Pleasure) is rejected
+        // 4. Ingestion of AIS Position Report with ShipType 37 (Pleasure) is accepted
         $posPleasure = $adapter->ingestPositionMessage([
             'mmsi' => '525999004',
             'latitude' => 2.5,
@@ -195,20 +202,20 @@ class PurgeCargoTankerVesselsTest extends TestCase
             'ship_type' => 37, // Pleasure
             'timestamp' => '2026-11-07T07:07:00Z',
         ]);
-        $this->assertNull($posPleasure);
-        $this->assertEquals(0, Vessel::where('mmsi', '525999004')->count());
-        $this->assertTrue(ProhibitedVessel::isProhibited('525999004'));
+        $this->assertNotNull($posPleasure);
+        $this->assertEquals(1, Vessel::where('mmsi', '525999004')->count());
+        $this->assertEquals('pleasure', $posPleasure->vessel->vessel_type);
 
-        // 5. New positions from already prohibited MMSI are strictly blocked even if ship_type is omitted
-        $blockedAttempt = $adapter->ingestPositionMessage([
+        // 5. Subsequent positions from already prohibited MMSI are accepted
+        $prohibitedPos = $adapter->ingestPositionMessage([
             'mmsi' => '525777001', // Already prohibited MMSI
             'latitude' => 1.25,
             'longitude' => 103.85,
             'ship_type' => null, // Omitted ship_type
             'timestamp' => '2026-11-07T07:10:00Z',
         ]);
-        $this->assertNull($blockedAttempt);
-        $this->assertEquals(0, VesselPosition::count());
+        $this->assertNotNull($prohibitedPos);
+        $this->assertEquals(3, VesselPosition::count());
 
         // 6. Ingestion of legitimate Fishing vessel (ShipType 30) continues to work perfectly
         $posFishing = $adapter->ingestPositionMessage([
@@ -221,7 +228,7 @@ class PurgeCargoTankerVesselsTest extends TestCase
         ]);
         $this->assertNotNull($posFishing);
         $this->assertEquals('fishing', $posFishing->vessel->vessel_type);
-        $this->assertEquals(1, VesselPosition::count());
+        $this->assertEquals(4, VesselPosition::count());
     }
 
     public function test_artisan_command_renders_dry_run_and_confirms_controlled_execution(): void
