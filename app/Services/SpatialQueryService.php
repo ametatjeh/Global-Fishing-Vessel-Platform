@@ -832,7 +832,12 @@ class SpatialQueryService
         $limit = $limit > 0 ? $limit : 200;
 
         // Base query on vessel_positions to leverage indexes on lat/lng/observed_at
-        $posQuery = VesselPosition::query();
+        // Exclude quarantined or invalid coordinate records (data_quality_score <= 0.0)
+        $posQuery = VesselPosition::query()
+            ->where(function ($q) {
+                $q->whereNull('data_quality_score')
+                  ->orWhere('data_quality_score', '>', 0.0);
+            });
 
         if ($bbox && count($bbox) === 4) {
             $minLng = (float) $bbox[0];
@@ -1363,7 +1368,11 @@ class SpatialQueryService
             ->whereNotNull('longitude')
             ->whereBetween('latitude', [-90.0, 90.0])
             ->whereBetween('longitude', [-180.0, 180.0])
-            ->whereRaw('NOT (latitude = 0.0 AND longitude = 0.0)');
+            ->whereRaw('NOT (latitude = 0.0 AND longitude = 0.0)')
+            ->where(function ($q) {
+                $q->whereNull('data_quality_score')
+                  ->orWhere('data_quality_score', '>', 0.0);
+            });
 
         if (!empty($timeRange)) {
             $rangeStr = strtolower(trim($timeRange));
