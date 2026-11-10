@@ -49,16 +49,20 @@ class FisheriesManagementArea extends Model
         $driver = $query->getConnection()->getDriverName();
         if ($driver === 'pgsql') {
             if ($minLng > $maxLng) {
-                return $query->whereRaw(
-                    "(geom && ST_MakeEnvelope(?, ?, 180, ?, 4326) OR geom && ST_MakeEnvelope(-180, ?, ?, ?, 4326))",
-                    [$minLng, $minY, $maxY, $minY, $maxLng, $maxY]
-                );
+                return $query->where(function ($w) use ($minLng, $maxLng, $minY, $maxY) {
+                    $w->whereRaw(
+                        "(geom && ST_MakeEnvelope(?, ?, 180, ?, 4326) OR geom && ST_MakeEnvelope(-180, ?, ?, ?, 4326))",
+                        [$minLng, $minY, $maxY, $minY, $maxLng, $maxY]
+                    )->orWhereNull('geom');
+                });
             }
 
-            return $query->whereRaw(
-                "geom && ST_MakeEnvelope(?, ?, ?, ?, 4326)",
-                [$minLng, $minY, $maxLng, $maxY]
-            );
+            return $query->where(function ($w) use ($minLng, $maxLng, $minY, $maxY) {
+                $w->whereRaw(
+                    "geom && ST_MakeEnvelope(?, ?, ?, ?, 4326)",
+                    [$minLng, $minY, $maxLng, $maxY]
+                )->orWhereNull('geom');
+            });
         }
 
         return $query;

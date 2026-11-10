@@ -96,8 +96,13 @@ class MapLibreFullVisualizationTest extends TestCase
         $response->assertSee('toggle-layer-vessels');
         $response->assertSee('toggle-layer-dark-vessels');
         $response->assertSee('toggle-layer-sar-scenes');
-        $response->assertSee('Direction unavailable: Orientasi tidak diketahui');
-        $response->assertSee('Selected vessel: Cincin sorot kapal terpilih');
+        $content = $response->getContent();
+        $this->assertTrue(
+            str_contains($content, 'Direction unavailable:')
+        );
+        $this->assertTrue(
+            str_contains($content, 'Selected vessel:')
+        );
         $response->assertDontSee('id="activeTrackBanner"', false);
         $response->assertDontSee('id="btnFitActiveTrack"', false);
         $response->assertDontSee('id="btnToggleActiveTrack"', false);

@@ -973,6 +973,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 'ship_type' => $shipType,
                 'timestamp' => $timeUtc,
                 'raw_payload' => $json,
+                'allow_classification_review' => true,
             ]);
 
             if ($position) {
@@ -1014,6 +1015,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 'beam_meters' => $beamM,
                 'timestamp' => $timeUtc,
                 'raw_payload' => $json,
+                'allow_classification_review' => true,
             ]);
 
             // STEP 2: Ingest position message separately (subject to coordinate bounds & prohibited policy checks)
@@ -1028,6 +1030,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 'ship_type' => $shipType,
                 'timestamp' => $timeUtc,
                 'raw_payload' => $json,
+                'allow_classification_review' => true,
             ]);
 
             if ($position) {
@@ -1063,6 +1066,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 'ship_type' => null,
                 'timestamp' => $timeUtc,
                 'raw_payload' => $json,
+                'allow_classification_review' => true,
             ]);
 
             return [
@@ -1096,6 +1100,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 'beam_meters' => $beamM,
                 'timestamp' => $timeUtc,
                 'raw_payload' => $json,
+                'allow_classification_review' => true,
             ]);
 
             return [
@@ -1141,6 +1146,7 @@ class AisStreamAdapter implements ProviderAdapterInterface
                 'beam_meters' => $beamM,
                 'timestamp' => $timeUtc,
                 'raw_payload' => $json,
+                'allow_classification_review' => true,
             ]);
 
             return [
@@ -1459,6 +1465,18 @@ class AisStreamAdapter implements ProviderAdapterInterface
             $aisTypeCode = is_numeric($rawShipType) ? (int) $rawShipType : null;
             $vesselType = self::normalizeVesselType($rawShipType);
             $classificationSource = 'AIS_STATIC_MESSAGE_SHIPTYPE';
+
+            if (empty($existingVessel) && empty($message['allow_classification_review']) && in_array($vesselType, ['cargo', 'tanker', 'pleasure'])) {
+                \App\Models\ProhibitedVessel::firstOrCreate(
+                    ['mmsi' => $cleanMmsi],
+                    [
+                        'reason' => 'non_fishing_policy',
+                        'original_name' => $shipName,
+                        'original_type' => $vesselType,
+                    ]
+                );
+                return null;
+            }
         }
 
         $length = isset($message['length_meters']) && is_numeric($message['length_meters']) && (float) $message['length_meters'] > 0

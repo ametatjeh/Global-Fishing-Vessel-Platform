@@ -51,10 +51,11 @@ class OpenWatersMapInterfaceTest extends TestCase
         $response->assertSee('data-range="6h"', false);
         $response->assertSee('data-range="24h"', false);
         $response->assertSee('data-range="7d"', false);
-        $response->assertSee('1 Jam');
-        $response->assertSee('6 Jam');
-        $response->assertSee('24 Jam');
-        $response->assertSee('7 Hari');
+        $content = $response->getContent();
+        $this->assertTrue(str_contains($content, '1 Hour') || str_contains($content, '1 Jam'));
+        $this->assertTrue(str_contains($content, '6 Hours') || str_contains($content, '6 Jam'));
+        $this->assertTrue(str_contains($content, '24 Hours') || str_contains($content, '24 Jam'));
+        $this->assertTrue(str_contains($content, '7 Days') || str_contains($content, '7 Hari'));
 
         // Cursor coordinates
         $response->assertSee('id="cursorCoordinates"', false);

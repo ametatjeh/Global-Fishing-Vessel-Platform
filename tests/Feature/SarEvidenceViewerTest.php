@@ -320,7 +320,7 @@ class SarEvidenceViewerTest extends TestCase
         $response->assertStatus(422);
         $response->assertJson([
             'status' => 'error',
-            'message' => 'Parameter window tidak valid.',
+            'message' => 'Invalid window parameter.',
         ]);
     }
 

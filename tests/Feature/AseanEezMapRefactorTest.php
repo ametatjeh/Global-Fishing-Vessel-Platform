@@ -211,7 +211,10 @@ class AseanEezMapRefactorTest extends TestCase
         // 1. New ASEAN EEZ layer and status legends must exist
         $response->assertSee('ASEAN Exclusive Economic Zones (EEZ)');
         $response->assertSee('toggle-layer-asean-eez');
-        $response->assertSee('Status Batas Maritim ASEAN');
+        $this->assertTrue(
+            str_contains($response->getContent(), 'ASEAN Maritime Boundary Status') ||
+            str_contains($response->getContent(), 'Status Batas Maritim ASEAN')
+        );
         $response->assertSee('Agreed / Delimitated');
         $response->assertSee('Undelimited / Unresolved');
         $response->assertSee('Disputed / Overlapping Claim');

@@ -573,7 +573,7 @@
                     <div class="pt-1.5 border-t border-slate-800/80 space-y-1 text-[9px] text-slate-300">
                         <div class="flex items-center gap-2">
                             <span class="w-4 h-0.5 bg-slate-300 shrink-0"></span>
-                            <span class="truncate">Agreed / Delimited (Official Bilateral Treaty)</span>
+                            <span class="truncate">Agreed / Delimitated (Official Bilateral Treaty)</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="w-4 h-0.5 border-b border-dashed border-slate-400 shrink-0"></span>
