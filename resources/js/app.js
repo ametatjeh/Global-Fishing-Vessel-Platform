@@ -1,4 +1,5 @@
 import './bootstrap';
+import './dashboard/vessel-breakdown';
 
 // Check if current DOM requires MapLibre spatial engine
 const hasMapCanvas = () => {
