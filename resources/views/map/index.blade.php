@@ -14,7 +14,7 @@
 <div class="relative h-[calc(100vh-4rem)] sm:h-[calc(100vh-8.5rem)] min-h-0 sm:min-h-[580px] rounded-none sm:rounded-2xl overflow-hidden border-0 sm:border sm:border-slate-800 shadow-none sm:shadow-2xl flex flex-col bg-slate-950 font-sans">
 
     <!-- Top Floating Toolbar: Quick Actions, Search & Control Popovers -->
-    <div class="absolute top-2 sm:top-3 left-2 sm:left-3 z-30 flex items-center gap-1.5 sm:gap-2 pointer-events-none max-w-[calc(100%-3.5rem)] sm:max-w-none">
+    <div class="absolute top-2 sm:top-3 left-2 sm:left-3 z-30 flex items-center gap-1.5 sm:gap-2 pointer-events-none max-w-[calc(100%-1rem)] sm:max-w-none">
         
         <!-- Left: Search & Navigation Toolbar -->
         <div class="pointer-events-auto flex items-center gap-1 sm:gap-1.5 p-1 rounded-xl glass-panel border border-slate-700/80 shadow-2xl text-xs backdrop-blur-md">

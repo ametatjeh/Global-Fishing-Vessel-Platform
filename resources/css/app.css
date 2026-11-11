@@ -122,17 +122,21 @@
     display: none !important;
 }
 
-/* Specific Mobile Optimization for top-right Map Controls (< 640px) */
+/* Specific Mobile Optimization for Map Controls (< 640px): Move to bottom-right */
 @media (max-width: 639px) {
     .maplibregl-ctrl-top-right {
-        top: 8px !important;
+        top: auto !important;
+        bottom: 8px !important;
         right: 8px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 6px !important;
     }
 
     .maplibregl-ctrl-top-right .maplibregl-ctrl {
-        margin: 0 0 6px 0 !important;
-        float: right;
-        clear: both;
+        margin: 0 !important;
+        float: none !important;
+        clear: none !important;
     }
 
     .maplibregl-ctrl-top-right .maplibregl-ctrl-group {
