@@ -1114,7 +1114,7 @@ export class GlobalMapController {
 
         this.registerVesselIcons();
 
-        // High-performance GeoJSON source for vessel markers with adaptive clustering (up to 1,000 vessels)
+        // High-performance GeoJSON source for vessel markers with adaptive clustering (up to 3,000 vessels)
         this.map.addSource('vessels-source', {
             type: 'geojson',
             data: { type: 'FeatureCollection', features: [] },
@@ -1136,8 +1136,8 @@ export class GlobalMapController {
                     ['get', 'point_count'],
                     'rgba(14, 165, 233, 0.85)', // Sky blue (< 25 vessels)
                     25, 'rgba(20, 184, 166, 0.85)', // Teal (25-99 vessels)
-                    100, 'rgba(245, 158, 11, 0.85)', // Amber (100-249 vessels)
-                    250, 'rgba(99, 102, 241, 0.90)' // Indigo (>= 250 vessels)
+                    100, 'rgba(245, 158, 11, 0.85)', // Amber (100-499 vessels)
+                    500, 'rgba(99, 102, 241, 0.90)' // Indigo (>= 500 vessels)
                 ],
                 'circle-radius': [
                     'step',
@@ -1145,7 +1145,7 @@ export class GlobalMapController {
                     16,
                     25, 20,
                     100, 24,
-                    250, 28
+                    500, 30
                 ],
                 'circle-stroke-width': 2,
                 'circle-stroke-color': '#ffffff',
@@ -2294,7 +2294,7 @@ export class GlobalMapController {
             aseanEez: `/api/layers/asean-eez?bbox=${bbox || ''}`,
             australiaEez: `/api/layers/australia-eez?bbox=${bbox || ''}`,
             encounters: `/api/layers/encounters?bbox=${bbox || ''}`,
-            vessels: `/api/layers/vessels?limit=1000&bbox=${bbox || ''}`,
+            vessels: `/api/layers/vessels?limit=3000&bbox=${bbox || ''}`,
             darkVessels: `/api/layers/dark-vessels?bbox=${bbox || ''}`,
             sarScenes: `/api/layers/sar-scenes?bbox=${bbox || ''}`,
         };
@@ -2445,7 +2445,7 @@ export class GlobalMapController {
             badge.innerText = count.toLocaleString();
             badge.classList.remove('text-red-400');
             if (layerKey === 'vessels') {
-                badge.title = `Displaying ${count.toLocaleString()} vessels on map (limit 1,000)`;
+                badge.title = `Displaying ${count.toLocaleString()} vessels on map (limit 3,000)`;
             }
         }
         if (layerKey === 'vessels') {
@@ -2463,7 +2463,7 @@ export class GlobalMapController {
 
             const statusContainer = document.getElementById('statusVesselContainer');
             if (statusContainer && metadata) {
-                statusContainer.title = `Map Displayed: ${count.toLocaleString()} vessels (Max 1,000)\n` +
+                statusContainer.title = `Map Displayed: ${count.toLocaleString()} vessels (Max 3,000)\n` +
                     `Active AIS Telemetry (<2h): ${(Number(metadata.active_vessels) || 0).toLocaleString()}\n` +
                     `Stale AIS Telemetry: ${(Number(metadata.stale_vessels) || 0).toLocaleString()}\n` +
                     `Vessels with Valid Sea Positions: ${(Number(metadata.valid_positions) || 0).toLocaleString()}\n` +

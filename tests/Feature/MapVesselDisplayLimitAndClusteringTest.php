@@ -29,7 +29,7 @@ class MapVesselDisplayLimitAndClusteringTest extends TestCase
         $this->spatialService = app(SpatialQueryService::class);
     }
 
-    public function test_api_defaults_to_1000_vessels_and_respects_max_limit(): void
+    public function test_api_defaults_to_3000_vessels_and_respects_max_limit(): void
     {
         // Create 25 vessels across various categories
         $categories = ['fishing', 'cargo', 'tanker', 'pleasure', 'passenger', 'tug', 'unknown'];
@@ -52,13 +52,13 @@ class MapVesselDisplayLimitAndClusteringTest extends TestCase
             ]);
         }
 
-        // 1. Default request should fetch up to 1000 vessels (here all 25)
+        // 1. Default request should fetch up to 3000 vessels (here all 25)
         $response = $this->actingAs($this->user)->getJson('/api/layers/vessels');
         $response->assertStatus(200);
 
         $data = $response->json();
         $this->assertEquals(25, $data['metadata']['count']);
-        $this->assertEquals(1000, $data['metadata']['limit']);
+        $this->assertEquals(3000, $data['metadata']['limit']);
         $this->assertEquals(25, $data['metadata']['rendered_count']);
         $this->assertArrayHasKey('total_vessels', $data['metadata']);
         $this->assertArrayHasKey('valid_positions', $data['metadata']);
@@ -70,6 +70,11 @@ class MapVesselDisplayLimitAndClusteringTest extends TestCase
         $responseLimited->assertStatus(200);
         $this->assertCount(10, $responseLimited->json('features'));
         $this->assertEquals(10, $responseLimited->json('metadata.limit'));
+
+        // 3. Requests exceeding max limit 3000 are clamped to 3000
+        $responseClamped = $this->actingAs($this->user)->getJson('/api/layers/vessels?limit=5000');
+        $responseClamped->assertStatus(200);
+        $this->assertEquals(3000, $responseClamped->json('metadata.limit'));
     }
 
     public function test_prioritizes_vessels_with_latest_ais_updates(): void
@@ -125,7 +130,7 @@ class MapVesselDisplayLimitAndClusteringTest extends TestCase
             ]);
         }
 
-        $result = $this->spatialService->getLiveVesselsFeatureCollection(null, null, 1000);
+        $result = $this->spatialService->getLiveVesselsFeatureCollection(null, null, 3000);
         $this->assertCount(7, $result['features']);
 
         $returnedTypes = collect($result['features'])->pluck('properties.vessel_type')->all();
@@ -169,7 +174,7 @@ class MapVesselDisplayLimitAndClusteringTest extends TestCase
             'data_quality_score' => 0.0,
         ]);
 
-        $result = $this->spatialService->getLiveVesselsFeatureCollection(null, null, 1000);
+        $result = $this->spatialService->getLiveVesselsFeatureCollection(null, null, 3000);
         $vesselIds = collect($result['features'])->pluck('properties.vessel_id')->all();
 
         $this->assertContains($vSea->id, $vesselIds);
@@ -233,17 +238,17 @@ class MapVesselDisplayLimitAndClusteringTest extends TestCase
         $this->assertEquals(1, $stats['stale_vessels']);  // only v2
     }
 
-    public function test_returns_up_to_1000_vessels_when_over_1000_candidates_exist(): void
+    public function test_returns_up_to_3000_vessels_when_over_3000_candidates_exist(): void
     {
-        // Batch insert 1,050 vessels with valid sea positions
+        // Batch insert 3,100 vessels with valid sea positions
         $vesselsData = [];
         $positionsData = [];
         $now = Carbon::now();
 
-        for ($i = 1; $i <= 1050; $i++) {
+        for ($i = 1; $i <= 3100; $i++) {
             $vId = (string) \Illuminate\Support\Str::uuid();
             $pId = (string) \Illuminate\Support\Str::uuid();
-            $obsTime = $now->copy()->subMinutes(1100 - $i)->format('Y-m-d H:i:s');
+            $obsTime = $now->copy()->subMinutes(3200 - $i)->format('Y-m-d H:i:s');
 
             $vesselsData[] = [
                 'id' => $vId,
@@ -275,12 +280,12 @@ class MapVesselDisplayLimitAndClusteringTest extends TestCase
             VesselPosition::insert($chunk);
         }
 
-        // Fetch without explicit limit (defaults to 1000)
+        // Fetch without explicit limit (defaults to 3000)
         $result = $this->spatialService->getLiveVesselsFeatureCollection();
 
-        $this->assertCount(1000, $result['features']);
-        $this->assertEquals(1000, $result['metadata']['count']);
-        $this->assertEquals(1000, $result['metadata']['limit']);
-        $this->assertEquals(1000, $result['metadata']['rendered_count']);
+        $this->assertCount(3000, $result['features']);
+        $this->assertEquals(3000, $result['metadata']['count']);
+        $this->assertEquals(3000, $result['metadata']['limit']);
+        $this->assertEquals(3000, $result['metadata']['rendered_count']);
     }
 }
