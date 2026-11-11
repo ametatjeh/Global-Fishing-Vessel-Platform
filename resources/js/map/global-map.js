@@ -1114,18 +1114,67 @@ export class GlobalMapController {
 
         this.registerVesselIcons();
 
-        // High-performance GeoJSON source for individual vessel markers
+        // High-performance GeoJSON source for vessel markers with adaptive clustering (up to 1,000 vessels)
         this.map.addSource('vessels-source', {
             type: 'geojson',
-            data: { type: 'FeatureCollection', features: [] }
+            data: { type: 'FeatureCollection', features: [] },
+            cluster: true,
+            clusterMaxZoom: 9, // Clusters active at zoom 0-9; from zoom 10+ all individual vessels with full COG/Heading icons display
+            clusterRadius: 45
         });
 
-        // 0. Selected Vessel Highlight Ring (Cincin Sorot Kapal Terpilih)
+        // 0a. Vessel Cluster Circles (High-Performance Aggregation)
+        this.map.addLayer({
+            id: 'vessels-clusters',
+            type: 'circle',
+            source: 'vessels-source',
+            filter: ['has', 'point_count'],
+            layout: { visibility: this.activeLayers.vessels ? 'visible' : 'none' },
+            paint: {
+                'circle-color': [
+                    'step',
+                    ['get', 'point_count'],
+                    'rgba(14, 165, 233, 0.85)', // Sky blue (< 25 vessels)
+                    25, 'rgba(20, 184, 166, 0.85)', // Teal (25-99 vessels)
+                    100, 'rgba(245, 158, 11, 0.85)', // Amber (100-249 vessels)
+                    250, 'rgba(99, 102, 241, 0.90)' // Indigo (>= 250 vessels)
+                ],
+                'circle-radius': [
+                    'step',
+                    ['get', 'point_count'],
+                    16,
+                    25, 20,
+                    100, 24,
+                    250, 28
+                ],
+                'circle-stroke-width': 2,
+                'circle-stroke-color': '#ffffff',
+                'circle-stroke-opacity': 0.85
+            }
+        });
+
+        // 0b. Vessel Cluster Count Labels
+        this.map.addLayer({
+            id: 'vessels-cluster-count',
+            type: 'symbol',
+            source: 'vessels-source',
+            filter: ['has', 'point_count'],
+            layout: {
+                'text-field': '{point_count_abbreviated}',
+                'text-size': 11,
+                'visibility': this.activeLayers.vessels ? 'visible' : 'none'
+            },
+            paint: {
+                'text-color': '#ffffff'
+            }
+        });
+
+        // 0c. Selected Vessel Highlight Ring (Cincin Sorot Kapal Terpilih)
         this.map.addLayer({
             id: 'vessels-selected-ring',
             type: 'circle',
             source: 'vessels-source',
-            filter: ['==', ['get', 'vessel_id'], this.selectedVesselId || ''],
+            filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'vessel_id'], this.selectedVesselId || '']],
             layout: { visibility: this.activeLayers.vessels ? 'visible' : 'none' },
             paint: {
                 'circle-radius': [
@@ -1162,7 +1211,7 @@ export class GlobalMapController {
             id: 'vessels-oriented-layer',
             type: 'symbol',
             source: 'vessels-source',
-            filter: ['==', ['get', 'has_orientation'], true],
+            filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'has_orientation'], true]],
             layout: {
                 'icon-image': [
                     'case',
@@ -1251,7 +1300,7 @@ export class GlobalMapController {
             id: 'vessels-circle-layer',
             type: 'circle',
             source: 'vessels-source',
-            filter: ['!=', ['get', 'has_orientation'], true],
+            filter: ['all', ['!', ['has', 'point_count']], ['!=', ['get', 'has_orientation'], true]],
             layout: { visibility: this.activeLayers.vessels ? 'visible' : 'none' },
             paint: {
                 'circle-radius': [
@@ -1487,7 +1536,9 @@ export class GlobalMapController {
             'vessel-track-points-layer',
             'vessel-track-latest-point-layer',
 
-            // 5. Vessels — strictly topmost individual oriented and neutral markers
+            // 5. Vessels — clusters and strictly topmost individual oriented and neutral markers
+            'vessels-clusters',
+            'vessels-cluster-count',
             'vessels-selected-ring',
             'vessels-circle-layer',
             'vessels-oriented-layer'
@@ -1504,7 +1555,7 @@ export class GlobalMapController {
         });
 
         // Unconditional enforcement: vessel layers remain on top of everything
-        ['vessels-selected-ring', 'vessels-circle-layer', 'vessels-oriented-layer'].forEach((id) => {
+        ['vessels-clusters', 'vessels-cluster-count', 'vessels-selected-ring', 'vessels-circle-layer', 'vessels-oriented-layer'].forEach((id) => {
             if (this.map.getLayer(id)) {
                 try {
                     this.map.moveLayer(id);
@@ -1538,6 +1589,30 @@ export class GlobalMapController {
                 </div>
             `;
             this.showPopup(e.lngLat, html);
+        });
+
+        // Vessel Cluster Click — Smooth zoom into cluster expansion bounds
+        this.map.on('click', 'vessels-clusters', (e) => {
+            if (!e.features || !e.features.length) return;
+            const clusterId = e.features[0].properties.cluster_id;
+            const source = this.map.getSource('vessels-source');
+            if (source && typeof source.getClusterExpansionZoom === 'function') {
+                source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+                    if (err) return;
+                    this.map.easeTo({
+                        center: e.features[0].geometry.coordinates,
+                        zoom: Math.min(zoom + 0.5, 14),
+                        duration: 600
+                    });
+                });
+            }
+        });
+
+        this.map.on('mouseenter', 'vessels-clusters', () => {
+            this.map.getCanvas().style.cursor = 'pointer';
+        });
+        this.map.on('mouseleave', 'vessels-clusters', () => {
+            this.map.getCanvas().style.cursor = '';
         });
 
         // Individual Vessel Click (Oriented Chevron)
@@ -1776,7 +1851,7 @@ export class GlobalMapController {
         this.selectedVesselCoords = coords;
 
         if (this.map && this.map.getLayer('vessels-selected-ring')) {
-            this.map.setFilter('vessels-selected-ring', ['==', ['get', 'vessel_id'], this.selectedVesselId || '']);
+            this.map.setFilter('vessels-selected-ring', ['all', ['!', ['has', 'point_count']], ['==', ['get', 'vessel_id'], this.selectedVesselId || '']]);
         }
 
         const isFresh = props.is_fresh === true || props.is_fresh === 'true';
@@ -1999,7 +2074,7 @@ export class GlobalMapController {
     setSelectedVessel(vesselId) {
         this.selectedVesselId = vesselId || null;
         if (this.map && this.map.getLayer('vessels-selected-ring')) {
-            this.map.setFilter('vessels-selected-ring', ['==', ['get', 'vessel_id'], this.selectedVesselId || '']);
+            this.map.setFilter('vessels-selected-ring', ['all', ['!', ['has', 'point_count']], ['==', ['get', 'vessel_id'], this.selectedVesselId || '']]);
         }
     }
 
@@ -2010,7 +2085,7 @@ export class GlobalMapController {
         }
         this.selectedVesselId = String(mmsi);
         if (this.map && this.map.getLayer('vessels-selected-ring')) {
-            this.map.setFilter('vessels-selected-ring', ['==', ['get', 'mmsi'], String(mmsi)]);
+            this.map.setFilter('vessels-selected-ring', ['all', ['!', ['has', 'point_count']], ['==', ['get', 'mmsi'], String(mmsi)]]);
         }
     }
 
@@ -2171,6 +2246,9 @@ export class GlobalMapController {
             ],
             encounters: ['encounters-circle-layer'],
             vessels: [
+                'vessels-clusters',
+                'vessels-cluster-count',
+                'vessels-selected-ring',
                 'vessels-oriented-layer',
                 'vessels-circle-layer'
             ],
@@ -2216,7 +2294,7 @@ export class GlobalMapController {
             aseanEez: `/api/layers/asean-eez?bbox=${bbox || ''}`,
             australiaEez: `/api/layers/australia-eez?bbox=${bbox || ''}`,
             encounters: `/api/layers/encounters?bbox=${bbox || ''}`,
-            vessels: `/api/layers/vessels?bbox=${bbox || ''}`,
+            vessels: `/api/layers/vessels?limit=1000&bbox=${bbox || ''}`,
             darkVessels: `/api/layers/dark-vessels?bbox=${bbox || ''}`,
             sarScenes: `/api/layers/sar-scenes?bbox=${bbox || ''}`,
         };
@@ -2310,7 +2388,7 @@ export class GlobalMapController {
             if (source && typeof source.setData === 'function') {
                 source.setData(geojson);
             }
-            this.updateLayerCountBadge(layerKey, geojson.features ? geojson.features.length : 0);
+            this.updateLayerCountBadge(layerKey, geojson.features ? geojson.features.length : 0, geojson.metadata);
             this.ensureLayerOrder();
         } catch (err) {
             if (err.name === 'AbortError') {
@@ -2361,16 +2439,46 @@ export class GlobalMapController {
         }
     }
 
-    updateLayerCountBadge(layerKey, count) {
+    updateLayerCountBadge(layerKey, count, metadata = null) {
         const badge = document.getElementById(`count-${layerKey}`);
         if (badge) {
             badge.innerText = count.toLocaleString();
             badge.classList.remove('text-red-400');
+            if (layerKey === 'vessels') {
+                badge.title = `Displaying ${count.toLocaleString()} vessels on map (limit 1,000)`;
+            }
         }
         if (layerKey === 'vessels') {
             const statusCount = document.getElementById('statusVesselCount');
             if (statusCount) {
                 statusCount.innerText = `${count.toLocaleString()} vessels`;
+            }
+
+            const statusDetails = document.getElementById('statusVesselDetails');
+            if (statusDetails && metadata) {
+                const validStr = metadata.valid_positions ? Number(metadata.valid_positions).toLocaleString() : count.toLocaleString();
+                const totalStr = metadata.total_vessels ? Number(metadata.total_vessels).toLocaleString() : count.toLocaleString();
+                statusDetails.innerText = `(of ${validStr} sea-valid • ${totalStr} fleet)`;
+            }
+
+            const statusContainer = document.getElementById('statusVesselContainer');
+            if (statusContainer && metadata) {
+                statusContainer.title = `Map Displayed: ${count.toLocaleString()} vessels (Max 1,000)\n` +
+                    `Active AIS Telemetry (<2h): ${(Number(metadata.active_vessels) || 0).toLocaleString()}\n` +
+                    `Stale AIS Telemetry: ${(Number(metadata.stale_vessels) || 0).toLocaleString()}\n` +
+                    `Vessels with Valid Sea Positions: ${(Number(metadata.valid_positions) || 0).toLocaleString()}\n` +
+                    `Total Fleet in Database: ${(Number(metadata.total_vessels) || 0).toLocaleString()}`;
+            }
+
+            const breakdownEl = document.getElementById('vesselsStatsBreakdown');
+            if (breakdownEl && metadata) {
+                breakdownEl.innerHTML = `
+                    <span title="Rendered on map">● Map: <strong class="text-sky-300 font-bold">${count.toLocaleString()}</strong></span>
+                    <span title="Valid maritime sea positions">● Valid: <strong class="text-teal-300">${(Number(metadata.valid_positions) || 0).toLocaleString()}</strong></span>
+                    <span title="Active broadcast within 2h">● Live: <strong class="text-emerald-300">${(Number(metadata.active_vessels) || 0).toLocaleString()}</strong></span>
+                    <span title="Stale broadcast older than 2h">● Stale: <strong class="text-amber-300">${(Number(metadata.stale_vessels) || 0).toLocaleString()}</strong></span>
+                    <span title="Total fleet registered in database">● Total: <strong class="text-slate-300">${(Number(metadata.total_vessels) || 0).toLocaleString()}</strong></span>
+                `;
             }
         }
     }

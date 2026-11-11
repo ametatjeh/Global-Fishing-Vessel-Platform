@@ -823,13 +823,50 @@ class SpatialQueryService
     }
 
     /**
+     * Get accurate fleet vessel statistics
+     * Distinguishes: Total in database, with valid sea positions, active (< 2h), stale (> 2h)
+     */
+    public function getVesselStatistics(): array
+    {
+        return \Illuminate\Support\Facades\Cache::remember('vessel_spatial_statistics', 60, function () {
+            $total = Vessel::count();
+
+            $baseValidQuery = VesselPosition::query()
+                ->where('is_on_land', false)
+                ->whereRaw('NOT (latitude = 0.0 AND longitude = 0.0)')
+                ->where(function ($q) {
+                    $q->whereNull('data_quality_score')
+                      ->orWhere('data_quality_score', '>', 0.0);
+                });
+
+            $validPositionsCount = (clone $baseValidQuery)
+                ->distinct('vessel_id')
+                ->count('vessel_id');
+
+            $activeCount = (clone $baseValidQuery)
+                ->where('observed_at', '>=', now()->subHours(2))
+                ->distinct('vessel_id')
+                ->count('vessel_id');
+
+            $staleCount = max(0, $validPositionsCount - $activeCount);
+
+            return [
+                'total_vessels' => $total,
+                'valid_positions' => $validPositionsCount,
+                'active_vessels' => $activeCount,
+                'stale_vessels' => $staleCount,
+            ];
+        });
+    }
+
+    /**
      * Get Live AIS Vessel Positions as GeoJSON FeatureCollection
      * Optimized query using direct position indices and driver-specific distinct selection
      */
-    public function getLiveVesselsFeatureCollection(?array $bbox = null, ?string $search = null, int $limit = 200, array $filters = []): array
+    public function getLiveVesselsFeatureCollection(?array $bbox = null, ?string $search = null, int $limit = 1000, array $filters = []): array
     {
         $driver = DB::connection()->getDriverName();
-        $limit = $limit > 0 ? $limit : 200;
+        $limit = $limit > 0 ? $limit : 1000;
 
         // Base query on vessel_positions to leverage indexes on lat/lng/observed_at
         // Exclude quarantined or invalid coordinate records (data_quality_score <= 0.0)
@@ -981,16 +1018,22 @@ class SpatialQueryService
         }
 
         if ($driver === 'pgsql') {
-            // PostgreSQL high-speed DISTINCT ON to retrieve the latest position per vessel without correlated subqueries
-            $positionIds = (clone $posQuery)
-                ->select('id')
+            // PostgreSQL high-speed DISTINCT ON wrapped in outer query ordered by observed_at DESC
+            // to prioritize vessels with the latest AIS updates across the fleet
+            $baseSub = (clone $posQuery)
+                ->select('id', 'vessel_id', 'observed_at')
                 ->distinct('vessel_id')
-                ->orderByRaw('vessel_id, observed_at DESC')
+                ->orderByRaw('vessel_id, observed_at DESC');
+
+            $positionIds = DB::query()
+                ->fromSub($baseSub, 'latest_pos')
+                ->orderBy('observed_at', 'desc')
                 ->limit($limit)
                 ->pluck('id');
 
             $positions = VesselPosition::with(['vessel', 'sourceProvider'])
                 ->whereIn('id', $positionIds)
+                ->orderBy('observed_at', 'desc')
                 ->get();
         } else {
             // SQLite / test fallback: precisely select latest valid sea position per vessel by observed_at DESC
@@ -1091,11 +1134,19 @@ class SpatialQueryService
             ];
         }
 
+        $stats = $this->getVesselStatistics();
+
         return [
             'type' => 'FeatureCollection',
             'features' => $features,
             'metadata' => [
                 'count' => count($features),
+                'rendered_count' => count($features),
+                'limit' => $limit,
+                'total_vessels' => $stats['total_vessels'],
+                'valid_positions' => $stats['valid_positions'],
+                'active_vessels' => $stats['active_vessels'],
+                'stale_vessels' => $stats['stale_vessels'],
                 'generated_at' => now()->toIso8601String(),
             ]
         ];

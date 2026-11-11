@@ -296,7 +296,8 @@
                                 <span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
                                 <span>Live AIS Vessels</span>
                             </div>
-                            <p class="text-[10px] text-slate-400 mt-0.5">Active real-time broadcast vessel telemetry</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Active real-time broadcast vessel telemetry (max 1,000 displayed)</p>
+                            <div id="vesselsStatsBreakdown" class="text-[9px] text-slate-400 mt-1 font-mono flex flex-wrap gap-x-2 gap-y-0.5"></div>
                         </div>
                     </div>
                     <div class="text-right shrink-0">
@@ -708,9 +709,10 @@
             <span class="text-teal-400 font-bold">📍</span>
             <span id="cursorCoordinates">Lat: 0.00000°, Lon: 0.00000° | Zoom: 3.50</span>
         </div>
-        <div class="pointer-events-auto px-2.5 py-1 rounded-lg glass-panel border border-slate-700/80 shadow-md text-slate-300 flex items-center gap-1.5">
+        <div class="pointer-events-auto px-2.5 py-1 rounded-lg glass-panel border border-slate-700/80 shadow-md text-slate-300 flex items-center gap-1.5" id="statusVesselContainer" title="Vessel Fleet Statistics">
             <span class="text-sky-400 font-bold">🚢</span>
             <span id="statusVesselCount" class="text-sky-300 font-bold">0 vessels</span>
+            <span id="statusVesselDetails" class="hidden sm:inline text-[10px] text-slate-400 font-normal"></span>
         </div>
         <div class="pointer-events-auto hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-panel border border-slate-700/80 shadow-md text-emerald-400">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
