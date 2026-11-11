@@ -26,7 +26,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('styles')
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans antialiased selection:bg-teal-500 selection:text-slate-950 min-h-screen flex flex-col overflow-x-hidden">
+<body class="bg-slate-950 text-slate-100 font-sans antialiased selection:bg-teal-500 selection:text-slate-950 {{ request()->routeIs('map.*') ? 'max-sm:h-[100dvh] max-sm:overflow-hidden min-h-screen' : 'min-h-screen' }} flex flex-col overflow-x-hidden">
 
     <!-- Mobile Drawer Backdrop Overlay -->
     <div id="sidebar-overlay" class="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-40 transition-opacity duration-300 hidden opacity-0 lg:hidden" aria-hidden="true"></div>
@@ -226,7 +226,7 @@
     </aside>
 
     <!-- Main Content Area -->
-    <div id="main-content" class="flex-1 flex flex-col min-h-screen transition-all duration-300 ease-in-out pl-0 lg:pl-64 max-w-full overflow-x-hidden">
+    <div id="main-content" class="flex-1 flex flex-col {{ request()->routeIs('map.*') ? 'max-sm:h-[100dvh] max-sm:max-h-[100dvh] max-sm:overflow-hidden min-h-0' : 'min-h-screen' }} transition-all duration-300 ease-in-out pl-0 lg:pl-64 max-w-full overflow-x-hidden">
         <!-- Top Operational Bar -->
         <header class="h-16 bg-slate-900/80 border-b border-slate-800 sticky top-0 z-20 backdrop-blur px-4 sm:px-6 flex items-center justify-between gap-2 sm:gap-4">
             <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
@@ -323,7 +323,7 @@
         @endif
 
         <!-- Page Content -->
-        <main class="flex-1 {{ request()->routeIs('map.*') ? 'p-0 sm:p-6' : 'p-4 sm:p-6' }}">
+        <main class="flex-1 {{ request()->routeIs('map.*') ? 'p-0 sm:p-6 max-sm:h-[calc(100dvh-4rem)] max-sm:overflow-hidden flex flex-col min-h-0' : 'p-4 sm:p-6' }}">
             @yield('content')
         </main>
 

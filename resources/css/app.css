@@ -147,6 +147,14 @@
         width: 32px !important;
         height: 32px !important;
     }
+
+}
+
+/* Hide maplibregl-ctrl-bottom-left on mobile and tablet (< 1024px) */
+@media (max-width: 1023px) {
+    .maplibregl-ctrl-bottom-left {
+        display: none !important;
+    }
 }
 
 /* ==========================================================================

@@ -11,7 +11,7 @@
     $correlationStatuses = $filterMeta['correlation_statuses'] ?? [];
     $platforms = $filterMeta['platforms'] ?? [];
 @endphp
-<div class="relative h-[calc(100vh-4rem)] sm:h-[calc(100vh-8.5rem)] min-h-0 sm:min-h-[580px] rounded-none sm:rounded-2xl overflow-hidden border-0 sm:border sm:border-slate-800 shadow-none sm:shadow-2xl flex flex-col bg-slate-950 font-sans">
+<div class="relative flex-1 w-full h-[calc(100dvh-4rem)] sm:h-[calc(100vh-8.5rem)] min-h-0 sm:min-h-[580px] rounded-none sm:rounded-2xl overflow-hidden border-0 sm:border sm:border-slate-800 shadow-none sm:shadow-2xl flex flex-col bg-slate-950 font-sans">
 
     <!-- Top Floating Toolbar: Quick Actions, Search & Control Popovers -->
     <div class="absolute top-2 sm:top-3 left-2 sm:left-3 z-30 flex items-center gap-1.5 sm:gap-2 pointer-events-none max-w-[calc(100%-1rem)] sm:max-w-none">
@@ -706,14 +706,14 @@
     <div id="global-map-canvas" class="w-full h-full flex-1 bg-slate-950 min-h-0 sm:min-h-[480px]"></div>
 
     <!-- Bottom Coordinates, Counts & Map Scale Status Bar -->
-    <div class="absolute bottom-2 left-3 z-10 pointer-events-none flex flex-wrap items-center gap-2 text-[11px] font-mono">
+    <div class="absolute bottom-2 left-2 sm:left-3 z-10 pointer-events-none flex flex-wrap items-center gap-2 text-[11px] font-mono">
         <div class="pointer-events-auto hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-lg glass-panel border border-slate-700/80 shadow-md text-slate-300">
             <span class="text-teal-400 font-bold">📍</span>
             <span id="cursorCoordinates">Lat: 0.00000°, Lon: 0.00000° | Zoom: 3.50</span>
         </div>
-        <div class="pointer-events-auto px-2.5 py-1 rounded-lg glass-panel border border-slate-700/80 shadow-md text-slate-300 flex items-center gap-1.5" id="statusVesselContainer" title="Vessel Fleet Statistics">
+        <div class="pointer-events-auto px-2 sm:px-2.5 py-1 rounded-lg glass-panel border border-slate-700/80 shadow-md text-slate-300 flex items-center gap-1.5" id="statusVesselContainer" title="Vessel Fleet Statistics">
             <span class="text-sky-400 font-bold">🚢</span>
-            <span id="statusVesselCount" class="text-sky-300 font-bold">0 vessels</span>
+            <span id="statusVesselCount" class="text-sky-300 font-bold text-[11px]">0 vessels</span>
             <span id="statusVesselDetails" class="hidden sm:inline text-[10px] text-slate-400 font-normal"></span>
         </div>
         <div class="pointer-events-auto hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-panel border border-slate-700/80 shadow-md text-emerald-400">
