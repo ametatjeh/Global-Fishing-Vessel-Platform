@@ -30,14 +30,14 @@ class DynamicViewportVesselLoadingTest extends TestCase
         $this->spatialService = app(SpatialQueryService::class);
     }
 
-    public function test_global_mode_enforces_3000_max_cap_and_prioritizes_latest_ais(): void
+    public function test_global_mode_enforces_2000_max_cap_and_prioritizes_latest_ais(): void
     {
         $now = Carbon::now();
         $vesselsData = [];
         $positionsData = [];
 
-        // Create 3,200 vessels globally
-        for ($i = 1; $i <= 3200; $i++) {
+        // Create 2,500 vessels globally
+        for ($i = 1; $i <= 2500; $i++) {
             $vId = (string) Str::uuid();
             $obsTime = $now->copy()->subMinutes($i);
 
@@ -78,9 +78,9 @@ class DynamicViewportVesselLoadingTest extends TestCase
 
         $data = $response->json();
         $this->assertEquals('global', $data['metadata']['mode']);
-        $this->assertEquals(3000, $data['metadata']['count']);
-        $this->assertEquals(3000, $data['metadata']['limit']);
-        $this->assertCount(3000, $data['features']);
+        $this->assertEquals(2000, $data['metadata']['count']);
+        $this->assertEquals(2000, $data['metadata']['limit']);
+        $this->assertCount(2000, $data['features']);
         $this->assertFalse($data['metadata']['has_more']);
     }
 

@@ -861,12 +861,12 @@ class SpatialQueryService
 
     /**
      * Get Live AIS Vessel Positions as GeoJSON FeatureCollection
-     * Supports Global Mode (max 3,000 vessels worldwide) and Viewport Mode (unlimited vessels loaded via batch pagination)
+     * Supports Global Mode (max 2,000 vessels worldwide) and Viewport Mode (unlimited vessels loaded via batch pagination)
      */
     public function getLiveVesselsFeatureCollection(
         ?array $bbox = null,
         ?string $search = null,
-        int $limit = 3000,
+        int $limit = 2000,
         array $filters = [],
         string $mode = 'global',
         int $page = 1,
@@ -879,7 +879,7 @@ class SpatialQueryService
         $page = max(1, $page);
 
         if ($mode === 'global') {
-            $limit = min(max($limit, 1), 3000);
+            $limit = min(max($limit, 1), 2000);
         } else {
             $limit = min(max($limit, 1), 5000);
         }
