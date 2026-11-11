@@ -87,10 +87,6 @@ class User extends Authenticatable
             'research.audit.view',
         ],
         'researcher' => [
-            'investigations.view',
-            'investigations.create',
-            'investigations.update',
-            'investigations.export',
             'vessels.view',
             'vessels.enrich',
             'ownership.view',

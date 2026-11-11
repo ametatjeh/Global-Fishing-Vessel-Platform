@@ -59,7 +59,7 @@ class PrivateInvestigationResearchTest extends TestCase
         $this->researcherA = User::factory()->create([
             'name' => 'Rina Wijaya',
             'email' => 'rina.wijaya@ocean-ngo.org',
-            'role' => 'researcher',
+            'role' => 'analyst',
             'organization' => 'Ocean Guardian NGO',
             'is_active' => true,
         ]);
@@ -67,7 +67,7 @@ class PrivateInvestigationResearchTest extends TestCase
         $this->researcherB = User::factory()->create([
             'name' => 'Agus Prasetyo',
             'email' => 'agus.p@maritime-univ.ac.id',
-            'role' => 'researcher',
+            'role' => 'analyst',
             'organization' => 'Maritime University Center',
             'is_active' => true,
         ]);
@@ -83,7 +83,7 @@ class PrivateInvestigationResearchTest extends TestCase
         $this->deactivatedResearcher = User::factory()->create([
             'name' => 'Deactivated Researcher',
             'email' => 'revoked@partner-institute.org',
-            'role' => 'researcher',
+            'role' => 'analyst',
             'organization' => 'Partner Institute',
             'is_active' => false,
         ]);

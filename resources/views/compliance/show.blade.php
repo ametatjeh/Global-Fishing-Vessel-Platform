@@ -27,9 +27,11 @@
             <a href="{{ route('compliance.index') }}" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition border border-slate-700">
                 &larr; Back to Compliance
             </a>
+            @if(in_array(auth()->user()?->role, ['super_admin', 'admin', 'analyst', 'research_lead', 'institutional_researcher']))
             <a href="{{ route('investigations.create', ['target_vessel_id' => $event->vessel_id]) }}" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition shadow-md">
                 Open Investigation Case
             </a>
+            @endif
         </div>
     </div>
 

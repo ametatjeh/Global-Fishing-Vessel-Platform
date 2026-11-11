@@ -28,7 +28,7 @@
     </div>
 
     <!-- Authentic Key Metrics (Non-Fictitious) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 {{ auth()->user()?->role === 'researcher' ? 'lg:grid-cols-4' : 'lg:grid-cols-3 xl:grid-cols-6' }} gap-4">
         <!-- Metric 1: Total Vessels -->
         <div class="glass-panel p-4 rounded-xl border border-slate-800 space-y-2">
             <div class="flex items-center justify-between text-slate-400 text-xs">
@@ -49,6 +49,7 @@
             <div class="text-[10px] text-slate-400">Vessels with recent broadcast</div>
         </div>
 
+        @if(auth()->user()?->role !== 'researcher')
         <!-- Metric 3: Encounters Needing Review -->
         <div class="glass-panel p-4 rounded-xl border border-slate-800 space-y-2">
             <div class="flex items-center justify-between text-slate-400 text-xs">
@@ -58,6 +59,7 @@
             <div class="text-2xl font-black text-amber-300 font-mono">{{ number_format($encountersNeedingReview) }}</div>
             <div class="text-[10px] text-slate-400">Pending maritime analyst review</div>
         </div>
+        @endif
 
         <!-- Metric 4: Dark Vessel Candidates -->
         <div class="glass-panel p-4 rounded-xl border border-slate-800 space-y-2">
@@ -79,6 +81,7 @@
             <div class="text-[10px] text-slate-400">Active non-compliance indicators</div>
         </div>
 
+        @if(auth()->user()?->role !== 'researcher')
         <!-- Metric 6: Open Investigations -->
         <div class="glass-panel p-4 rounded-xl border border-slate-800 space-y-2">
             <div class="flex items-center justify-between text-slate-400 text-xs">
@@ -88,6 +91,7 @@
             <div class="text-2xl font-black text-indigo-300 font-mono">{{ number_format($openInvestigations) }}</div>
             <div class="text-[10px] text-slate-400">Open active dossiers</div>
         </div>
+        @endif
     </div>
 
     <!-- Data Freshness & Data Providers Status -->
@@ -195,8 +199,9 @@
     </div>
 
     <!-- Recent Feeds: Encounters & Compliance Alerts -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 {{ auth()->user()?->role !== 'researcher' ? 'lg:grid-cols-2' : '' }} gap-6">
 
+        @if(auth()->user()?->role !== 'researcher')
         <!-- Recent Encounters -->
         <div class="glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
             <div class="flex items-center justify-between border-b border-slate-800 pb-2">
@@ -244,6 +249,7 @@
                 @endforelse
             </div>
         </div>
+        @endif
 
         <!-- Recent Compliance Alerts -->
         <div class="glass-panel p-5 rounded-xl border border-slate-800 space-y-4">

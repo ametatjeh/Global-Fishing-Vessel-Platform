@@ -32,7 +32,7 @@ class GfwNonCommercialComplianceTest extends TestCase
         $this->researcher = User::factory()->create([
             'name' => 'Marine Compliance Researcher',
             'email' => 'researcher@marine-intel.org',
-            'role' => 'researcher',
+            'role' => 'analyst',
             'organization' => 'Ocean Research Center',
             'is_active' => true,
         ]);
@@ -70,7 +70,10 @@ class GfwNonCommercialComplianceTest extends TestCase
         ];
 
         foreach ($routesToAudit as $route) {
-            $response = $this->actingAs($this->researcher)->get($route);
+            $user = ($route === '/encounters')
+                ? User::factory()->create(['role' => 'analyst', 'is_active' => true])
+                : $this->researcher;
+            $response = $this->actingAs($user)->get($route);
             $response->assertStatus(200);
 
             // Secret token must NEVER appear in raw output, HTML, or JSON

@@ -21,8 +21,8 @@ class PrivateInvestigationService
      */
     public function canUserAccess(User $user, Investigation $investigation): bool
     {
-        // 1. Inactive or decommissioned roles are strictly denied
-        if (!$user->is_active || $user->role === 'viewer') {
+        // 1. Inactive, decommissioned, or restricted roles are strictly denied
+        if (!$user->is_active || in_array($user->role, ['viewer', 'researcher'], true)) {
             return false;
         }
 
@@ -106,8 +106,8 @@ class PrivateInvestigationService
     {
         $query = Investigation::with(['targetVessel', 'assignedTo', 'createdBy', 'leadResearcher']);
 
-        // Inactive or viewer users see nothing
-        if (!$user->is_active || $user->role === 'viewer') {
+        // Inactive, viewer, or restricted researcher users see nothing
+        if (!$user->is_active || in_array($user->role, ['viewer', 'researcher'], true)) {
             return $query->whereRaw('1 = 0');
         }
 

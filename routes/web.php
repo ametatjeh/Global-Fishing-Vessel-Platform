@@ -55,12 +55,14 @@ Route::middleware(['auth', 'role'])->group(function () {
         ->middleware('role:super_admin,admin,analyst')
         ->name('vessels.observations.accept');
 
-    // 3. Vessel Encounters
-    Route::get('/encounters', [EncounterController::class, 'index'])->name('encounters.index');
-    Route::get('/encounters/{id}', [EncounterController::class, 'show'])->name('encounters.show');
-    Route::post('/encounters/{id}/status', [EncounterController::class, 'updateStatus'])
-        ->middleware('role:super_admin,admin,analyst')
-        ->name('encounters.update-status');
+    // 3. Vessel Encounters (Restricted from Researcher)
+    Route::middleware('role:super_admin,admin,analyst,research_lead,institutional_researcher')->group(function () {
+        Route::get('/encounters', [EncounterController::class, 'index'])->name('encounters.index');
+        Route::get('/encounters/{id}', [EncounterController::class, 'show'])->name('encounters.show');
+        Route::post('/encounters/{id}/status', [EncounterController::class, 'updateStatus'])
+            ->middleware('role:super_admin,admin,analyst')
+            ->name('encounters.update-status');
+    });
 
     // 6. Dark Vessel Detection & SAR Candidate Analyst Review
     Route::get('/dark-vessels', [DarkVesselController::class, 'index'])->name('dark-vessels.index');
@@ -89,19 +91,17 @@ Route::middleware(['auth', 'role'])->group(function () {
         ->middleware('role:super_admin,admin,analyst')
         ->name('compliance.update-status');
 
-    // 8. Investigations (Restricted — Private Research Team Dossiers)
-    Route::get('/investigations', [InvestigationController::class, 'index'])->name('investigations.index');
-    Route::get('/investigations/create', [InvestigationController::class, 'create'])
-        ->middleware('role:super_admin,admin,analyst,research_lead,researcher,institutional_researcher')
-        ->name('investigations.create');
-    Route::post('/investigations', [InvestigationController::class, 'store'])
-        ->middleware('role:super_admin,admin,analyst,research_lead,researcher,institutional_researcher')
-        ->name('investigations.store');
-    Route::get('/investigations/{id}', [InvestigationController::class, 'show'])->name('investigations.show');
-    Route::patch('/investigations/{id}/findings', [InvestigationController::class, 'updateFindings'])
-        ->name('investigations.findings.update');
-    Route::get('/investigations/{id}/export', [InvestigationController::class, 'export'])
-        ->name('investigations.export');
+    // 8. Investigations (Restricted — Private Research Team Dossiers, Researcher role excluded)
+    Route::middleware('role:super_admin,admin,analyst,research_lead,institutional_researcher')->group(function () {
+        Route::get('/investigations', [InvestigationController::class, 'index'])->name('investigations.index');
+        Route::get('/investigations/create', [InvestigationController::class, 'create'])->name('investigations.create');
+        Route::post('/investigations', [InvestigationController::class, 'store'])->name('investigations.store');
+        Route::get('/investigations/{id}', [InvestigationController::class, 'show'])->name('investigations.show');
+        Route::patch('/investigations/{id}/findings', [InvestigationController::class, 'updateFindings'])
+            ->name('investigations.findings.update');
+        Route::get('/investigations/{id}/export', [InvestigationController::class, 'export'])
+            ->name('investigations.export');
+    });
 
     // 9. Data Sources & Providers
     Route::get('/providers', [ProviderController::class, 'index'])->name('providers.index');

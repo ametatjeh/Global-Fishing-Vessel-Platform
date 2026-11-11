@@ -110,6 +110,7 @@
             </a>
             @endif
 
+            @if(in_array(auth()->user()?->role, ['super_admin', 'admin', 'analyst', 'research_lead', 'institutional_researcher']))
             <a href="{{ route('encounters.index') }}" data-tooltip="Vessel Encounters"
                 class="sidebar-item flex items-center justify-between px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('encounters.*') ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
                 <div class="flex items-center gap-2.5 min-w-0">
@@ -117,6 +118,7 @@
                     <span class="sidebar-text truncate">Vessel Encounters</span>
                 </div>
             </a>
+            @endif
 
             <a href="{{ route('dark-vessels.index') }}" data-tooltip="Analyst Review (SAR)"
                 class="sidebar-item flex items-center justify-between px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('dark-vessels.*') || request()->routeIs('sar.*') ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
@@ -134,11 +136,13 @@
                 </div>
             </a>
 
+            @if(in_array(auth()->user()?->role, ['super_admin', 'admin', 'analyst', 'research_lead', 'institutional_researcher']))
             <a href="{{ route('investigations.index') }}" data-tooltip="Investigations Dossier"
                 class="sidebar-item flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('investigations.*') ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
                 <span class="sidebar-icon">📁</span>
                 <span class="sidebar-text truncate">Investigations</span>
             </a>
+            @endif
 
             <div class="sidebar-section-title pt-4 px-2 pb-1 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
                 Integrations &amp; Settings
@@ -156,11 +160,13 @@
                 <span class="sidebar-text truncate">Data Sources &amp; Providers</span>
             </a>
 
+            @if(auth()->user()?->isAdmin())
             <a href="{{ route('settings.index') }}" data-tooltip="System Settings"
                 class="sidebar-item flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('settings.index') ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
                 <span class="sidebar-icon">⚙️</span>
                 <span class="sidebar-text truncate">System Settings</span>
             </a>
+            @endif
 
             @if(auth()->user()?->isAdmin())
             <a href="{{ route('settings.retention.index') }}" data-tooltip="Data Retention Policy"
@@ -170,11 +176,13 @@
             </a>
             @endif
 
+            @if(auth()->user()?->isAdmin())
             <a href="{{ route('audit-logs.index') }}" data-tooltip="Activity Logs"
                 class="sidebar-item flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium transition {{ request()->routeIs('audit-logs.*') ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
                 <span class="sidebar-icon">📜</span>
                 <span class="sidebar-text truncate">Activity Logs</span>
             </a>
+            @endif
 
             @if(auth()->user()?->isSuperAdmin())
             <div class="sidebar-section-title pt-4 px-2 pb-1 text-[10px] uppercase font-bold text-amber-400 tracking-wider flex items-center justify-between">
