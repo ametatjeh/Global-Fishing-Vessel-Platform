@@ -1117,29 +1117,29 @@ export class GlobalMapController {
 
         this.registerVesselIcons();
 
-        // High-performance GeoJSON source for vessel markers with adaptive clustering (up to 3,000 vessels)
-        // Zoom 0-8: Clusters active (0-4 Global, 5-6 Regional, 7-8 Local)
+        // High-performance GeoJSON source for vessel markers with adaptive clustering (up to 5,000 vessels)
+        // Zoom 0.0-3.0: Global clusters, 3.1-4.0: Regional clusters, 4.1-5.0: Local clusters
         this.map.addSource('vessels-source', {
             type: 'geojson',
             data: { type: 'FeatureCollection', features: [] },
             cluster: true,
-            clusterMaxZoom: 8,
+            clusterMaxZoom: 5,
             clusterRadius: 55
         });
 
-        // Dedicated unclustered GeoJSON source for seamless individual marker rendering above zoom 8.0
+        // Dedicated unclustered GeoJSON source for seamless individual marker rendering above zoom 5.1
         this.map.addSource('vessels-raw-source', {
             type: 'geojson',
             data: { type: 'FeatureCollection', features: [] },
             cluster: false
         });
 
-        // 0a. Vessel Cluster Circles (High-Performance Aggregation: Zoom 0 - 8.0)
+        // 0a. Vessel Cluster Circles (High-Performance Aggregation: Zoom 0.0 - 5.0, Transition 5.1)
         this.map.addLayer({
             id: 'vessels-clusters',
             type: 'circle',
             source: 'vessels-source',
-            maxzoom: 8.05,
+            maxzoom: 5.12,
             filter: ['has', 'point_count'],
             layout: { visibility: this.activeLayers.vessels ? 'visible' : 'none' },
             paint: {
@@ -1171,7 +1171,7 @@ export class GlobalMapController {
             id: 'vessels-cluster-count',
             type: 'symbol',
             source: 'vessels-source',
-            maxzoom: 8.05,
+            maxzoom: 5.12,
             filter: ['has', 'point_count'],
             layout: {
                 'text-field': '{point_count_abbreviated}',
@@ -1191,12 +1191,12 @@ export class GlobalMapController {
             }
         });
 
-        // 0c. Selected Vessel Highlight Ring (Cincin Sorot Kapal Terpilih: Zoom > 8.0)
+        // 0c. Selected Vessel Highlight Ring (Cincin Sorot Kapal Terpilih: Zoom > 5.1)
         this.map.addLayer({
             id: 'vessels-selected-ring',
             type: 'circle',
             source: 'vessels-raw-source',
-            minzoom: 8.05,
+            minzoom: 5.12,
             filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'vessel_id'], this.selectedVesselId || '']],
             layout: { visibility: this.activeLayers.vessels ? 'visible' : 'none' },
             paint: {
@@ -1229,12 +1229,12 @@ export class GlobalMapController {
             }
         });
 
-        // 1. Individual Vessels with Valid Orientation (Heading or COG: Zoom > 8.0)
+        // 1. Individual Vessels with Valid Orientation (Heading or COG: Zoom > 5.1)
         this.map.addLayer({
             id: 'vessels-oriented-layer',
             type: 'symbol',
             source: 'vessels-raw-source',
-            minzoom: 8.05,
+            minzoom: 5.12,
             filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'has_orientation'], true]],
             layout: {
                 'icon-image': [
@@ -1319,12 +1319,12 @@ export class GlobalMapController {
             }
         });
 
-        // 2. Individual Vessels with Direction Unavailable (Neutral Beacon Circle: Zoom > 8.0)
+        // 2. Individual Vessels with Direction Unavailable (Neutral Beacon Circle: Zoom > 5.1)
         this.map.addLayer({
             id: 'vessels-circle-layer',
             type: 'circle',
             source: 'vessels-raw-source',
-            minzoom: 8.05,
+            minzoom: 5.12,
             filter: ['all', ['!', ['has', 'point_count']], ['!=', ['get', 'has_orientation'], true]],
             layout: { visibility: this.activeLayers.vessels ? 'visible' : 'none' },
             paint: {
@@ -2319,7 +2319,7 @@ export class GlobalMapController {
             aseanEez: `/api/layers/asean-eez?bbox=${bbox || ''}`,
             australiaEez: `/api/layers/australia-eez?bbox=${bbox || ''}`,
             encounters: `/api/layers/encounters?bbox=${bbox || ''}`,
-            vessels: `/api/layers/vessels?limit=3000&bbox=${bbox || ''}`,
+            vessels: `/api/layers/vessels?limit=5000&bbox=${bbox || ''}`,
             darkVessels: `/api/layers/dark-vessels?bbox=${bbox || ''}`,
             sarScenes: `/api/layers/sar-scenes?bbox=${bbox || ''}`,
         };
@@ -2473,7 +2473,7 @@ export class GlobalMapController {
             badge.innerText = count.toLocaleString();
             badge.classList.remove('text-red-400');
             if (layerKey === 'vessels') {
-                badge.title = `Displaying ${count.toLocaleString()} vessels on map (limit 3,000)`;
+                badge.title = `Displaying ${count.toLocaleString()} vessels on map (limit 5,000)`;
             }
         }
         if (layerKey === 'vessels') {
@@ -2491,7 +2491,7 @@ export class GlobalMapController {
 
             const statusContainer = document.getElementById('statusVesselContainer');
             if (statusContainer && metadata) {
-                statusContainer.title = `Map Displayed: ${count.toLocaleString()} vessels (Max 3,000)\n` +
+                statusContainer.title = `Map Displayed: ${count.toLocaleString()} vessels (Max 5,000)\n` +
                     `Active AIS Telemetry (<2h): ${(Number(metadata.active_vessels) || 0).toLocaleString()}\n` +
                     `Stale AIS Telemetry: ${(Number(metadata.stale_vessels) || 0).toLocaleString()}\n` +
                     `Vessels with Valid Sea Positions: ${(Number(metadata.valid_positions) || 0).toLocaleString()}\n` +

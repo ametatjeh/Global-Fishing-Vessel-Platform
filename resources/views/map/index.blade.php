@@ -296,7 +296,7 @@
                                 <span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
                                 <span>Live AIS Vessels</span>
                             </div>
-                            <p class="text-[10px] text-slate-400 mt-0.5">Active real-time broadcast vessel telemetry (max 3,000 displayed)</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Active real-time broadcast vessel telemetry (max 5,000 displayed)</p>
                             <div id="vesselsStatsBreakdown" class="text-[9px] text-slate-400 mt-1 font-mono flex flex-wrap gap-x-2 gap-y-0.5"></div>
                         </div>
                     </div>

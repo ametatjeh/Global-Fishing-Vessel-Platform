@@ -863,10 +863,10 @@ class SpatialQueryService
      * Get Live AIS Vessel Positions as GeoJSON FeatureCollection
      * Optimized query using direct position indices and driver-specific distinct selection
      */
-    public function getLiveVesselsFeatureCollection(?array $bbox = null, ?string $search = null, int $limit = 3000, array $filters = []): array
+    public function getLiveVesselsFeatureCollection(?array $bbox = null, ?string $search = null, int $limit = 5000, array $filters = []): array
     {
         $driver = DB::connection()->getDriverName();
-        $limit = $limit > 0 ? $limit : 3000;
+        $limit = $limit > 0 ? $limit : 5000;
 
         // Base query on vessel_positions to leverage indexes on lat/lng/observed_at
         // Exclude quarantined or invalid coordinate records (data_quality_score <= 0.0)

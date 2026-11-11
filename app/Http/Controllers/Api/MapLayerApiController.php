@@ -246,7 +246,7 @@ class MapLayerApiController extends Controller
             'end_date' => $request->query('end_date'),
         ];
 
-        $limit = min(max((int) $request->query('limit', 3000), 1), 3000);
+        $limit = min(max((int) $request->query('limit', 5000), 1), 5000);
         $data = $this->spatial->getLiveVesselsFeatureCollection($bbox, $search, $limit, $filters);
 
         return response()->json($data);
