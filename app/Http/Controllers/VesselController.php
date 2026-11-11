@@ -16,8 +16,7 @@ class VesselController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Vessel::with(['latestPosition', 'sourceProvider'])
-            ->withCount('identifiers');
+        $query = Vessel::with(['latestPosition', 'sourceProvider']);
 
         $search = $request->input('search') ?? $request->input('q');
         if ($search) {
@@ -167,7 +166,7 @@ class VesselController extends Controller
             }
         }
 
-        $vessels = $query->orderBy('name')->paginate($perPage)->withQueryString();
+        $vessels = $query->orderBy('name')->orderBy('id')->paginate($perPage)->withQueryString();
 
         // Total registered vessels in registry (Cached for performance)
         $totalVessels = Cache::remember('vessels_total_count', 30, function () {
@@ -191,53 +190,58 @@ class VesselController extends Controller
             ];
         });
 
-        // Distinct country list for Flag State dropdown derived from actual vessel records in DB:
-        // 1. Explicit flag_state in vessels table
-        $explicitCodes = Vessel::whereNotNull('flag_state')
-            ->where('flag_state', '!=', '')
-            ->distinct()
-            ->pluck('flag_state');
+        // Distinct country list for Flag State dropdown derived from actual vessel records in DB (Cached for performance)
+        $availableFlagCountries = Cache::remember('vessels_available_flag_countries', 300, function () {
+            // 1. Explicit flag_state in vessels table
+            $explicitCodes = Vessel::whereNotNull('flag_state')
+                ->where('flag_state', '!=', '')
+                ->distinct()
+                ->pluck('flag_state');
 
-        // 2. MMSI MID prefixes for vessels without explicit flag_state
-        $mmsiPrefixes = Vessel::where(function ($q) {
-                $q->whereNull('flag_state')->orWhere('flag_state', '');
-            })
-            ->whereNotNull('mmsi')
-            ->where('mmsi', '!=', '')
-            ->pluck('mmsi')
-            ->map(fn ($m) => substr(trim($m), 0, 3))
-            ->unique()
-            ->filter(fn ($p) => strlen($p) === 3 && ctype_digit($p));
+            // 2. MMSI MID prefixes for vessels without explicit flag_state
+            $mmsiPrefixes = Vessel::where(function ($q) {
+                    $q->whereNull('flag_state')->orWhere('flag_state', '');
+                })
+                ->whereNotNull('mmsi')
+                ->where('mmsi', '!=', '')
+                ->distinct()
+                ->selectRaw('SUBSTRING(TRIM(mmsi), 1, 3) as prefix')
+                ->pluck('prefix')
+                ->filter(fn ($p) => strlen($p) === 3 && ctype_digit($p));
 
-        $countries = collect();
-        foreach ($explicitCodes as $code) {
-            $detail = FlagStateService::resolveCountryDetails($code);
-            if (!empty($detail['is_known']) && !empty($detail['iso2']) && $detail['iso2'] !== 'UN') {
-                $countries->push($detail);
-            }
-        }
-
-        foreach ($mmsiPrefixes as $mid) {
-            $midInfo = FlagStateService::lookupMid($mid . '000000');
-            if ($midInfo) {
-                $detail = FlagStateService::resolveCountryDetails($midInfo['iso2']);
+            $countries = collect();
+            foreach ($explicitCodes as $code) {
+                $detail = FlagStateService::resolveCountryDetails($code);
                 if (!empty($detail['is_known']) && !empty($detail['iso2']) && $detail['iso2'] !== 'UN') {
                     $countries->push($detail);
                 }
             }
-        }
 
-        $availableFlagCountries = $countries
-            ->unique('iso2')
-            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
-            ->values();
+            foreach ($mmsiPrefixes as $mid) {
+                $midInfo = FlagStateService::lookupMid($mid . '000000');
+                if ($midInfo) {
+                    $detail = FlagStateService::resolveCountryDetails($midInfo['iso2']);
+                    if (!empty($detail['is_known']) && !empty($detail['iso2']) && $detail['iso2'] !== 'UN') {
+                        $countries->push($detail);
+                    }
+                }
+            }
 
-        // Check if there are vessels with unknown/unverified flag state in DB
-        $hasUnknownFlag = Vessel::where(function ($q) {
-            $q->whereNull('flag_state')
-              ->orWhere('flag_state', '')
-              ->orWhereRaw('LOWER(flag_state) IN (?, ?, ?)', ['unknown', 'un', '-']);
-        })->exists();
+            return $countries
+                ->unique('iso2')
+                ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+                ->values()
+                ->all();
+        });
+
+        // Check if there are vessels with unknown/unverified flag state in DB (Cached for performance)
+        $hasUnknownFlag = Cache::remember('vessels_has_unknown_flag', 300, function () {
+            return Vessel::where(function ($q) {
+                $q->whereNull('flag_state')
+                  ->orWhere('flag_state', '')
+                  ->orWhereRaw('LOWER(flag_state) IN (?, ?, ?)', ['unknown', 'un', '-']);
+            })->exists();
+        });
 
         // Calculate active filter count
         $activeFiltersCount = collect([
