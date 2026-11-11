@@ -861,12 +861,28 @@ class SpatialQueryService
 
     /**
      * Get Live AIS Vessel Positions as GeoJSON FeatureCollection
-     * Optimized query using direct position indices and driver-specific distinct selection
+     * Supports Global Mode (max 3,000 vessels worldwide) and Viewport Mode (unlimited vessels loaded via batch pagination)
      */
-    public function getLiveVesselsFeatureCollection(?array $bbox = null, ?string $search = null, int $limit = 5000, array $filters = []): array
+    public function getLiveVesselsFeatureCollection(
+        ?array $bbox = null,
+        ?string $search = null,
+        int $limit = 3000,
+        array $filters = [],
+        string $mode = 'global',
+        int $page = 1,
+        ?int $totalInViewport = null,
+        ?float $zoom = null
+    ): array
     {
         $driver = DB::connection()->getDriverName();
-        $limit = $limit > 0 ? $limit : 5000;
+        $mode = in_array(strtolower($mode), ['global', 'viewport'], true) ? strtolower($mode) : 'global';
+        $page = max(1, $page);
+
+        if ($mode === 'global') {
+            $limit = min(max($limit, 1), 3000);
+        } else {
+            $limit = min(max($limit, 1), 5000);
+        }
 
         // Base query on vessel_positions to leverage indexes on lat/lng/observed_at
         // Exclude quarantined or invalid coordinate records (data_quality_score <= 0.0)
@@ -880,7 +896,8 @@ class SpatialQueryService
             ->whereRaw('NOT (latitude = 0.0 AND longitude = 0.0)')
             ->where('is_on_land', false);
 
-        if ($bbox && count($bbox) === 4) {
+        // In Viewport Mode (or if bbox is explicitly provided for viewport), apply bounding box
+        if ($mode === 'viewport' && $bbox && count($bbox) === 4) {
             $minLng = (float) $bbox[0];
             $minLat = min((float) $bbox[1], (float) $bbox[3]);
             $maxLng = (float) $bbox[2];
@@ -1017,34 +1034,67 @@ class SpatialQueryService
             }
         }
 
+        $offset = ($page - 1) * $limit;
+
         if ($driver === 'pgsql') {
             // PostgreSQL high-speed DISTINCT ON wrapped in outer query ordered by observed_at DESC
-            // to prioritize vessels with the latest AIS updates across the fleet
             $baseSub = (clone $posQuery)
                 ->select('id', 'vessel_id', 'observed_at')
                 ->distinct('vessel_id')
                 ->orderByRaw('vessel_id, observed_at DESC');
 
-            $positionIds = DB::query()
-                ->fromSub($baseSub, 'latest_pos')
-                ->orderBy('observed_at', 'desc')
-                ->limit($limit)
-                ->pluck('id');
+            if ($mode === 'viewport') {
+                if ($totalInViewport === null) {
+                    $totalInViewport = DB::query()
+                        ->fromSub($baseSub, 'count_sub')
+                        ->count();
+                }
+
+                $positionIds = DB::query()
+                    ->fromSub($baseSub, 'latest_pos')
+                    ->orderBy('observed_at', 'desc')
+                    ->orderBy('id', 'desc')
+                    ->offset($offset)
+                    ->limit($limit)
+                    ->pluck('id');
+            } else {
+                // Global mode: single query up to 3000 vessels
+                $positionIds = DB::query()
+                    ->fromSub($baseSub, 'latest_pos')
+                    ->orderBy('observed_at', 'desc')
+                    ->limit($limit)
+                    ->pluck('id');
+
+                $totalInViewport = count($positionIds);
+            }
 
             $positions = VesselPosition::with(['vessel', 'sourceProvider'])
                 ->whereIn('id', $positionIds)
                 ->orderBy('observed_at', 'desc')
+                ->orderBy('id', 'desc')
                 ->get();
         } else {
-            // SQLite / test fallback: precisely select latest valid sea position per vessel by observed_at DESC
-            $positions = (clone $posQuery)
+            // SQLite / fallback
+            $allPositions = (clone $posQuery)
                 ->with(['vessel', 'sourceProvider'])
                 ->orderBy('observed_at', 'desc')
+                ->orderBy('id', 'desc')
                 ->get()
                 ->unique('vessel_id')
-                ->take($limit)
                 ->values();
+
+            if ($mode === 'viewport') {
+                $totalInViewport = $totalInViewport ?? $allPositions->count();
+                $positions = $allPositions->slice($offset, $limit)->values();
+            } else {
+                $positions = $allPositions->take($limit)->values();
+                $totalInViewport = $positions->count();
+            }
         }
+
+        $totalPages = $limit > 0 ? (int) max(1, ceil($totalInViewport / $limit)) : 1;
+        $hasMore = $mode === 'viewport' && ($page < $totalPages);
+        $nextPage = $hasMore ? $page + 1 : null;
 
         $features = [];
         foreach ($positions as $pos) {
@@ -1140,9 +1190,17 @@ class SpatialQueryService
             'type' => 'FeatureCollection',
             'features' => $features,
             'metadata' => [
+                'mode' => $mode,
+                'zoom' => $zoom,
+                'bbox' => $bbox,
                 'count' => count($features),
                 'rendered_count' => count($features),
                 'limit' => $limit,
+                'page' => $page,
+                'total_pages' => $totalPages,
+                'total_in_viewport' => $totalInViewport ?? count($features),
+                'has_more' => $hasMore,
+                'next_page' => $nextPage,
                 'total_vessels' => $stats['total_vessels'],
                 'valid_positions' => $stats['valid_positions'],
                 'active_vessels' => $stats['active_vessels'],

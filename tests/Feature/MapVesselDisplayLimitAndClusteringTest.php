@@ -29,7 +29,7 @@ class MapVesselDisplayLimitAndClusteringTest extends TestCase
         $this->spatialService = app(SpatialQueryService::class);
     }
 
-    public function test_api_defaults_to_5000_vessels_and_respects_max_limit(): void
+    public function test_api_defaults_to_3000_vessels_in_global_mode_and_respects_max_limit(): void
     {
         // Create 25 vessels across various categories
         $categories = ['fishing', 'cargo', 'tanker', 'pleasure', 'passenger', 'tug', 'unknown'];
@@ -52,34 +52,35 @@ class MapVesselDisplayLimitAndClusteringTest extends TestCase
             ]);
         }
 
-        // 1. Default request should fetch up to 5000 vessels (here all 25)
+        // 1. Default request should fetch global mode (limit 3000, here all 25)
         $response = $this->actingAs($this->user)->getJson('/api/layers/vessels');
         $response->assertStatus(200);
 
         $data = $response->json();
         $this->assertEquals(25, $data['metadata']['count']);
-        $this->assertEquals(5000, $data['metadata']['limit']);
+        $this->assertEquals(3000, $data['metadata']['limit']);
         $this->assertEquals(25, $data['metadata']['rendered_count']);
+        $this->assertEquals('global', $data['metadata']['mode']);
         $this->assertArrayHasKey('total_vessels', $data['metadata']);
         $this->assertArrayHasKey('valid_positions', $data['metadata']);
         $this->assertArrayHasKey('active_vessels', $data['metadata']);
         $this->assertArrayHasKey('stale_vessels', $data['metadata']);
 
-        // 2. Explicit limit request (e.g., limit=10)
-        $responseLimited = $this->actingAs($this->user)->getJson('/api/layers/vessels?limit=10');
+        // 2. Explicit limit request in global mode (e.g., limit=10)
+        $responseLimited = $this->actingAs($this->user)->getJson('/api/layers/vessels?mode=global&limit=10');
         $responseLimited->assertStatus(200);
         $this->assertCount(10, $responseLimited->json('features'));
         $this->assertEquals(10, $responseLimited->json('metadata.limit'));
 
-        // 3. Explicit limit=5000 request
-        $response5k = $this->actingAs($this->user)->getJson('/api/layers/vessels?limit=5000');
-        $response5k->assertStatus(200);
-        $this->assertEquals(5000, $response5k->json('metadata.limit'));
+        // 3. Explicit limit=3000 request in global mode
+        $response3k = $this->actingAs($this->user)->getJson('/api/layers/vessels?mode=global&limit=3000');
+        $response3k->assertStatus(200);
+        $this->assertEquals(3000, $response3k->json('metadata.limit'));
 
-        // 4. Requests exceeding max limit 5000 are clamped to 5000
-        $responseClamped = $this->actingAs($this->user)->getJson('/api/layers/vessels?limit=9999');
+        // 4. Requests exceeding global max limit 3000 are clamped to 3000
+        $responseClamped = $this->actingAs($this->user)->getJson('/api/layers/vessels?mode=global&limit=9999');
         $responseClamped->assertStatus(200);
-        $this->assertEquals(5000, $responseClamped->json('metadata.limit'));
+        $this->assertEquals(3000, $responseClamped->json('metadata.limit'));
     }
 
     public function test_prioritizes_vessels_with_latest_ais_updates(): void
@@ -285,16 +286,141 @@ class MapVesselDisplayLimitAndClusteringTest extends TestCase
             VesselPosition::insert($chunk);
         }
 
-        // Fetch without explicit limit (defaults to 5000)
-        $result = $this->spatialService->getLiveVesselsFeatureCollection();
+        // Fetch in global mode (defaults to 3000)
+        $result = $this->spatialService->getLiveVesselsFeatureCollection(null, null, 3000, [], 'global');
 
-        $this->assertCount(5000, $result['features']);
-        $this->assertEquals(5000, $result['metadata']['count']);
-        $this->assertEquals(5000, $result['metadata']['limit']);
-        $this->assertEquals(5000, $result['metadata']['rendered_count']);
+        $this->assertCount(3000, $result['features']);
+        $this->assertEquals(3000, $result['metadata']['count']);
+        $this->assertEquals(3000, $result['metadata']['limit']);
+        $this->assertEquals(3000, $result['metadata']['rendered_count']);
+        $this->assertEquals('global', $result['metadata']['mode']);
 
         // Verify no duplicate vessel IDs returned
         $returnedVesselIds = collect($result['features'])->pluck('properties.vessel_id')->all();
-        $this->assertCount(5000, array_unique($returnedVesselIds));
+        $this->assertCount(3000, array_unique($returnedVesselIds));
+    }
+
+    public function test_viewport_mode_supports_batch_pagination_and_loads_all_vessels_in_bbox(): void
+    {
+        $now = Carbon::now();
+        $vesselsData = [];
+        $positionsData = [];
+
+        // Insert 2,500 vessels in a specific viewport [100.0, -5.0, 105.0, 0.0]
+        for ($i = 1; $i <= 2500; $i++) {
+            $vId = (string) \Illuminate\Support\Str::uuid();
+            $obsTime = $now->copy()->subSeconds($i * 2);
+
+            $vesselsData[] = [
+                'id' => $vId,
+                'name' => "Viewport Vessel {$i}",
+                'mmsi' => sprintf('52588%04d', $i),
+                'vessel_type' => $i % 2 === 0 ? 'fishing' : 'cargo',
+                'flag_state' => 'IDN',
+                'created_at' => $now->format('Y-m-d H:i:s'),
+                'updated_at' => $now->format('Y-m-d H:i:s'),
+            ];
+
+            $positionsData[] = [
+                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'vessel_id' => $vId,
+                // Inside target bbox [100.0, -5.0, 105.0, 0.0]
+                'latitude' => -4.0 + (($i % 40) * 0.05),
+                'longitude' => 101.0 + (($i % 40) * 0.05),
+                'observed_at' => $obsTime,
+                'received_at' => $obsTime,
+                'is_on_land' => false,
+                'data_quality_score' => 1.0,
+                'created_at' => $now->format('Y-m-d H:i:s'),
+                'updated_at' => $now->format('Y-m-d H:i:s'),
+            ];
+        }
+
+        // Insert 100 vessels outside the viewport (e.g. at lat 20, lng 50)
+        for ($i = 1; $i <= 100; $i++) {
+            $vId = (string) \Illuminate\Support\Str::uuid();
+            $obsTime = $now->copy()->subMinutes($i);
+
+            $vesselsData[] = [
+                'id' => $vId,
+                'name' => "Outside Vessel {$i}",
+                'mmsi' => sprintf('52599%04d', $i),
+                'vessel_type' => 'tanker',
+                'flag_state' => 'SGP',
+                'created_at' => $now->format('Y-m-d H:i:s'),
+                'updated_at' => $now->format('Y-m-d H:i:s'),
+            ];
+
+            $positionsData[] = [
+                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'vessel_id' => $vId,
+                'latitude' => 20.0 + ($i * 0.01),
+                'longitude' => 50.0 + ($i * 0.01),
+                'observed_at' => $obsTime,
+                'received_at' => $obsTime,
+                'is_on_land' => false,
+                'data_quality_score' => 1.0,
+                'created_at' => $now->format('Y-m-d H:i:s'),
+                'updated_at' => $now->format('Y-m-d H:i:s'),
+            ];
+        }
+
+        foreach (array_chunk($vesselsData, 1000) as $chunk) {
+            Vessel::insert($chunk);
+        }
+        foreach (array_chunk($positionsData, 1000) as $chunk) {
+            VesselPosition::insert($chunk);
+        }
+
+        $bbox = '100.0,-5.0,105.0,0.0';
+
+        // 1. Fetch Batch 1 (limit 1000, page 1)
+        $resp1 = $this->actingAs($this->user)->getJson("/api/layers/vessels?mode=viewport&bbox={$bbox}&limit=1000&page=1");
+        $resp1->assertStatus(200);
+        $d1 = $resp1->json();
+
+        $this->assertEquals('viewport', $d1['metadata']['mode']);
+        $this->assertEquals(2500, $d1['metadata']['total_in_viewport']);
+        $this->assertEquals(1000, $d1['metadata']['count']);
+        $this->assertEquals(1, $d1['metadata']['page']);
+        $this->assertEquals(3, $d1['metadata']['total_pages']);
+        $this->assertTrue($d1['metadata']['has_more']);
+        $this->assertEquals(2, $d1['metadata']['next_page']);
+
+        // 2. Fetch Batch 2 (limit 1000, page 2)
+        $resp2 = $this->actingAs($this->user)->getJson("/api/layers/vessels?mode=viewport&bbox={$bbox}&limit=1000&page=2&total_in_viewport=2500");
+        $resp2->assertStatus(200);
+        $d2 = $resp2->json();
+
+        $this->assertEquals(1000, $d2['metadata']['count']);
+        $this->assertEquals(2, $d2['metadata']['page']);
+        $this->assertTrue($d2['metadata']['has_more']);
+        $this->assertEquals(3, $d2['metadata']['next_page']);
+
+        // 3. Fetch Batch 3 (limit 1000, page 3)
+        $resp3 = $this->actingAs($this->user)->getJson("/api/layers/vessels?mode=viewport&bbox={$bbox}&limit=1000&page=3&total_in_viewport=2500");
+        $resp3->assertStatus(200);
+        $d3 = $resp3->json();
+
+        $this->assertEquals(500, $d3['metadata']['count']);
+        $this->assertEquals(3, $d3['metadata']['page']);
+        $this->assertFalse($d3['metadata']['has_more']);
+        $this->assertNull($d3['metadata']['next_page']);
+
+        // 4. Verify all 2,500 unique vessels collected with zero outside vessels
+        $allFeatures = array_merge($d1['features'], $d2['features'], $d3['features']);
+        $this->assertCount(2500, $allFeatures);
+        $uniqueIds = array_unique(array_column(array_column($allFeatures, 'properties'), 'vessel_id'));
+        $this->assertCount(2500, $uniqueIds);
+
+        // Confirm none of the outside vessels were included
+        foreach ($allFeatures as $f) {
+            $lat = $f['geometry']['coordinates'][1];
+            $lng = $f['geometry']['coordinates'][0];
+            $this->assertGreaterThanOrEqual(-5.0, $lat);
+            $this->assertLessThanOrEqual(0.0, $lat);
+            $this->assertGreaterThanOrEqual(100.0, $lng);
+            $this->assertLessThanOrEqual(105.0, $lng);
+        }
     }
 }

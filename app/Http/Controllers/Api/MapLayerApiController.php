@@ -225,11 +225,20 @@ class MapLayerApiController extends Controller
     }
 
     /**
-     * Get Live AIS Vessels Positions GeoJSON
+     * Get Live AIS Vessels Positions GeoJSON (Dynamic Viewport & Global Modes)
      */
     public function vessels(Request $request): JsonResponse
     {
         $bbox = $this->parseBBox($request->query('bbox'));
+        if (!$bbox && $request->has(['west', 'south', 'east', 'north'])) {
+            $bbox = [
+                (float) $request->query('west'),
+                (float) $request->query('south'),
+                (float) $request->query('east'),
+                (float) $request->query('north'),
+            ];
+        }
+
         $search = $request->query('q');
 
         $filters = [
@@ -246,8 +255,43 @@ class MapLayerApiController extends Controller
             'end_date' => $request->query('end_date'),
         ];
 
-        $limit = min(max((int) $request->query('limit', 5000), 1), 5000);
-        $data = $this->spatial->getLiveVesselsFeatureCollection($bbox, $search, $limit, $filters);
+        $zoom = $request->has('zoom') ? (float) $request->query('zoom') : null;
+        $mode = $request->query('mode');
+        if (!$mode) {
+            if ($zoom !== null) {
+                $mode = $zoom <= 3.0 ? 'global' : 'viewport';
+            } elseif ($bbox) {
+                $mode = 'viewport';
+            } else {
+                $mode = 'global';
+            }
+        }
+        $mode = strtolower(trim((string) $mode));
+        if (!in_array($mode, ['global', 'viewport'], true)) {
+            $mode = $bbox ? 'viewport' : 'global';
+        }
+
+        $page = max(1, (int) $request->query('page', 1));
+        $totalInViewport = $request->has('total_in_viewport') ? (int) $request->query('total_in_viewport') : null;
+
+        if ($mode === 'global') {
+            // Global mode: clamped to max 3,000 unique vessels
+            $limit = min(max((int) $request->query('limit', 3000), 1), 3000);
+        } else {
+            // Viewport mode: batch size default 1,000 (up to 5,000 per request)
+            $limit = min(max((int) $request->query('limit', 1000), 1), 5000);
+        }
+
+        $data = $this->spatial->getLiveVesselsFeatureCollection(
+            $bbox,
+            $search,
+            $limit,
+            $filters,
+            $mode,
+            $page,
+            $totalInViewport,
+            $zoom
+        );
 
         return response()->json($data);
     }

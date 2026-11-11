@@ -2307,12 +2307,15 @@ export class GlobalMapController {
     }
 
     async fetchLayerData(layerKey, options = {}) {
+        if (layerKey === 'vessels') {
+            return this.fetchVesselsData(options);
+        }
+
         const bbox = this.getViewportBBoxString();
         const urls = {
             aseanEez: `/api/layers/asean-eez?bbox=${bbox || ''}`,
             australiaEez: `/api/layers/australia-eez?bbox=${bbox || ''}`,
             encounters: `/api/layers/encounters?bbox=${bbox || ''}`,
-            vessels: `/api/layers/vessels?limit=5000&bbox=${bbox || ''}`,
             darkVessels: `/api/layers/dark-vessels?bbox=${bbox || ''}`,
             sarScenes: `/api/layers/sar-scenes?bbox=${bbox || ''}`,
         };
@@ -2321,7 +2324,6 @@ export class GlobalMapController {
             aseanEez: 'asean-eez-source',
             australiaEez: 'australia-eez-source',
             encounters: 'encounters-source',
-            vessels: 'vessels-source',
             darkVessels: 'dark-vessels-source',
             sarScenes: 'sar-scenes-source',
         };
@@ -2346,24 +2348,7 @@ export class GlobalMapController {
             let requestUrl = urls[layerKey];
             const params = new URLSearchParams();
 
-            if (layerKey === 'vessels') {
-                const searchVal = (this.filters.search || '').trim();
-                const searchInput = document.getElementById('inputVesselSearch');
-                const effectiveSearch = searchVal || (searchInput ? searchInput.value.trim() : '');
-                if (effectiveSearch) params.append('q', effectiveSearch);
-
-                if (this.filters.flag) params.append('flag', this.filters.flag);
-                if (this.filters.vesselType) params.append('vessel_type', this.filters.vesselType);
-                if (this.filters.minSog !== null && this.filters.minSog !== '' && isFinite(this.filters.minSog)) params.append('min_sog', this.filters.minSog);
-                if (this.filters.maxSog !== null && this.filters.maxSog !== '' && isFinite(this.filters.maxSog)) params.append('max_sog', this.filters.maxSog);
-                if (this.filters.minCog !== null && this.filters.minCog !== '' && isFinite(this.filters.minCog)) params.append('min_cog', this.filters.minCog);
-                if (this.filters.maxCog !== null && this.filters.maxCog !== '' && isFinite(this.filters.maxCog)) params.append('max_cog', this.filters.maxCog);
-                if (this.filters.headingStatus) params.append('heading_status', this.filters.headingStatus);
-                if (this.filters.freshness) params.append('freshness', this.filters.freshness);
-                if (this.filters.dateRange && this.filters.dateRange !== 'all') params.append('date_range', this.filters.dateRange);
-                if (this.filters.startDate) params.append('start_date', this.filters.startDate);
-                if (this.filters.endDate) params.append('end_date', this.filters.endDate);
-            } else if (layerKey === 'darkVessels') {
+            if (layerKey === 'darkVessels') {
                 const searchVal = (this.filters.search || '').trim();
                 const searchInput = document.getElementById('inputVesselSearch');
                 const effectiveSearch = searchVal || (searchInput ? searchInput.value.trim() : '');
@@ -2406,9 +2391,6 @@ export class GlobalMapController {
             if (source && typeof source.setData === 'function') {
                 source.setData(geojson);
             }
-            if (layerKey === 'vessels' && this.map.getSource('vessels-raw-source')) {
-                this.map.getSource('vessels-raw-source').setData(geojson);
-            }
             this.updateLayerCountBadge(layerKey, geojson.features ? geojson.features.length : 0, geojson.metadata);
             this.ensureLayerOrder();
         } catch (err) {
@@ -2424,6 +2406,184 @@ export class GlobalMapController {
                 delete this.layerAbortControllers[layerKey];
                 if (!options.silent) {
                     this.setLoadingBadge(layerKey, false);
+                }
+            }
+        }
+    }
+
+    /**
+     * Dynamic Viewport-Based Vessel Loading (Section 1 - 7)
+     * - Global Mode (Zoom 0-3): Up to 3,000 unique vessels worldwide ordered by latest AIS
+     * - Viewport Mode (Zoom > 3): Full viewport loading via sequential batching with AbortController deduplication
+     */
+    async fetchVesselsData(options = {}) {
+        if (!this.map || !this.map.getSource('vessels-source')) return;
+
+        // Abort previous in-flight vessels requests on map move/zoom to prevent stale race conditions
+        if (this.layerAbortControllers && this.layerAbortControllers['vessels']) {
+            this.layerAbortControllers['vessels'].abort();
+        }
+        const controller = new AbortController();
+        if (!this.layerAbortControllers) {
+            this.layerAbortControllers = {};
+        }
+        this.layerAbortControllers['vessels'] = controller;
+
+        if (!options.silent) {
+            this.setLoadingBadge('vessels', true);
+        }
+
+        try {
+            const zoom = this.map.getZoom();
+            const isGlobalMode = zoom <= 3.0;
+            const mode = isGlobalMode ? 'global' : 'viewport';
+            const bbox = this.getViewportBBoxString();
+
+            // Build base filter parameters
+            const params = new URLSearchParams();
+            params.append('mode', mode);
+            params.append('zoom', zoom.toFixed(2));
+
+            const searchVal = (this.filters.search || '').trim();
+            const searchInput = document.getElementById('inputVesselSearch');
+            const effectiveSearch = searchVal || (searchInput ? searchInput.value.trim() : '');
+            if (effectiveSearch) params.append('q', effectiveSearch);
+
+            if (this.filters.flag) params.append('flag', this.filters.flag);
+            if (this.filters.vesselType) params.append('vessel_type', this.filters.vesselType);
+            if (this.filters.minSog !== null && this.filters.minSog !== '' && isFinite(this.filters.minSog)) params.append('min_sog', this.filters.minSog);
+            if (this.filters.maxSog !== null && this.filters.maxSog !== '' && isFinite(this.filters.maxSog)) params.append('max_sog', this.filters.maxSog);
+            if (this.filters.minCog !== null && this.filters.minCog !== '' && isFinite(this.filters.minCog)) params.append('min_cog', this.filters.minCog);
+            if (this.filters.maxCog !== null && this.filters.maxCog !== '' && isFinite(this.filters.maxCog)) params.append('max_cog', this.filters.maxCog);
+            if (this.filters.headingStatus) params.append('heading_status', this.filters.headingStatus);
+            if (this.filters.freshness) params.append('freshness', this.filters.freshness);
+            if (this.filters.dateRange && this.filters.dateRange !== 'all') params.append('date_range', this.filters.dateRange);
+            if (this.filters.startDate) params.append('start_date', this.filters.startDate);
+            if (this.filters.endDate) params.append('end_date', this.filters.endDate);
+
+            if (isGlobalMode) {
+                // GLOBAL MODE: Single request max 3,000 vessels worldwide
+                params.append('limit', '3000');
+                const requestUrl = `/api/layers/vessels?${params.toString()}`;
+
+                const res = await fetch(requestUrl, { signal: controller.signal });
+                if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+                const geojson = await res.json();
+
+                if (geojson && Array.isArray(geojson.features)) {
+                    geojson.features = geojson.features.filter((f) => {
+                        if (!f.geometry || !Array.isArray(f.geometry.coordinates)) return false;
+                        return this.isValidCoord(f.geometry.coordinates[0], f.geometry.coordinates[1]);
+                    });
+                }
+
+                this.layerData.vessels = geojson;
+                const source = this.map.getSource('vessels-source');
+                if (source && typeof source.setData === 'function') {
+                    source.setData(geojson);
+                }
+                const rawSource = this.map.getSource('vessels-raw-source');
+                if (rawSource && typeof rawSource.setData === 'function') {
+                    rawSource.setData(geojson);
+                }
+                this.updateLayerCountBadge('vessels', geojson.features ? geojson.features.length : 0, geojson.metadata);
+            } else {
+                // VIEWPORT MODE: Progressive batch loading without 3,000 cap
+                if (bbox) {
+                    params.append('bbox', bbox);
+                }
+                const batchSize = 1000;
+                params.append('limit', String(batchSize));
+
+                const featureMap = new Map();
+                let page = 1;
+                let hasMore = true;
+                let totalInViewport = null;
+                let latestMetadata = null;
+
+                while (hasMore && !controller.signal.aborted) {
+                    const pageParams = new URLSearchParams(params.toString());
+                    pageParams.set('page', String(page));
+                    if (totalInViewport !== null) {
+                        pageParams.set('total_in_viewport', String(totalInViewport));
+                    }
+
+                    const requestUrl = `/api/layers/vessels?${pageParams.toString()}`;
+                    const res = await fetch(requestUrl, { signal: controller.signal });
+                    if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+                    const batchData = await res.json();
+
+                    latestMetadata = batchData.metadata || {};
+                    totalInViewport = latestMetadata.total_in_viewport ?? (totalInViewport || (batchData.features ? batchData.features.length : 0));
+
+                    // Validate coordinates and deduplicate
+                    const newFeatures = (batchData.features || []).filter((f) => {
+                        if (!f.geometry || !Array.isArray(f.geometry.coordinates)) return false;
+                        return this.isValidCoord(f.geometry.coordinates[0], f.geometry.coordinates[1]);
+                    });
+
+                    newFeatures.forEach((f) => {
+                        const vId = (f.properties && f.properties.vessel_id) ? f.properties.vessel_id : f.id;
+                        if (!featureMap.has(vId)) {
+                            featureMap.set(vId, f);
+                        } else {
+                            // Deduplicate: replace with latest observed position
+                            const existing = featureMap.get(vId);
+                            const tExist = existing.properties?.observed_at ? new Date(existing.properties.observed_at).getTime() : 0;
+                            const tNew = f.properties?.observed_at ? new Date(f.properties.observed_at).getTime() : 0;
+                            if (tNew >= tExist) {
+                                featureMap.set(vId, f);
+                            }
+                        }
+                    });
+
+                    // Build progressive GeoJSON collection and update map sources immediately
+                    const accumulatedFeatures = Array.from(featureMap.values());
+                    const currentGeojson = {
+                        type: 'FeatureCollection',
+                        features: accumulatedFeatures,
+                        metadata: {
+                            ...latestMetadata,
+                            count: accumulatedFeatures.length,
+                            rendered_count: accumulatedFeatures.length,
+                            total_in_viewport: totalInViewport,
+                            loaded_batches: page,
+                        }
+                    };
+
+                    this.layerData.vessels = currentGeojson;
+                    const source = this.map.getSource('vessels-source');
+                    if (source && typeof source.setData === 'function') {
+                        source.setData(currentGeojson);
+                    }
+                    const rawSource = this.map.getSource('vessels-raw-source');
+                    if (rawSource && typeof rawSource.setData === 'function') {
+                        rawSource.setData(currentGeojson);
+                    }
+
+                    hasMore = Boolean(latestMetadata.has_more);
+                    this.updateLayerCountBadge('vessels', accumulatedFeatures.length, currentGeojson.metadata, { loading: hasMore });
+
+                    if (hasMore) {
+                        page++;
+                    }
+                }
+            }
+
+            this.ensureLayerOrder();
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                return; // Superseded by a newer request or viewport movement
+            }
+            console.error('[GlobalMapController] Error loading vessels layer:', err);
+            if (!options.silent) {
+                this.showLayerError('vessels');
+            }
+        } finally {
+            if (this.layerAbortControllers && this.layerAbortControllers['vessels'] === controller) {
+                delete this.layerAbortControllers['vessels'];
+                if (!options.silent) {
+                    this.setLoadingBadge('vessels', false);
                 }
             }
         }
@@ -2460,31 +2620,55 @@ export class GlobalMapController {
         }
     }
 
-    updateLayerCountBadge(layerKey, count, metadata = null) {
+    updateLayerCountBadge(layerKey, count, metadata = null, extra = {}) {
         const badge = document.getElementById(`count-${layerKey}`);
         if (badge) {
             badge.innerText = count.toLocaleString();
             badge.classList.remove('text-red-400');
             if (layerKey === 'vessels') {
-                badge.title = `Displaying ${count.toLocaleString()} vessels on map (limit 5,000)`;
+                if (metadata && metadata.mode === 'viewport') {
+                    const totalVp = metadata.total_in_viewport || count;
+                    badge.title = extra.loading
+                        ? `Loading viewport vessels: ${count.toLocaleString()} / ${totalVp.toLocaleString()}`
+                        : `Displaying ${count.toLocaleString()} vessels in viewport (Total: ${totalVp.toLocaleString()})`;
+                } else {
+                    badge.title = `Displaying ${count.toLocaleString()} vessels globally (Max 3,000)`;
+                }
             }
         }
         if (layerKey === 'vessels') {
             const statusCount = document.getElementById('statusVesselCount');
             if (statusCount) {
-                statusCount.innerText = `${count.toLocaleString()} vessels`;
+                if (metadata && metadata.mode === 'viewport') {
+                    const totalVp = metadata.total_in_viewport || count;
+                    if (extra.loading && count < totalVp) {
+                        statusCount.innerText = `${count.toLocaleString()} / ${totalVp.toLocaleString()} vessels (loading...)`;
+                    } else {
+                        statusCount.innerText = `${count.toLocaleString()} vessels in view`;
+                    }
+                } else {
+                    statusCount.innerText = `${count.toLocaleString()} vessels (Global)`;
+                }
             }
 
             const statusDetails = document.getElementById('statusVesselDetails');
             if (statusDetails && metadata) {
-                const validStr = metadata.valid_positions ? Number(metadata.valid_positions).toLocaleString() : count.toLocaleString();
-                const totalStr = metadata.total_vessels ? Number(metadata.total_vessels).toLocaleString() : count.toLocaleString();
-                statusDetails.innerText = `(of ${validStr} sea-valid • ${totalStr} fleet)`;
+                if (metadata.mode === 'viewport') {
+                    const totalVp = metadata.total_in_viewport || count;
+                    statusDetails.innerText = `(viewport: ${totalVp.toLocaleString()} • fleet: ${(Number(metadata.total_vessels) || 0).toLocaleString()})`;
+                } else {
+                    const validStr = metadata.valid_positions ? Number(metadata.valid_positions).toLocaleString() : count.toLocaleString();
+                    const totalStr = metadata.total_vessels ? Number(metadata.total_vessels).toLocaleString() : count.toLocaleString();
+                    statusDetails.innerText = `(of ${validStr} sea-valid • ${totalStr} fleet)`;
+                }
             }
 
             const statusContainer = document.getElementById('statusVesselContainer');
             if (statusContainer && metadata) {
-                statusContainer.title = `Map Displayed: ${count.toLocaleString()} vessels (Max 5,000)\n` +
+                const modeStr = metadata.mode === 'viewport' ? 'Viewport Mode (Full Viewport BBox)' : 'Global Mode (Max 3,000)';
+                statusContainer.title = `Mode: ${modeStr}\n` +
+                    `Map Displayed: ${count.toLocaleString()} vessels\n` +
+                    (metadata.mode === 'viewport' ? `Total in Viewport: ${(metadata.total_in_viewport || count).toLocaleString()}\n` : '') +
                     `Active AIS Telemetry (<2h): ${(Number(metadata.active_vessels) || 0).toLocaleString()}\n` +
                     `Stale AIS Telemetry: ${(Number(metadata.stale_vessels) || 0).toLocaleString()}\n` +
                     `Vessels with Valid Sea Positions: ${(Number(metadata.valid_positions) || 0).toLocaleString()}\n` +
@@ -2493,11 +2677,16 @@ export class GlobalMapController {
 
             const breakdownEl = document.getElementById('vesselsStatsBreakdown');
             if (breakdownEl && metadata) {
+                const modeBadge = metadata.mode === 'viewport'
+                    ? '<span class="text-xs px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 font-bold border border-sky-500/40">VIEWPORT</span>'
+                    : '<span class="text-xs px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40">GLOBAL</span>';
+
                 breakdownEl.innerHTML = `
+                    <span title="Current Loading Mode">${modeBadge}</span>
                     <span title="Rendered on map">● Map: <strong class="text-sky-300 font-bold">${count.toLocaleString()}</strong></span>
+                    ${metadata.mode === 'viewport' ? `<span title="Total in viewport">● Viewport: <strong class="text-amber-300 font-bold">${(metadata.total_in_viewport || count).toLocaleString()}</strong></span>` : ''}
                     <span title="Valid maritime sea positions">● Valid: <strong class="text-teal-300">${(Number(metadata.valid_positions) || 0).toLocaleString()}</strong></span>
                     <span title="Active broadcast within 2h">● Live: <strong class="text-emerald-300">${(Number(metadata.active_vessels) || 0).toLocaleString()}</strong></span>
-                    <span title="Stale broadcast older than 2h">● Stale: <strong class="text-amber-300">${(Number(metadata.stale_vessels) || 0).toLocaleString()}</strong></span>
                     <span title="Total fleet registered in database">● Total: <strong class="text-slate-300">${(Number(metadata.total_vessels) || 0).toLocaleString()}</strong></span>
                 `;
             }
