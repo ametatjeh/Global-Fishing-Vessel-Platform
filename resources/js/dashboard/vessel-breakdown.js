@@ -47,14 +47,14 @@ export function initVesselTypeBreakdownChart() {
             const formattedTotal = Number(totalCount).toLocaleString('en-US');
             const fontSizeNumber = Math.max(16, Math.min(26, Math.round(chartArea.height * 0.14)));
             ctx.font = `800 ${fontSizeNumber}px "JetBrains Mono", Inter, ui-sans-serif, system-ui, sans-serif`;
-            ctx.fillStyle = '#0f172a'; // slate-900
+            ctx.fillStyle = '#ffffff'; // white for dark theme
             ctx.fillText(formattedTotal, centerX, centerY - fontSizeNumber * 0.35);
 
-            // Bottom: "Total" subtitle
-            const fontSizeLabel = Math.max(10, Math.min(13, Math.round(fontSizeNumber * 0.5)));
+            // Bottom: "Total Vessels" subtitle
+            const fontSizeLabel = Math.max(9, Math.min(12, Math.round(fontSizeNumber * 0.45)));
             ctx.font = `600 ${fontSizeLabel}px Inter, ui-sans-serif, system-ui, sans-serif`;
-            ctx.fillStyle = '#64748b'; // slate-500
-            ctx.fillText('Total', centerX, centerY + fontSizeNumber * 0.65);
+            ctx.fillStyle = '#94a3b8'; // slate-400
+            ctx.fillText('Total Vessels', centerX, centerY + fontSizeNumber * 0.65);
 
             ctx.restore();
         }
@@ -67,9 +67,9 @@ export function initVesselTypeBreakdownChart() {
             datasets: [{
                 data: counts,
                 backgroundColor: colors,
-                borderColor: '#ffffff',
+                borderColor: '#0a1324',
                 borderWidth: 2,
-                hoverBorderColor: '#ffffff',
+                hoverBorderColor: '#2dd4bf',
                 hoverBorderWidth: 3,
                 hoverOffset: 6,
             }]
@@ -113,13 +113,13 @@ export function initVesselTypeBreakdownChart() {
             onHover(event, elements) {
                 // Highlight corresponding category row in the breakdown list
                 document.querySelectorAll('.vessel-type-item').forEach(el => {
-                    el.classList.remove('bg-blue-50/80', 'ring-1', 'ring-blue-300');
+                    el.classList.remove('bg-slate-800', 'ring-1', 'ring-teal-500/50');
                 });
                 if (elements && elements.length > 0) {
                     const idx = elements[0].index;
                     const itemEl = document.getElementById(`vessel-type-item-${idx}`);
                     if (itemEl) {
-                        itemEl.classList.add('bg-blue-50/80', 'ring-1', 'ring-blue-300');
+                        itemEl.classList.add('bg-slate-800', 'ring-1', 'ring-teal-500/50');
                     }
                 }
             }

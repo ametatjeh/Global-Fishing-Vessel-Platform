@@ -397,13 +397,6 @@ export class GlobalMapController {
     }
 
     initializeControls() {
-        // Navigation (Zoom, Compass, Pitch)
-        this.map.addControl(new maplibregl.NavigationControl({
-            showCompass: true,
-            showZoom: true,
-            visualizePitch: true
-        }), 'top-right');
-
         // Fullscreen Control
         this.map.addControl(new maplibregl.FullscreenControl(), 'top-right');
 

@@ -239,8 +239,39 @@
                     </svg>
                 </button>
 
+                @php
+                    $sidebarMenuTitle = match(true) {
+                        request()->routeIs('dashboard') || request()->routeIs('home') => 'Overview Dashboard',
+                        request()->routeIs('map.*') => 'Global Vessel Map',
+                        request()->routeIs('vessels.classification-review.*') => 'Classification Review',
+                        request()->routeIs('vessels.*') => 'Vessel Registry',
+                        request()->routeIs('encounters.*') => 'Vessel Encounters',
+                        request()->routeIs('dark-vessels.*') || request()->routeIs('sar.*') => 'Analyst Review (SAR)',
+                        request()->routeIs('compliance.*') => 'Fishing Compliance',
+                        request()->routeIs('investigations.*') => 'Investigations',
+                        request()->routeIs('profile.*') => 'User Settings',
+                        request()->routeIs('providers.*') => 'Data Sources & Providers',
+                        request()->routeIs('settings.retention.*') => 'Data Retention',
+                        request()->routeIs('settings.*') => 'System Settings',
+                        request()->routeIs('audit-logs.*') => 'Activity Logs',
+                        request()->routeIs('admin.users.*') => 'User Management',
+                        default => null,
+                    };
+                @endphp
+
                 <h1 class="text-xs sm:text-sm font-bold text-white tracking-wide uppercase truncate flex items-center gap-2">
-                    @yield('header_title', 'Global Fishing Vessel Tracking')
+                    <span class="sm:hidden truncate">
+                        @if(trim($__env->yieldContent('header_title_short')))
+                            @yield('header_title_short')
+                        @elseif($sidebarMenuTitle)
+                            {{ $sidebarMenuTitle }}
+                        @else
+                            {{ trim(explode('—', $__env->yieldContent('header_title', 'Global Fishing Vessel Tracking'))[0]) }}
+                        @endif
+                    </span>
+                    <span class="hidden sm:inline truncate">
+                        @yield('header_title', 'Global Fishing Vessel Tracking')
+                    </span>
                 </h1>
             </div>
 
@@ -266,6 +297,7 @@
         </header>
 
         <!-- Flash Notifications -->
+        @if(session('status') || session('warning') || session('error'))
         <div class="px-4 sm:px-6 pt-4">
             @if(session('status'))
             <div class="p-3 mb-4 rounded-xl bg-teal-500/15 border border-teal-500/30 text-teal-200 text-xs flex items-center gap-2">
@@ -288,14 +320,15 @@
             </div>
             @endif
         </div>
+        @endif
 
         <!-- Page Content -->
-        <main class="flex-1 p-4 sm:p-6">
+        <main class="flex-1 {{ request()->routeIs('map.*') ? 'p-0 sm:p-6' : 'p-4 sm:p-6' }}">
             @yield('content')
         </main>
 
         <!-- Single-Line Compact Footer -->
-        <footer class="h-9 min-h-[36px] max-h-[40px] px-4 sm:px-6 border-t border-slate-800/80 bg-slate-950/80 text-[11px] max-sm:text-[10px] text-slate-400 flex items-center justify-between gap-3 mt-auto shrink-0 select-none">
+        <footer class="h-9 min-h-[36px] max-h-[40px] px-4 sm:px-6 border-t border-slate-800/80 bg-slate-950/80 text-[11px] max-sm:text-[10px] text-slate-400 {{ request()->routeIs('map.*') ? 'hidden sm:flex' : 'flex' }} items-center justify-between gap-3 mt-auto shrink-0 select-none">
             <div class="truncate text-slate-400 font-normal">
                 <span class="font-bold text-slate-300">GFVT</span> &middot; <span>Global Fishing Vessel Tracking</span>
             </div>

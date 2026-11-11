@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('header_title', 'Global Maritime Monitoring Map — MapLibre GL JS')
+@section('header_title_short', 'Global Vessel Map')
 
 @section('content')
 @php
@@ -10,59 +11,60 @@
     $correlationStatuses = $filterMeta['correlation_statuses'] ?? [];
     $platforms = $filterMeta['platforms'] ?? [];
 @endphp
-<div class="relative h-[calc(100vh-8.5rem)] min-h-[580px] rounded-2xl overflow-hidden border border-slate-800 shadow-2xl flex flex-col bg-slate-950 font-sans">
+<div class="relative h-[calc(100vh-4rem)] sm:h-[calc(100vh-8.5rem)] min-h-0 sm:min-h-[580px] rounded-none sm:rounded-2xl overflow-hidden border-0 sm:border sm:border-slate-800 shadow-none sm:shadow-2xl flex flex-col bg-slate-950 font-sans">
 
     <!-- Top Floating Toolbar: Quick Actions, Search & Control Popovers -->
-    <div class="absolute top-3 left-3 z-30 flex items-center gap-2 pointer-events-none">
+    <div class="absolute top-2 sm:top-3 left-2 sm:left-3 z-30 flex items-center gap-1.5 sm:gap-2 pointer-events-none max-w-[calc(100%-3.5rem)] sm:max-w-none">
         
         <!-- Left: Search & Navigation Toolbar -->
-        <div class="pointer-events-auto flex items-center gap-1.5 p-1 rounded-xl glass-panel border border-slate-700/80 shadow-2xl text-xs backdrop-blur-md">
+        <div class="pointer-events-auto flex items-center gap-1 sm:gap-1.5 p-1 rounded-xl glass-panel border border-slate-700/80 shadow-2xl text-xs backdrop-blur-md">
             
             <!-- A. SEARCH WITH LIVE AUTOCOMPLETE -->
             <div class="relative flex items-center">
                 <input type="text" id="inputVesselSearch" placeholder="Search vessel, MMSI, or candidate..."
-                    class="pl-8 pr-7 py-1.5 rounded-lg bg-slate-900/90 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-teal-400 w-44 sm:w-64 text-xs font-mono transition-all">
-                <span class="absolute left-2.5 text-slate-400 pointer-events-none text-xs">🔍</span>
-                <button type="button" id="btnClearSearch" class="hidden absolute right-2 text-slate-400 hover:text-white text-xs font-bold p-0.5 leading-none" title="Clear search">&times;</button>
+                    class="pl-7 sm:pl-8 pr-6 sm:pr-7 py-1 sm:py-1.5 rounded-lg bg-slate-900/90 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-teal-400 w-28 sm:w-64 text-[11px] sm:text-xs font-mono transition-all">
+                <span class="absolute left-2 sm:left-2.5 text-slate-400 pointer-events-none text-[11px] sm:text-xs">🔍</span>
+                <button type="button" id="btnClearSearch" class="hidden absolute right-1.5 sm:right-2 text-slate-400 hover:text-white text-xs font-bold p-0.5 leading-none" title="Clear search">&times;</button>
             </div>
 
             <!-- Unified Search Dropdown Panel (Live Query Results) -->
-            <div id="searchResultsDropdown" class="hidden absolute top-full left-0 mt-2 w-72 sm:w-96 max-h-80 overflow-y-auto glass-panel p-2 rounded-xl border border-slate-700/90 shadow-2xl z-40 space-y-2 text-xs divide-y divide-slate-800/80">
+            <div id="searchResultsDropdown" class="hidden absolute top-full left-0 mt-2 w-72 sm:w-96 max-w-[calc(100vw-1.5rem)] max-h-80 overflow-y-auto glass-panel p-2 rounded-xl border border-slate-700/90 shadow-2xl z-40 space-y-2 text-xs divide-y divide-slate-800/80">
                 <!-- Injected via JavaScript from /api/map/search -->
             </div>
 
-            <button type="button" id="btnFilterSearch" class="px-2.5 py-1.5 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold transition flex items-center gap-1" title="Search vessel or radar target">
-                <span>Search</span>
+            <button type="button" id="btnFilterSearch" class="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold transition flex items-center justify-center shrink-0 text-[11px] sm:text-xs" title="Search vessel or radar target">
+                <svg class="w-3.5 h-3.5 sm:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <span class="hidden sm:inline">Search</span>
             </button>
 
-            <div class="h-4 w-px bg-slate-700/80 mx-0.5"></div>
+            <div class="h-4 w-px bg-slate-700/80 mx-0.5 shrink-0"></div>
 
             <!-- B. FILTER BUTTON -->
-            <button type="button" id="btnToggleAdvancedFilters" class="btn-popover-trigger px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-teal-300 font-medium transition border border-slate-700 flex items-center gap-1.5" title="Open vessel & radar filter panel">
-                <svg class="w-3.5 h-3.5 text-teal-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <button type="button" id="btnToggleAdvancedFilters" class="btn-popover-trigger px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-teal-300 font-medium transition border border-slate-700 flex items-center justify-center gap-1 shrink-0 text-xs" title="Open vessel & radar filter panel">
+                <svg class="w-3.5 h-3.5 text-teal-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line>
                     <line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line>
                     <line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line>
                     <line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line>
                 </svg>
                 <span class="hidden sm:inline">Filters</span>
-                <span id="activeFilterBadgeToolbar" class="active-filter-badge hidden px-1.5 py-0.2 rounded-full text-[9px] bg-teal-400 text-slate-950 font-bold">0</span>
+                <span id="activeFilterBadgeToolbar" class="active-filter-badge hidden px-1 sm:px-1.5 py-0.2 rounded-full text-[9px] bg-teal-400 text-slate-950 font-bold">0</span>
             </button>
 
             <!-- C. MARITIME LAYERS BUTTON -->
-            <button type="button" id="btnToggleLayers" class="btn-popover-trigger px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-sky-300 font-medium transition border border-slate-700 flex items-center gap-1.5" title="Open maritime layer options">
-                <svg class="w-3.5 h-3.5 text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <button type="button" id="btnToggleLayers" class="btn-popover-trigger px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-sky-300 font-medium transition border border-slate-700 flex items-center justify-center gap-1 shrink-0 text-xs" title="Open maritime layer options">
+                <svg class="w-3.5 h-3.5 text-sky-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
                     <polyline points="2 17 12 22 22 17"></polyline>
                     <polyline points="2 12 12 17 22 12"></polyline>
                 </svg>
                 <span class="hidden sm:inline">Layers</span>
-                <span id="badgeLayerCount" class="px-1.5 py-0.2 rounded-full text-[9px] bg-sky-500 text-slate-950 font-bold">5</span>
+                <span id="badgeLayerCount" class="px-1 sm:px-1.5 py-0.2 rounded-full text-[9px] bg-sky-500 text-slate-950 font-bold">5</span>
             </button>
 
             <!-- D. SCIENTIFIC LEGEND BUTTON -->
-            <button type="button" id="btnToggleLegend" class="btn-popover-trigger px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-amber-300 font-medium transition border border-slate-700 flex items-center gap-1.5" title="Open symbolic legend & vessel taxonomy">
-                <svg class="w-3.5 h-3.5 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <button type="button" id="btnToggleLegend" class="btn-popover-trigger px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-amber-300 font-medium transition border border-slate-700 flex items-center justify-center gap-1 shrink-0 text-xs" title="Open symbolic legend & vessel taxonomy">
+                <svg class="w-3.5 h-3.5 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
                     <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
                 </svg>
@@ -70,8 +72,8 @@
             </button>
 
             <!-- E. MAP SETTINGS / BASEMAP BUTTON -->
-            <button type="button" id="btnToggleSettings" class="btn-popover-trigger px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-emerald-300 font-medium transition border border-slate-700 flex items-center gap-1.5" title="Basemap display settings & attribution">
-                <svg class="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <button type="button" id="btnToggleSettings" class="btn-popover-trigger px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-emerald-300 font-medium transition border border-slate-700 flex items-center justify-center gap-1 shrink-0 text-xs" title="Basemap display settings & attribution">
+                <svg class="w-3.5 h-3.5 text-emerald-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="3"></circle>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                 </svg>
@@ -79,8 +81,8 @@
             </button>
 
             <!-- F. RESET VIEW BUTTON -->
-            <button type="button" id="btnResetView" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-medium transition border border-slate-700 flex items-center gap-1" title="Center map to default ASEAN regional view">
-                <span>🧭</span>
+            <button type="button" id="btnResetView" class="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-medium transition border border-slate-700 flex items-center justify-center gap-1 shrink-0 text-xs" title="Center map to default ASEAN regional view">
+                <span class="text-xs">🧭</span>
                 <span class="hidden sm:inline">Reset View</span>
             </button>
         </div>
@@ -88,7 +90,7 @@
 
 
     <!-- POPOVER 1: ADVANCED MARITIME FILTERS -->
-    <div id="advancedFiltersPanel" class="hidden absolute top-14 left-3 z-30 w-84 sm:w-96 max-h-[calc(100%-4.5rem)] overflow-y-auto glass-panel p-4 rounded-2xl border border-slate-700/80 shadow-2xl space-y-3.5 text-xs backdrop-blur-xl">
+    <div id="advancedFiltersPanel" class="hidden absolute top-12 sm:top-14 inset-x-2 sm:inset-x-auto sm:left-3 z-30 w-auto sm:w-96 max-h-[calc(100vh-7rem)] sm:max-h-[calc(100%-4.5rem)] overflow-y-auto glass-panel p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-700/80 shadow-2xl space-y-3 sm:space-y-3.5 text-xs backdrop-blur-xl">
         <div class="flex items-center justify-between border-b border-slate-700/80 pb-2.5">
             <div class="flex items-center gap-2">
                 <span class="text-base text-teal-400">🎚️</span>
@@ -274,7 +276,7 @@
     </div>
 
     <!-- POPOVER 2: MARITIME LAYERS -->
-    <div id="popoverLayers" class="hidden absolute top-14 left-3 sm:left-48 z-30 w-80 sm:w-88 max-h-[calc(100%-4.5rem)] overflow-y-auto glass-panel p-4 rounded-2xl border border-slate-700/80 shadow-2xl space-y-3.5 text-xs backdrop-blur-xl">
+    <div id="popoverLayers" class="hidden absolute top-12 sm:top-14 inset-x-2 sm:inset-x-auto sm:left-48 z-30 w-auto sm:w-88 max-h-[calc(100vh-7rem)] sm:max-h-[calc(100%-4.5rem)] overflow-y-auto glass-panel p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-700/80 shadow-2xl space-y-3 sm:space-y-3.5 text-xs backdrop-blur-xl">
         <div class="flex items-center justify-between border-b border-slate-700/80 pb-2">
             <div class="flex items-center gap-2">
                 <span class="text-base text-sky-400">🎛️</span>
@@ -405,7 +407,7 @@
     </div>
 
     <!-- POPOVER 3: SCIENTIFIC LEGEND -->
-    <div id="popoverLegend" class="hidden absolute top-14 left-3 sm:left-64 z-30 w-84 sm:w-96 max-h-[calc(100%-4.5rem)] overflow-y-auto glass-panel p-4 rounded-2xl border border-slate-700/80 shadow-2xl space-y-3.5 text-xs backdrop-blur-xl">
+    <div id="popoverLegend" class="hidden absolute top-12 sm:top-14 inset-x-2 sm:inset-x-auto sm:left-64 z-30 w-auto sm:w-96 max-h-[calc(100vh-7rem)] sm:max-h-[calc(100%-4.5rem)] overflow-y-auto glass-panel p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-700/80 shadow-2xl space-y-3 sm:space-y-3.5 text-xs backdrop-blur-xl">
         <div class="flex items-center justify-between border-b border-slate-700/80 pb-2">
             <div class="flex items-center gap-2">
                 <span class="text-base text-amber-400">🧭</span>
@@ -636,7 +638,7 @@
     </div>
 
     <!-- POPOVER 4: MAP SETTINGS & BASEMAP -->
-    <div id="popoverSettings" class="hidden absolute top-14 left-3 sm:left-72 z-30 w-76 sm:w-84 max-h-[calc(100%-4.5rem)] overflow-y-auto glass-panel p-4 rounded-2xl border border-slate-700/80 shadow-2xl space-y-3.5 text-xs backdrop-blur-xl">
+    <div id="popoverSettings" class="hidden absolute top-12 sm:top-14 inset-x-2 sm:inset-x-auto sm:left-72 z-30 w-auto sm:w-84 max-h-[calc(100vh-7rem)] sm:max-h-[calc(100%-4.5rem)] overflow-y-auto glass-panel p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-700/80 shadow-2xl space-y-3 sm:space-y-3.5 text-xs backdrop-blur-xl">
         <div class="flex items-center justify-between border-b border-slate-700/80 pb-2">
             <div class="flex items-center gap-2">
                 <span class="text-base text-emerald-400">⚙️</span>
@@ -701,11 +703,11 @@
     </div>
 
     <!-- Map Canvas Container -->
-    <div id="global-map-canvas" class="w-full h-full flex-1 bg-slate-950 min-h-[480px]"></div>
+    <div id="global-map-canvas" class="w-full h-full flex-1 bg-slate-950 min-h-0 sm:min-h-[480px]"></div>
 
     <!-- Bottom Coordinates, Counts & Map Scale Status Bar -->
     <div class="absolute bottom-2 left-3 z-10 pointer-events-none flex flex-wrap items-center gap-2 text-[11px] font-mono">
-        <div class="pointer-events-auto px-2.5 py-1 rounded-lg glass-panel border border-slate-700/80 shadow-md text-slate-300 flex items-center gap-2">
+        <div class="pointer-events-auto hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-lg glass-panel border border-slate-700/80 shadow-md text-slate-300">
             <span class="text-teal-400 font-bold">📍</span>
             <span id="cursorCoordinates">Lat: 0.00000°, Lon: 0.00000° | Zoom: 3.50</span>
         </div>

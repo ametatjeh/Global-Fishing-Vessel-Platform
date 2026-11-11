@@ -69,24 +69,80 @@
     background: transparent !important;
 }
 
+/* MapLibre Dark Maritime Controls & Mobile Optimization */
 .maplibregl-ctrl-group {
-    background: #0a1324 !important;
-    border: 1px solid #1e3a5f !important;
-    border-radius: 0.5rem !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+    background: rgba(10, 19, 36, 0.85) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(51, 65, 85, 0.8) !important;
+    border-radius: 0.625rem !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45) !important;
+    overflow: hidden !important;
 }
 
 .maplibregl-ctrl-group button {
     background-color: transparent !important;
-    border-bottom: 1px solid #1e3a5f !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(51, 65, 85, 0.7) !important;
+    transition: background-color 0.15s ease, opacity 0.15s ease !important;
+}
+
+.maplibregl-ctrl-group button:last-child {
+    border-bottom: 0 !important;
 }
 
 .maplibregl-ctrl-group button:hover {
-    background-color: #182e54 !important;
+    background-color: rgba(24, 46, 84, 0.8) !important;
+}
+
+.maplibregl-ctrl-group button:active {
+    background-color: rgba(45, 212, 191, 0.25) !important;
+}
+
+.maplibregl-ctrl-group button:focus {
+    outline: none !important;
+    box-shadow: none !important;
 }
 
 .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
-    filter: invert(1);
+    filter: invert(1) brightness(1.2);
+    opacity: 0.85;
+    transition: opacity 0.15s ease;
+}
+
+.maplibregl-ctrl-group button:hover .maplibregl-ctrl-icon,
+.maplibregl-ctrl-group button:active .maplibregl-ctrl-icon {
+    opacity: 1;
+}
+
+/* Hide Navigation Controls (Zoom In, Zoom Out, Compass) */
+.maplibregl-ctrl-zoom-in,
+.maplibregl-ctrl-zoom-out,
+.maplibregl-ctrl-compass {
+    display: none !important;
+}
+
+/* Specific Mobile Optimization for top-right Map Controls (< 640px) */
+@media (max-width: 639px) {
+    .maplibregl-ctrl-top-right {
+        top: 8px !important;
+        right: 8px !important;
+    }
+
+    .maplibregl-ctrl-top-right .maplibregl-ctrl {
+        margin: 0 0 6px 0 !important;
+        float: right;
+        clear: both;
+    }
+
+    .maplibregl-ctrl-top-right .maplibregl-ctrl-group {
+        border-radius: 0.5rem !important;
+    }
+
+    .maplibregl-ctrl-top-right .maplibregl-ctrl-group button {
+        width: 32px !important;
+        height: 32px !important;
+    }
 }
 
 /* ==========================================================================
