@@ -2413,7 +2413,7 @@ export class GlobalMapController {
 
     /**
      * Dynamic Viewport-Based Vessel Loading (Section 1 - 7)
-     * - Global Mode (Zoom 0-3): Up to 2,000 unique vessels worldwide ordered by latest AIS
+     * - Global Mode (Zoom 0-3): Up to 1,500 unique vessels worldwide ordered by latest AIS
      * - Viewport Mode (Zoom > 3): Full viewport loading via sequential batching with AbortController deduplication
      */
     async fetchVesselsData(options = {}) {
@@ -2462,8 +2462,8 @@ export class GlobalMapController {
             if (this.filters.endDate) params.append('end_date', this.filters.endDate);
 
             if (isGlobalMode) {
-                // GLOBAL MODE: Single request max 2,000 vessels worldwide
-                params.append('limit', '2000');
+                // GLOBAL MODE: Single request max 1,500 vessels worldwide
+                params.append('limit', '1500');
                 const requestUrl = `/api/layers/vessels?${params.toString()}`;
 
                 const res = await fetch(requestUrl, { signal: controller.signal });
@@ -2488,7 +2488,7 @@ export class GlobalMapController {
                 }
                 this.updateLayerCountBadge('vessels', geojson.features ? geojson.features.length : 0, geojson.metadata);
             } else {
-                // VIEWPORT MODE: Progressive batch loading without 2,000 cap
+                // VIEWPORT MODE: Progressive batch loading without 1,500 cap
                 if (bbox) {
                     params.append('bbox', bbox);
                 }
@@ -2632,7 +2632,7 @@ export class GlobalMapController {
                         ? `Loading viewport vessels: ${count.toLocaleString()} / ${totalVp.toLocaleString()}`
                         : `Displaying ${count.toLocaleString()} vessels in viewport (Total: ${totalVp.toLocaleString()})`;
                 } else {
-                    badge.title = `Displaying ${count.toLocaleString()} vessels globally (Max 2,000)`;
+                    badge.title = `Displaying ${count.toLocaleString()} vessels globally (Max 1,500)`;
                 }
             }
         }
@@ -2665,7 +2665,7 @@ export class GlobalMapController {
 
             const statusContainer = document.getElementById('statusVesselContainer');
             if (statusContainer && metadata) {
-                const modeStr = metadata.mode === 'viewport' ? 'Viewport Mode (Full Viewport BBox)' : 'Global Mode (Max 2,000)';
+                const modeStr = metadata.mode === 'viewport' ? 'Viewport Mode (Full Viewport BBox)' : 'Global Mode (Max 1,500)';
                 statusContainer.title = `Mode: ${modeStr}\n` +
                     `Map Displayed: ${count.toLocaleString()} vessels\n` +
                     (metadata.mode === 'viewport' ? `Total in Viewport: ${(metadata.total_in_viewport || count).toLocaleString()}\n` : '') +
