@@ -275,8 +275,8 @@ class MapLayerApiController extends Controller
         $totalInViewport = $request->has('total_in_viewport') ? (int) $request->query('total_in_viewport') : null;
 
         if ($mode === 'global') {
-            // Global mode: clamped to max 1,500 unique vessels
-            $limit = min(max((int) $request->query('limit', 1500), 1), 1500);
+            // Global mode: clamped to max 2,000 unique vessels
+            $limit = min(max((int) $request->query('limit', 2000), 1), 2000);
         } else {
             // Viewport mode: batch size default 1,000 (up to 5,000 per request)
             $limit = min(max((int) $request->query('limit', 1000), 1), 5000);

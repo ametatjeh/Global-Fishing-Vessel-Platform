@@ -29,7 +29,7 @@ class MapVesselDisplayLimitAndClusteringTest extends TestCase
         $this->spatialService = app(SpatialQueryService::class);
     }
 
-    public function test_api_defaults_to_1500_vessels_in_global_mode_and_respects_max_limit(): void
+    public function test_api_defaults_to_2000_vessels_in_global_mode_and_respects_max_limit(): void
     {
         // Create 25 vessels across various categories
         $categories = ['fishing', 'cargo', 'tanker', 'pleasure', 'passenger', 'tug', 'unknown'];
@@ -52,13 +52,13 @@ class MapVesselDisplayLimitAndClusteringTest extends TestCase
             ]);
         }
 
-        // 1. Default request should fetch global mode (limit 1500, here all 25)
+        // 1. Default request should fetch global mode (limit 2000, here all 25)
         $response = $this->actingAs($this->user)->getJson('/api/layers/vessels');
         $response->assertStatus(200);
 
         $data = $response->json();
         $this->assertEquals(25, $data['metadata']['count']);
-        $this->assertEquals(1500, $data['metadata']['limit']);
+        $this->assertEquals(2000, $data['metadata']['limit']);
         $this->assertEquals(25, $data['metadata']['rendered_count']);
         $this->assertEquals('global', $data['metadata']['mode']);
         $this->assertArrayHasKey('total_vessels', $data['metadata']);
@@ -72,15 +72,15 @@ class MapVesselDisplayLimitAndClusteringTest extends TestCase
         $this->assertCount(10, $responseLimited->json('features'));
         $this->assertEquals(10, $responseLimited->json('metadata.limit'));
 
-        // 3. Explicit limit=1500 request in global mode
-        $response1500 = $this->actingAs($this->user)->getJson('/api/layers/vessels?mode=global&limit=1500');
-        $response1500->assertStatus(200);
-        $this->assertEquals(1500, $response1500->json('metadata.limit'));
+        // 3. Explicit limit=2000 request in global mode
+        $response2000 = $this->actingAs($this->user)->getJson('/api/layers/vessels?mode=global&limit=2000');
+        $response2000->assertStatus(200);
+        $this->assertEquals(2000, $response2000->json('metadata.limit'));
 
-        // 4. Requests exceeding global max limit 1500 are clamped to 1500
+        // 4. Requests exceeding global max limit 2000 are clamped to 2000
         $responseClamped = $this->actingAs($this->user)->getJson('/api/layers/vessels?mode=global&limit=9999');
         $responseClamped->assertStatus(200);
-        $this->assertEquals(1500, $responseClamped->json('metadata.limit'));
+        $this->assertEquals(2000, $responseClamped->json('metadata.limit'));
     }
 
     public function test_prioritizes_vessels_with_latest_ais_updates(): void

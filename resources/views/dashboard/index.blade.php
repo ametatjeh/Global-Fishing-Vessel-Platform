@@ -365,7 +365,7 @@
                         data-index="{{ $idx }}"
                         class="vessel-type-item inline-flex items-center gap-1.5 sm:gap-2 p-1 sm:p-1.5 rounded-lg transition-colors duration-150 cursor-pointer hover:bg-slate-800/60 text-[11px] sm:text-xs">
                         <div class="flex items-center gap-1.5 w-20 xs:w-24 sm:w-[115px] shrink-0 min-w-0">
-                            <span class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shrink-0 shadow-xs" style="background-color: {{ $item['color'] }};"></span>
+                            <span class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shrink-0 shadow-xs" {!! 'style="background-color: ' . e($item['color']) . ';"' !!}></span>
                             <span class="font-semibold text-slate-200 truncate" title="{{ $item['label'] }}">
                                 {{ $item['label'] }}
                             </span>

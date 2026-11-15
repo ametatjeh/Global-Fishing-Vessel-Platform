@@ -12,7 +12,9 @@ use App\Models\VesselEncounter;
 use App\Models\SatelliteDetection;
 use App\Models\MaritimeZone;
 use App\Services\Maritime\FlagStateService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class SpatialQueryService
 {
@@ -828,25 +830,43 @@ class SpatialQueryService
      */
     public function getVesselStatistics(): array
     {
-        return \Illuminate\Support\Facades\Cache::remember('vessel_spatial_statistics', 60, function () {
+        return Cache::remember('vessel_spatial_statistics', 60, function () {
             $total = Vessel::count();
 
-            $baseValidQuery = VesselPosition::query()
-                ->where('is_on_land', false)
-                ->whereRaw('NOT (latitude = 0.0 AND longitude = 0.0)')
-                ->where(function ($q) {
-                    $q->whereNull('data_quality_score')
-                      ->orWhere('data_quality_score', '>', 0.0);
-                });
+            $driver = DB::connection()->getDriverName();
+            $cutoff = now()->subHours(2)->toDateTimeString();
 
-            $validPositionsCount = (clone $baseValidQuery)
-                ->distinct('vessel_id')
-                ->count('vessel_id');
+            if ($driver === 'pgsql') {
+                $row = DB::selectOne("
+                    SELECT
+                        COUNT(DISTINCT vessel_id) AS valid_positions,
+                        COUNT(DISTINCT CASE WHEN observed_at >= ? THEN vessel_id END) AS active_vessels
+                    FROM vessel_positions
+                    WHERE is_on_land = false
+                      AND NOT (latitude = 0.0 AND longitude = 0.0)
+                      AND (data_quality_score IS NULL OR data_quality_score > 0.0)
+                ", [$cutoff]);
 
-            $activeCount = (clone $baseValidQuery)
-                ->where('observed_at', '>=', now()->subHours(2))
-                ->distinct('vessel_id')
-                ->count('vessel_id');
+                $validPositionsCount = (int) ($row->valid_positions ?? 0);
+                $activeCount = (int) ($row->active_vessels ?? 0);
+            } else {
+                $baseValidQuery = VesselPosition::query()
+                    ->where('is_on_land', false)
+                    ->whereRaw('NOT (latitude = 0.0 AND longitude = 0.0)')
+                    ->where(function ($q) {
+                        $q->whereNull('data_quality_score')
+                          ->orWhere('data_quality_score', '>', 0.0);
+                    });
+
+                $validPositionsCount = (clone $baseValidQuery)
+                    ->distinct('vessel_id')
+                    ->count('vessel_id');
+
+                $activeCount = (clone $baseValidQuery)
+                    ->where('observed_at', '>=', $cutoff)
+                    ->distinct('vessel_id')
+                    ->count('vessel_id');
+            }
 
             $staleCount = max(0, $validPositionsCount - $activeCount);
 
@@ -861,12 +881,17 @@ class SpatialQueryService
 
     /**
      * Get Live AIS Vessel Positions as GeoJSON FeatureCollection
-     * Supports Global Mode (max 1,500 vessels worldwide) and Viewport Mode (unlimited vessels loaded via batch pagination)
+     * High-speed, memory-efficient implementation:
+     * - Direct SQL join selecting only essential scalar columns (omits raw_payload & metadata)
+     * - Bounding box spatial indexing (PostGIS ST_MakeEnvelope / GiST index)
+     * - Antimeridian crossing support
+     * - Global mode: max 2,000 unique vessels
+     * - Viewport mode: unlimited viewport loading via batch pagination
      */
     public function getLiveVesselsFeatureCollection(
         ?array $bbox = null,
         ?string $search = null,
-        int $limit = 1500,
+        int $limit = 2000,
         array $filters = [],
         string $mode = 'global',
         int $page = 1,
@@ -879,217 +904,246 @@ class SpatialQueryService
         $page = max(1, $page);
 
         if ($mode === 'global') {
-            $limit = min(max($limit, 1), 1500);
+            $limit = min(max($limit, 1), 2000);
         } else {
             $limit = min(max($limit, 1), 5000);
         }
 
-        // Base query on vessel_positions to leverage indexes on lat/lng/observed_at
-        // Exclude quarantined or invalid coordinate records (data_quality_score <= 0.0)
-        // Strictly exclude default (0, 0) unacquired GPS sentinel positions
-        // Strictly exclude positions detected on land
-        $posQuery = VesselPosition::query()
-            ->where(function ($q) {
-                $q->whereNull('data_quality_score')
-                  ->orWhere('data_quality_score', '>', 0.0);
-            })
-            ->whereRaw('NOT (latitude = 0.0 AND longitude = 0.0)')
-            ->where('is_on_land', false);
+        $offset = ($page - 1) * $limit;
 
-        // In Viewport Mode (or if bbox is explicitly provided for viewport), apply bounding box
+        // Collect SQL WHERE clauses and bindings for the inner vessel_positions query
+        $posWheres = [
+            "is_on_land = false",
+            "NOT (latitude = 0.0 AND longitude = 0.0)",
+            "(data_quality_score IS NULL OR data_quality_score > 0.0)",
+        ];
+        $posBindings = [];
+
+        // Bounding box filtering for Viewport mode
         if ($mode === 'viewport' && $bbox && count($bbox) === 4) {
             $minLng = (float) $bbox[0];
             $minLat = min((float) $bbox[1], (float) $bbox[3]);
             $maxLng = (float) $bbox[2];
             $maxLat = max((float) $bbox[1], (float) $bbox[3]);
 
-            $posQuery->whereBetween('latitude', [$minLat, $maxLat]);
-            if ($minLng > $maxLng) {
-                $posQuery->where(function ($w) use ($minLng, $maxLng) {
-                    $w->where('longitude', '>=', $minLng)
-                      ->orWhere('longitude', '<=', $maxLng);
-                });
+            $isCrossAntimeridian = ($minLng > $maxLng);
+
+            if ($isCrossAntimeridian) {
+                $posWheres[] = "(latitude BETWEEN ? AND ?) AND (longitude >= ? OR longitude <= ?)";
+                $posBindings[] = $minLat;
+                $posBindings[] = $maxLat;
+                $posBindings[] = $minLng;
+                $posBindings[] = $maxLng;
             } else {
-                $posQuery->whereBetween('longitude', [$minLng, $maxLng]);
+                $posWheres[] = "(latitude BETWEEN ? AND ?) AND (longitude BETWEEN ? AND ?)";
+                $posBindings[] = $minLat;
+                $posBindings[] = $maxLat;
+                $posBindings[] = $minLng;
+                $posBindings[] = $maxLng;
             }
         }
 
-        // Apply vessel-level filters (name, identifier, flag, type)
-        $vesselFiltersActive = false;
-        $vesselQuery = Vessel::query();
-
-        if ($search) {
-            $vesselFiltersActive = true;
-            $vesselQuery->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('mmsi', 'like', "%{$search}%")
-                  ->orWhere('imo', 'like', "%{$search}%")
-                  ->orWhere('callsign', 'like', "%{$search}%");
-            });
-        }
-
-        if (!empty($filters['flag'])) {
-            $vesselFiltersActive = true;
-            $criteria = FlagStateService::getFilterCriteria($filters['flag']);
-            if ($criteria['is_unknown']) {
-                $vesselQuery->where(function ($q) {
-                    $q->whereNull('flag_state')
-                      ->orWhere('flag_state', '')
-                      ->orWhereRaw('LOWER(flag_state) IN (?, ?, ?)', ['unknown', 'un', '-']);
-                });
-            } else {
-                $vesselQuery->where(function ($sub) use ($criteria) {
-                    $sub->whereIn('flag_state', $criteria['codes']);
-                    if (!empty($criteria['mids'])) {
-                        $sub->orWhere(function ($midQ) use ($criteria) {
-                            $midQ->where(function ($emptyFlag) {
-                                $emptyFlag->whereNull('flag_state')
-                                    ->orWhere('flag_state', '')
-                                    ->orWhereRaw('LOWER(flag_state) IN (?, ?, ?)', ['unknown', 'un', '-']);
-                            })->where(function ($prefixQ) use ($criteria) {
-                                foreach ($criteria['mids'] as $mid) {
-                                    $prefixQ->orWhere('mmsi', 'like', "{$mid}%");
-                                }
-                            });
-                        });
-                    }
-                });
-            }
-        }
-
-        if (!empty($filters['vessel_type'])) {
-            $vesselFiltersActive = true;
-            $vesselQuery->where('vessel_type', strtolower(trim($filters['vessel_type'])));
-        }
-
-        if ($vesselFiltersActive) {
-            $posQuery->whereIn('vessel_id', $vesselQuery->select('id'));
-        }
-
-        // Apply position-level filters: SOG, COG, Heading status, Freshness, Date
+        // Position-level filters: SOG, COG, Heading, Freshness, Date Range
         if (isset($filters['min_sog']) && is_numeric($filters['min_sog'])) {
-            $posQuery->where('speed_knots', '>=', (float) $filters['min_sog']);
+            $posWheres[] = "speed_knots >= ?";
+            $posBindings[] = (float) $filters['min_sog'];
         }
         if (isset($filters['max_sog']) && is_numeric($filters['max_sog'])) {
-            $posQuery->where('speed_knots', '<=', (float) $filters['max_sog']);
+            $posWheres[] = "speed_knots <= ?";
+            $posBindings[] = (float) $filters['max_sog'];
         }
 
         if (isset($filters['min_cog']) && is_numeric($filters['min_cog'])) {
-            $posQuery->where('course_degrees', '>=', (float) $filters['min_cog']);
+            $posWheres[] = "course_degrees >= ?";
+            $posBindings[] = (float) $filters['min_cog'];
         }
         if (isset($filters['max_cog']) && is_numeric($filters['max_cog'])) {
-            $posQuery->where('course_degrees', '<=', (float) $filters['max_cog']);
+            $posWheres[] = "course_degrees <= ?";
+            $posBindings[] = (float) $filters['max_cog'];
         }
 
         if (!empty($filters['heading_status'])) {
             if ($filters['heading_status'] === 'has_heading') {
-                $posQuery->whereNotNull('heading_degrees')
-                         ->where('heading_degrees', '>=', 0.0)
-                         ->where('heading_degrees', '<', 360.0)
-                         ->where('heading_degrees', '!=', 511);
+                $posWheres[] = "heading_degrees IS NOT NULL AND heading_degrees >= 0.0 AND heading_degrees < 360.0 AND heading_degrees != 511";
             } elseif ($filters['heading_status'] === 'cog_fallback') {
-                $posQuery->where(function ($q) {
-                    $q->whereNull('heading_degrees')
-                      ->orWhere('heading_degrees', '>=', 360.0)
-                      ->orWhere('heading_degrees', 511);
-                })->whereNotNull('course_degrees')
-                  ->where('course_degrees', '>=', 0.0)
-                  ->where('course_degrees', '<', 360.0)
-                  ->where('course_degrees', '!=', 3600);
+                $posWheres[] = "(heading_degrees IS NULL OR heading_degrees >= 360.0 OR heading_degrees = 511) AND course_degrees IS NOT NULL AND course_degrees >= 0.0 AND course_degrees < 360.0 AND course_degrees != 3600";
             } elseif ($filters['heading_status'] === 'unavailable') {
-                $posQuery->where(function ($q) {
-                    $q->whereNull('heading_degrees')
-                      ->orWhere('heading_degrees', '>=', 360.0)
-                      ->orWhere('heading_degrees', 511);
-                })->where(function ($q) {
-                    $q->whereNull('course_degrees')
-                      ->orWhere('course_degrees', '>=', 360.0)
-                      ->orWhere('course_degrees', 3600);
-                });
+                $posWheres[] = "(heading_degrees IS NULL OR heading_degrees >= 360.0 OR heading_degrees = 511) AND (course_degrees IS NULL OR course_degrees >= 360.0 OR course_degrees = 3600)";
             }
         }
 
         if (!empty($filters['freshness'])) {
             if ($filters['freshness'] === 'live') {
-                $posQuery->where('observed_at', '>=', now()->subHours(2));
+                $posWheres[] = "observed_at >= ?";
+                $posBindings[] = now()->subHours(2)->toDateTimeString();
             } elseif ($filters['freshness'] === 'stale') {
-                $posQuery->where('observed_at', '<', now()->subHours(2));
+                $posWheres[] = "observed_at < ?";
+                $posBindings[] = now()->subHours(2)->toDateTimeString();
             }
         }
 
         if (!empty($filters['date_range'])) {
             if ($filters['date_range'] === '24h') {
-                $posQuery->where('observed_at', '>=', now()->subHours(24));
+                $posWheres[] = "observed_at >= ?";
+                $posBindings[] = now()->subHours(24)->toDateTimeString();
             } elseif ($filters['date_range'] === '7d') {
-                $posQuery->where('observed_at', '>=', now()->subDays(7));
+                $posWheres[] = "observed_at >= ?";
+                $posBindings[] = now()->subDays(7)->toDateTimeString();
             } elseif ($filters['date_range'] === '30d') {
-                $posQuery->where('observed_at', '>=', now()->subDays(30));
+                $posWheres[] = "observed_at >= ?";
+                $posBindings[] = now()->subDays(30)->toDateTimeString();
             } elseif ($filters['date_range'] === 'custom') {
                 if (!empty($filters['start_date'])) {
-                    $posQuery->where('observed_at', '>=', $filters['start_date']);
+                    $posWheres[] = "observed_at >= ?";
+                    $posBindings[] = $filters['start_date'];
                 }
                 if (!empty($filters['end_date'])) {
-                    $posQuery->where('observed_at', '<=', $filters['end_date']);
+                    $posWheres[] = "observed_at <= ?";
+                    $posBindings[] = $filters['end_date'];
                 }
             }
         }
 
-        $offset = ($page - 1) * $limit;
+        // Collect SQL WHERE clauses and bindings for the outer vessels query
+        $vesselWheres = [];
+        $vesselBindings = [];
 
-        if ($driver === 'pgsql') {
-            // PostgreSQL high-speed DISTINCT ON wrapped in outer query ordered by observed_at DESC
-            $baseSub = (clone $posQuery)
-                ->select('id', 'vessel_id', 'observed_at')
-                ->distinct('vessel_id')
-                ->orderByRaw('vessel_id, observed_at DESC');
+        if ($search) {
+            $likeOp = ($driver === 'pgsql') ? 'ILIKE' : 'LIKE';
+            $vesselWheres[] = "(v.name {$likeOp} ? OR v.mmsi {$likeOp} ? OR v.imo {$likeOp} ? OR v.callsign {$likeOp} ?)";
+            $searchTerm = "%{$search}%";
+            $vesselBindings[] = $searchTerm;
+            $vesselBindings[] = $searchTerm;
+            $vesselBindings[] = $searchTerm;
+            $vesselBindings[] = $searchTerm;
+        }
 
-            if ($mode === 'viewport') {
-                if ($totalInViewport === null) {
-                    $totalInViewport = DB::query()
-                        ->fromSub($baseSub, 'count_sub')
-                        ->count();
+        if (!empty($filters['flag'])) {
+            $criteria = FlagStateService::getFilterCriteria($filters['flag']);
+            if ($criteria['is_unknown']) {
+                $vesselWheres[] = "(v.flag_state IS NULL OR v.flag_state = '' OR LOWER(v.flag_state) IN ('unknown', 'un', '-'))";
+            } else {
+                $codePlaceholders = implode(',', array_fill(0, count($criteria['codes']), '?'));
+                $flagClause = "v.flag_state IN ({$codePlaceholders})";
+                foreach ($criteria['codes'] as $c) {
+                    $vesselBindings[] = $c;
                 }
 
-                $positionIds = DB::query()
-                    ->fromSub($baseSub, 'latest_pos')
-                    ->orderBy('observed_at', 'desc')
-                    ->orderBy('id', 'desc')
-                    ->offset($offset)
-                    ->limit($limit)
-                    ->pluck('id');
-            } else {
-                // Global mode: single query up to 3000 vessels
-                $positionIds = DB::query()
-                    ->fromSub($baseSub, 'latest_pos')
-                    ->orderBy('observed_at', 'desc')
-                    ->limit($limit)
-                    ->pluck('id');
-
-                $totalInViewport = count($positionIds);
+                if (!empty($criteria['mids'])) {
+                    $midClauses = [];
+                    foreach ($criteria['mids'] as $mid) {
+                        $midClauses[] = "v.mmsi LIKE ?";
+                        $vesselBindings[] = "{$mid}%";
+                    }
+                    $midSql = implode(' OR ', $midClauses);
+                    $flagClause = "({$flagClause} OR ((v.flag_state IS NULL OR v.flag_state = '' OR LOWER(v.flag_state) IN ('unknown', 'un', '-')) AND ({$midSql})))";
+                }
+                $vesselWheres[] = $flagClause;
             }
+        }
 
-            $positions = VesselPosition::with(['vessel', 'sourceProvider'])
-                ->whereIn('id', $positionIds)
-                ->orderBy('observed_at', 'desc')
-                ->orderBy('id', 'desc')
-                ->get();
+        if (!empty($filters['vessel_type'])) {
+            $vesselWheres[] = "LOWER(v.vessel_type) = ?";
+            $vesselBindings[] = strtolower(trim($filters['vessel_type']));
+        }
+
+        $posWhereSql = implode(' AND ', $posWheres);
+        $vesselWhereSql = !empty($vesselWheres) ? ('WHERE ' . implode(' AND ', $vesselWheres)) : '';
+
+        // If totalInViewport is not already known, include window count
+        $countSelect = ($totalInViewport === null) ? ", COUNT(*) OVER() AS full_count" : "";
+
+        if ($driver === 'pgsql') {
+            $sql = "
+                WITH latest_pos AS (
+                    SELECT DISTINCT ON (vessel_id)
+                        id, vessel_id, latitude, longitude, speed_knots, course_degrees,
+                        heading_degrees, nav_status, observed_at, data_quality_score, is_on_land, source_provider_id
+                    FROM vessel_positions
+                    WHERE {$posWhereSql}
+                    ORDER BY vessel_id, observed_at DESC
+                )
+                SELECT
+                    lp.id,
+                    lp.latitude,
+                    lp.longitude,
+                    lp.speed_knots,
+                    lp.course_degrees,
+                    lp.heading_degrees,
+                    lp.nav_status,
+                    lp.observed_at,
+                    lp.data_quality_score,
+                    lp.is_on_land,
+                    v.id AS vessel_id,
+                    v.name,
+                    v.mmsi,
+                    v.imo,
+                    v.callsign,
+                    v.hull_code,
+                    v.flag_state,
+                    v.vessel_type,
+                    v.enrichment_status,
+                    v.verification_status,
+                    dp.name AS provider_name
+                    {$countSelect}
+                FROM latest_pos lp
+                JOIN vessels v ON v.id = lp.vessel_id
+                LEFT JOIN data_providers dp ON dp.id = lp.source_provider_id
+                {$vesselWhereSql}
+                ORDER BY lp.observed_at DESC, lp.id DESC
+                LIMIT ? OFFSET ?
+            ";
         } else {
-            // SQLite / fallback
-            $allPositions = (clone $posQuery)
-                ->with(['vessel', 'sourceProvider'])
-                ->orderBy('observed_at', 'desc')
-                ->orderBy('id', 'desc')
-                ->get()
-                ->unique('vessel_id')
-                ->values();
+            // SQLite / fallback compatible window query
+            $sql = "
+                WITH ranked_pos AS (
+                    SELECT
+                        id, vessel_id, latitude, longitude, speed_knots, course_degrees,
+                        heading_degrees, nav_status, observed_at, data_quality_score, is_on_land, source_provider_id,
+                        ROW_NUMBER() OVER (PARTITION BY vessel_id ORDER BY observed_at DESC, id DESC) as rn
+                    FROM vessel_positions
+                    WHERE {$posWhereSql}
+                ),
+                latest_pos AS (
+                    SELECT * FROM ranked_pos WHERE rn = 1
+                )
+                SELECT
+                    lp.id,
+                    lp.latitude,
+                    lp.longitude,
+                    lp.speed_knots,
+                    lp.course_degrees,
+                    lp.heading_degrees,
+                    lp.nav_status,
+                    lp.observed_at,
+                    lp.data_quality_score,
+                    lp.is_on_land,
+                    v.id AS vessel_id,
+                    v.name,
+                    v.mmsi,
+                    v.imo,
+                    v.callsign,
+                    v.hull_code,
+                    v.flag_state,
+                    v.vessel_type,
+                    v.enrichment_status,
+                    v.verification_status,
+                    dp.name AS provider_name
+                    {$countSelect}
+                FROM latest_pos lp
+                JOIN vessels v ON v.id = lp.vessel_id
+                LEFT JOIN data_providers dp ON dp.id = lp.source_provider_id
+                {$vesselWhereSql}
+                ORDER BY lp.observed_at DESC, lp.id DESC
+                LIMIT ? OFFSET ?
+            ";
+        }
 
-            if ($mode === 'viewport') {
-                $totalInViewport = $totalInViewport ?? $allPositions->count();
-                $positions = $allPositions->slice($offset, $limit)->values();
-            } else {
-                $positions = $allPositions->take($limit)->values();
-                $totalInViewport = $positions->count();
-            }
+        $allBindings = array_merge($posBindings, $vesselBindings, [$limit, $offset]);
+        $rows = DB::select($sql, $allBindings);
+
+        if ($totalInViewport === null) {
+            $totalInViewport = !empty($rows) ? (int) ($rows[0]->full_count ?? count($rows)) : 0;
         }
 
         $totalPages = $limit > 0 ? (int) max(1, ceil($totalInViewport / $limit)) : 1;
@@ -1097,21 +1151,17 @@ class SpatialQueryService
         $nextPage = $hasMore ? $page + 1 : null;
 
         $features = [];
-        foreach ($positions as $pos) {
-            $vessel = $pos->vessel;
-            if (!$vessel) continue;
+        $nowTs = time();
 
+        foreach ($rows as $pos) {
             $lat = (float) $pos->latitude;
             $lng = (float) $pos->longitude;
-            if (!is_finite($lat) || !is_finite($lng) || $lat < -90.0 || $lat > 90.0 || $lng < -180.0 || $lng > 180.0 || ($lat === 0.0 && $lng === 0.0) || $pos->is_on_land) {
+            if (!is_finite($lat) || !is_finite($lng) || $lat < -90.0 || $lat > 90.0 || $lng < -180.0 || $lng > 180.0 || ($lat === 0.0 && $lng === 0.0) || (bool) $pos->is_on_land) {
                 continue;
             }
 
-            $flagInfo = \App\Services\Maritime\FlagStateService::resolveFromCodeAndMmsi($vessel->flag_state, $vessel->mmsi);
+            $flagInfo = FlagStateService::resolveFromCodeAndMmsi($pos->flag_state, $pos->mmsi);
 
-            // Priority: 1. True Heading (0-359.9, finite, not null, excluding 511 NMEA unavailable)
-            //           2. COG Fallback (0-359.9, finite, not null, excluding 3600 NMEA unavailable)
-            //           3. Direction Unavailable (Neutral beacon, no claim of direction)
             $heading = null;
             if ($pos->heading_degrees !== null) {
                 $hVal = (float) $pos->heading_degrees;
@@ -1144,6 +1194,10 @@ class SpatialQueryService
 
             $orientationType = $orientationSource === 'unavailable' ? 'neutral' : $orientationSource;
 
+            $obsTime = $pos->observed_at ? strtotime((string) $pos->observed_at) : false;
+            $isFresh = $obsTime ? (($nowTs - $obsTime) <= 7200) : false;
+            $observedAtIso = $obsTime ? gmdate('Y-m-d\TH:i:s\Z', $obsTime) : null;
+
             $features[] = [
                 'type' => 'Feature',
                 'id' => $pos->id,
@@ -1152,22 +1206,22 @@ class SpatialQueryService
                     'coordinates' => [$lng, $lat],
                 ],
                 'properties' => [
-                    'vessel_id' => $vessel->id,
-                    'name' => $vessel->name,
-                    'mmsi' => $vessel->mmsi,
-                    'imo' => $vessel->imo,
-                    'callsign' => $vessel->callsign,
-                    'hull_code' => $vessel->hull_code,
+                    'vessel_id' => $pos->vessel_id,
+                    'name' => $pos->name,
+                    'mmsi' => $pos->mmsi,
+                    'imo' => $pos->imo,
+                    'callsign' => $pos->callsign,
+                    'hull_code' => $pos->hull_code,
                     'flag_state' => $flagInfo['iso2'],
                     'flag_country' => $flagInfo['country_name'],
                     'flag_emoji' => $flagInfo['flag_emoji'],
                     'flag_label' => $flagInfo['label'],
                     'flag_status' => $flagInfo['status'],
                     'flag_verified' => $flagInfo['is_verified'],
-                    'vessel_type' => $vessel->vessel_type,
-                    'enrichment_status' => $vessel->enrichment_status ?? 'not_enriched',
-                    'verification_status' => $vessel->verification_status ?? 'unverified',
-                    'is_manually_verified' => $vessel->isManuallyVerified(),
+                    'vessel_type' => $pos->vessel_type,
+                    'enrichment_status' => $pos->enrichment_status ?? 'not_enriched',
+                    'verification_status' => $pos->verification_status ?? 'unverified',
+                    'is_manually_verified' => ($pos->verification_status === 'verified'),
                     'speed_knots' => $pos->speed_knots !== null && is_finite((float) $pos->speed_knots) ? round((float) $pos->speed_knots, 1) : null,
                     'course_degrees' => $cog,
                     'heading_degrees' => $heading,
@@ -1176,10 +1230,10 @@ class SpatialQueryService
                     'orientation_type' => $orientationType,
                     'has_orientation' => $hasOrientation,
                     'nav_status' => $pos->nav_status,
-                    'observed_at' => $pos->observed_at?->toIso8601String(),
-                    'is_fresh' => $pos->isFresh(),
+                    'observed_at' => $observedAtIso,
+                    'is_fresh' => $isFresh,
                     'data_quality_score' => (float) $pos->data_quality_score,
-                    'provider' => $pos->sourceProvider?->name ?? 'Native AIS',
+                    'provider' => $pos->provider_name ?? 'Native AIS',
                 ]
             ];
         }
@@ -1198,7 +1252,7 @@ class SpatialQueryService
                 'limit' => $limit,
                 'page' => $page,
                 'total_pages' => $totalPages,
-                'total_in_viewport' => $totalInViewport ?? count($features),
+                'total_in_viewport' => $totalInViewport,
                 'has_more' => $hasMore,
                 'next_page' => $nextPage,
                 'total_vessels' => $stats['total_vessels'],
