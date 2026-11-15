@@ -11,7 +11,7 @@
         <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-1.5">
                 <span class="text-slate-400">Show</span>
-                <select id="vesselsPerPageSelectMobile" onchange="const u = new URL(window.location.href); u.searchParams.set('per_page', this.value); u.searchParams.set('page', 1); window.location.href = u.toString();"
+                <select id="vesselsPerPageSelectMobile" onchange="changePaginationPerPage(this)"
                     class="px-2 py-1 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400 font-medium cursor-pointer">
                     <option value="10" {{ $selectedPerPage === 10 ? 'selected' : '' }}>10</option>
                     <option value="25" {{ $selectedPerPage === 25 ? 'selected' : '' }}>25</option>
@@ -79,7 +79,7 @@
         <!-- Left: Per page selector -->
         <div class="flex items-center gap-2 shrink-0">
             <span class="text-slate-400">Show</span>
-            <select id="vesselsPerPageSelect" onchange="const u = new URL(window.location.href); u.searchParams.set('per_page', this.value); u.searchParams.set('page', 1); window.location.href = u.toString();"
+            <select id="vesselsPerPageSelect" onchange="changePaginationPerPage(this)"
                 class="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 font-medium cursor-pointer">
                 <option value="10" {{ $selectedPerPage === 10 ? 'selected' : '' }}>10</option>
                 <option value="25" {{ $selectedPerPage === 25 ? 'selected' : '' }}>25</option>
@@ -163,4 +163,15 @@
             @endif
         </div>
     </div>
+
+    <script>
+        if (typeof window.changePaginationPerPage !== 'function') {
+            window.changePaginationPerPage = function(el) {
+                const u = new URL(window.location.href);
+                u.searchParams.set('per_page', el.value);
+                u.searchParams.set('page', '1');
+                window.location.href = u.toString();
+            };
+        }
+    </script>
 </div>
