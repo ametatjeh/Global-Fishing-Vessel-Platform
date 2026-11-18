@@ -241,9 +241,14 @@ class MapLayerApiController extends Controller
 
         $search = $request->query('q');
 
+        $rawTypes = $request->query('vessel_types')
+            ?? $request->query('types')
+            ?? $request->query('vessel_type');
+
         $filters = [
             'flag' => $request->query('flag'),
-            'vessel_type' => $request->query('vessel_type'),
+            'vessel_types' => $rawTypes ?: 'fishing',
+            'vessel_type' => $rawTypes ?: 'fishing',
             'min_sog' => $request->query('min_sog'),
             'max_sog' => $request->query('max_sog'),
             'min_cog' => $request->query('min_cog'),

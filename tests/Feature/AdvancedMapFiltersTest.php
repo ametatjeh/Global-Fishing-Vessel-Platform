@@ -171,7 +171,7 @@ class AdvancedMapFiltersTest extends TestCase
         $this->assertEquals('KM INDO JAYA', $resFlagIso2->json('features.0.properties.name'));
 
         // 1b. Filter by flag CHN and ISO2 CN
-        $resFlagChn = $this->getJson('/api/layers/vessels?flag=CN');
+        $resFlagChn = $this->getJson('/api/layers/vessels?flag=CN&types=all');
         $resFlagChn->assertOk();
         $this->assertCount(1, $resFlagChn->json('features'));
         $this->assertEquals('TIANJIN VOYAGER', $resFlagChn->json('features.0.properties.name'));
@@ -201,7 +201,7 @@ class AdvancedMapFiltersTest extends TestCase
         $this->assertEquals('KM INDO JAYA', $resFresh->json('features.0.properties.name'));
 
         // 6. Filter by freshness: stale (>= 2h)
-        $resStale = $this->getJson('/api/layers/vessels?freshness=stale');
+        $resStale = $this->getJson('/api/layers/vessels?freshness=stale&types=all');
         $resStale->assertOk();
         $this->assertCount(1, $resStale->json('features'));
         $this->assertEquals('TIANJIN VOYAGER', $resStale->json('features.0.properties.name'));
@@ -346,7 +346,7 @@ class AdvancedMapFiltersTest extends TestCase
         $this->assertEquals('KM BERKAH 01', $resMulti->json('features.0.properties.name'));
 
         // B. Verify Flag State Provenance Categories
-        $allRes = $this->getJson('/api/layers/vessels');
+        $allRes = $this->getJson('/api/layers/vessels?types=all');
         $allRes->assertOk();
         $featuresByMmsi = collect($allRes->json('features'))->keyBy('properties.mmsi');
 
@@ -371,7 +371,7 @@ class AdvancedMapFiltersTest extends TestCase
         $this->assertFalse($f5['properties']['flag_verified']);
 
         // C. Filter flag=UNKNOWN matches only unverified / missing flag vessels and DOES NOT return valid explicit flag vessels
-        $resUnknown = $this->getJson('/api/layers/vessels?flag=UNKNOWN');
+        $resUnknown = $this->getJson('/api/layers/vessels?flag=UNKNOWN&types=all');
         $resUnknown->assertOk();
         $unknownNames = collect($resUnknown->json('features'))->pluck('properties.name')->all();
         $this->assertContains('GHOST VESSEL', $unknownNames);

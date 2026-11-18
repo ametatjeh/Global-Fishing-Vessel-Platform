@@ -62,11 +62,22 @@ export class GlobalMapController {
         this.currentBasemapKey = this.resolveInitialBasemapKey(options.basemap);
         this.onVesselSelected = options.onVesselSelected || null;
 
+        // Parse initial vessel type filter from URL query / hash, strictly defaulting to 'fishing'
+        let initialVesselType = 'fishing';
+        if (typeof window !== 'undefined') {
+            const urlParams = new URLSearchParams(window.location.search);
+            const hashMatch = window.location.hash.match(/[?&](types|vessel_types|vessel_type)=([^&]+)/);
+            const urlType = hashMatch ? decodeURIComponent(hashMatch[2]) : (urlParams.get('types') || urlParams.get('vessel_types') || urlParams.get('vessel_type'));
+            if (urlType) {
+                initialVesselType = urlType.toLowerCase();
+            }
+        }
+
         // Controlled Advanced Filters State
         this.filters = {
             search: '',
             flag: '',
-            vesselType: '',
+            vesselType: initialVesselType,
             minSog: null,
             maxSog: null,
             minCog: null,
@@ -164,6 +175,9 @@ export class GlobalMapController {
             let hash = `#map=${z}/${lat}/${lng}`;
             if (this.selectedMmsi) {
                 hash += `&vessel=${encodeURIComponent(this.selectedMmsi)}`;
+            }
+            if (this.filters.vesselType) {
+                hash += `&types=${encodeURIComponent(this.filters.vesselType)}`;
             }
             if (window.history && window.history.replaceState) {
                 window.history.replaceState(null, '', hash);
@@ -2437,7 +2451,9 @@ export class GlobalMapController {
             if (effectiveSearch) params.append('q', effectiveSearch);
 
             if (this.filters.flag) params.append('flag', this.filters.flag);
-            if (this.filters.vesselType) params.append('vessel_type', this.filters.vesselType);
+            const vType = this.filters.vesselType || 'fishing';
+            params.append('vessel_type', vType);
+            params.append('types', vType);
             if (this.filters.minSog !== null && this.filters.minSog !== '' && isFinite(this.filters.minSog)) params.append('min_sog', this.filters.minSog);
             if (this.filters.maxSog !== null && this.filters.maxSog !== '' && isFinite(this.filters.maxSog)) params.append('max_sog', this.filters.maxSog);
             if (this.filters.minCog !== null && this.filters.minCog !== '' && isFinite(this.filters.minCog)) params.append('min_cog', this.filters.minCog);
@@ -2449,8 +2465,8 @@ export class GlobalMapController {
             if (this.filters.endDate) params.append('end_date', this.filters.endDate);
 
             if (isGlobalMode) {
-                // GLOBAL MODE: Single request max 1,500 vessels worldwide
-                params.append('limit', '1500');
+                // GLOBAL MODE: Single request max 2,000 vessels worldwide (Fishing by default)
+                params.append('limit', '2000');
                 const requestUrl = `/api/layers/vessels?${params.toString()}`;
 
                 const res = await fetch(requestUrl, { signal: controller.signal });
@@ -2910,6 +2926,7 @@ export class GlobalMapController {
         };
 
         this.updateActiveFilterCountBadge();
+        this.updateUrlHash();
 
         if (this.activeLayers.vessels) {
             this.fetchLayerData('vessels');
@@ -2926,7 +2943,7 @@ export class GlobalMapController {
         this.filters = {
             search: '',
             flag: '',
-            vesselType: '',
+            vesselType: 'fishing',
             minSog: null,
             maxSog: null,
             minCog: null,
@@ -2948,6 +2965,7 @@ export class GlobalMapController {
         if (searchInput) searchInput.value = '';
 
         this.updateActiveFilterCountBadge();
+        this.updateUrlHash();
 
         if (this.activeLayers.vessels) {
             this.fetchLayerData('vessels');
@@ -2964,7 +2982,7 @@ export class GlobalMapController {
         let count = 0;
         if (this.filters.search && this.filters.search.trim()) count++;
         if (this.filters.flag) count++;
-        if (this.filters.vesselType) count++;
+        if (this.filters.vesselType && this.filters.vesselType !== 'fishing') count++;
         if (this.filters.minSog !== null && this.filters.minSog !== '') count++;
         if (this.filters.maxSog !== null && this.filters.maxSog !== '') count++;
         if (this.filters.minCog !== null && this.filters.minCog !== '') count++;

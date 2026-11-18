@@ -1042,9 +1042,51 @@ class SpatialQueryService
             }
         }
 
-        if (!empty($filters['vessel_type'])) {
-            $vesselWheres[] = "LOWER(v.vessel_type) = ?";
-            $vesselBindings[] = strtolower(trim($filters['vessel_type']));
+        // Resolve vessel types filter (defaults to fishing only unless explicitly set to 'all' or specific types)
+        $typesInput = $filters['vessel_types'] ?? $filters['types'] ?? ($filters['vessel_type'] ?? null);
+
+        $selectedTypes = [];
+        if ($typesInput !== null && $typesInput !== '') {
+            if (is_array($typesInput)) {
+                $selectedTypes = array_map(fn($t) => strtolower(trim((string)$t)), $typesInput);
+            } else {
+                $trimmed = strtolower(trim((string)$typesInput));
+                if ($trimmed === 'all') {
+                    $selectedTypes = ['all'];
+                } else {
+                    $parts = explode(',', $trimmed);
+                    $selectedTypes = array_filter(array_map('trim', $parts));
+                }
+            }
+        }
+
+        // DEFAULT TO FISHING ONLY if no type filter specified:
+        if (empty($selectedTypes)) {
+            $selectedTypes = ['fishing'];
+        }
+
+        $validTypes = [];
+        if (!in_array('all', $selectedTypes, true)) {
+            foreach ($selectedTypes as $st) {
+                $clean = preg_replace('/[^a-z0-9_\-]/', '', $st);
+                if ($clean !== '') {
+                    $validTypes[] = $clean;
+                }
+            }
+            if (empty($validTypes)) {
+                $validTypes = ['fishing'];
+            }
+
+            if (count($validTypes) === 1) {
+                $vesselWheres[] = "LOWER(TRIM(COALESCE(v.vessel_type, ''))) = ?";
+                $vesselBindings[] = $validTypes[0];
+            } else {
+                $placeholders = implode(',', array_fill(0, count($validTypes), '?'));
+                $vesselWheres[] = "LOWER(TRIM(COALESCE(v.vessel_type, ''))) IN ({$placeholders})";
+                foreach ($validTypes as $vt) {
+                    $vesselBindings[] = $vt;
+                }
+            }
         }
 
         $posWhereSql = implode(' AND ', $posWheres);
@@ -1055,13 +1097,21 @@ class SpatialQueryService
 
         if ($driver === 'pgsql') {
             $sql = "
-                WITH latest_pos AS (
-                    SELECT DISTINCT ON (vessel_id)
-                        id, vessel_id, latitude, longitude, speed_knots, course_degrees,
-                        heading_degrees, nav_status, observed_at, data_quality_score, is_on_land, source_provider_id
-                    FROM vessel_positions
+                WITH target_vessels AS (
+                    SELECT
+                        v.id, v.name, v.mmsi, v.imo, v.callsign, v.hull_code,
+                        v.flag_state, v.vessel_type, v.enrichment_status, v.verification_status
+                    FROM vessels v
+                    {$vesselWhereSql}
+                ),
+                latest_pos AS (
+                    SELECT DISTINCT ON (vp.vessel_id)
+                        vp.id, vp.vessel_id, vp.latitude, vp.longitude, vp.speed_knots, vp.course_degrees,
+                        vp.heading_degrees, vp.nav_status, vp.observed_at, vp.data_quality_score, vp.is_on_land, vp.source_provider_id
+                    FROM vessel_positions vp
+                    JOIN target_vessels tv ON tv.id = vp.vessel_id
                     WHERE {$posWhereSql}
-                    ORDER BY vessel_id, observed_at DESC
+                    ORDER BY vp.vessel_id, vp.observed_at DESC
                 )
                 SELECT
                     lp.id,
@@ -1074,34 +1124,41 @@ class SpatialQueryService
                     lp.observed_at,
                     lp.data_quality_score,
                     lp.is_on_land,
-                    v.id AS vessel_id,
-                    v.name,
-                    v.mmsi,
-                    v.imo,
-                    v.callsign,
-                    v.hull_code,
-                    v.flag_state,
-                    v.vessel_type,
-                    v.enrichment_status,
-                    v.verification_status,
+                    tv.id AS vessel_id,
+                    tv.name,
+                    tv.mmsi,
+                    tv.imo,
+                    tv.callsign,
+                    tv.hull_code,
+                    tv.flag_state,
+                    tv.vessel_type,
+                    tv.enrichment_status,
+                    tv.verification_status,
                     dp.name AS provider_name
                     {$countSelect}
                 FROM latest_pos lp
-                JOIN vessels v ON v.id = lp.vessel_id
+                JOIN target_vessels tv ON tv.id = lp.vessel_id
                 LEFT JOIN data_providers dp ON dp.id = lp.source_provider_id
-                {$vesselWhereSql}
                 ORDER BY lp.observed_at DESC, lp.id DESC
                 LIMIT ? OFFSET ?
             ";
         } else {
             // SQLite / fallback compatible window query
             $sql = "
-                WITH ranked_pos AS (
+                WITH target_vessels AS (
                     SELECT
-                        id, vessel_id, latitude, longitude, speed_knots, course_degrees,
-                        heading_degrees, nav_status, observed_at, data_quality_score, is_on_land, source_provider_id,
-                        ROW_NUMBER() OVER (PARTITION BY vessel_id ORDER BY observed_at DESC, id DESC) as rn
-                    FROM vessel_positions
+                        v.id, v.name, v.mmsi, v.imo, v.callsign, v.hull_code,
+                        v.flag_state, v.vessel_type, v.enrichment_status, v.verification_status
+                    FROM vessels v
+                    {$vesselWhereSql}
+                ),
+                ranked_pos AS (
+                    SELECT
+                        vp.id, vp.vessel_id, vp.latitude, vp.longitude, vp.speed_knots, vp.course_degrees,
+                        vp.heading_degrees, vp.nav_status, vp.observed_at, vp.data_quality_score, vp.is_on_land, vp.source_provider_id,
+                        ROW_NUMBER() OVER (PARTITION BY vp.vessel_id ORDER BY vp.observed_at DESC, vp.id DESC) as rn
+                    FROM vessel_positions vp
+                    JOIN target_vessels tv ON tv.id = vp.vessel_id
                     WHERE {$posWhereSql}
                 ),
                 latest_pos AS (
@@ -1118,150 +1175,168 @@ class SpatialQueryService
                     lp.observed_at,
                     lp.data_quality_score,
                     lp.is_on_land,
-                    v.id AS vessel_id,
-                    v.name,
-                    v.mmsi,
-                    v.imo,
-                    v.callsign,
-                    v.hull_code,
-                    v.flag_state,
-                    v.vessel_type,
-                    v.enrichment_status,
-                    v.verification_status,
+                    tv.id AS vessel_id,
+                    tv.name,
+                    tv.mmsi,
+                    tv.imo,
+                    tv.callsign,
+                    tv.hull_code,
+                    tv.flag_state,
+                    tv.vessel_type,
+                    tv.enrichment_status,
+                    tv.verification_status,
                     dp.name AS provider_name
                     {$countSelect}
                 FROM latest_pos lp
-                JOIN vessels v ON v.id = lp.vessel_id
+                JOIN target_vessels tv ON tv.id = lp.vessel_id
                 LEFT JOIN data_providers dp ON dp.id = lp.source_provider_id
-                {$vesselWhereSql}
                 ORDER BY lp.observed_at DESC, lp.id DESC
                 LIMIT ? OFFSET ?
             ";
         }
 
-        $allBindings = array_merge($posBindings, $vesselBindings, [$limit, $offset]);
-        $rows = DB::select($sql, $allBindings);
+        $allBindings = array_merge($vesselBindings, $posBindings, [$limit, $offset]);
 
-        if ($totalInViewport === null) {
-            $totalInViewport = !empty($rows) ? (int) ($rows[0]->full_count ?? count($rows)) : 0;
-        }
+        $cachePayload = [
+            'bbox' => $bbox,
+            'search' => $search,
+            'limit' => $limit,
+            'mode' => $mode,
+            'page' => $page,
+            'totalInViewport' => $totalInViewport,
+            'zoom' => $zoom !== null ? round($zoom, 1) : null,
+            'filters' => $filters,
+        ];
+        $cacheKey = 'vessels_geo_' . md5(json_encode($cachePayload));
 
-        $totalPages = $limit > 0 ? (int) max(1, ceil($totalInViewport / $limit)) : 1;
-        $hasMore = $mode === 'viewport' && ($page < $totalPages);
-        $nextPage = $hasMore ? $page + 1 : null;
+        return Cache::remember($cacheKey, 15, function () use (
+            $sql, $allBindings, $totalInViewport, $limit, $mode, $page, $bbox, $zoom, $selectedTypes, $validTypes
+        ) {
+            $rows = DB::select($sql, $allBindings);
 
-        $features = [];
-        $nowTs = time();
-
-        foreach ($rows as $pos) {
-            $lat = (float) $pos->latitude;
-            $lng = (float) $pos->longitude;
-            if (!is_finite($lat) || !is_finite($lng) || $lat < -90.0 || $lat > 90.0 || $lng < -180.0 || $lng > 180.0 || ($lat === 0.0 && $lng === 0.0) || (bool) $pos->is_on_land) {
-                continue;
+            if ($totalInViewport === null) {
+                $totalInViewport = !empty($rows) ? (int) ($rows[0]->full_count ?? count($rows)) : 0;
             }
 
-            $flagInfo = FlagStateService::resolveFromCodeAndMmsi($pos->flag_state, $pos->mmsi);
+            $totalPages = $limit > 0 ? (int) max(1, ceil($totalInViewport / $limit)) : 1;
+            $hasMore = $mode === 'viewport' && ($page < $totalPages);
+            $nextPage = $hasMore ? $page + 1 : null;
 
-            $heading = null;
-            if ($pos->heading_degrees !== null) {
-                $hVal = (float) $pos->heading_degrees;
-                if (is_finite($hVal) && $hVal >= 0.0 && $hVal < 360.0 && (int) $hVal !== 511) {
-                    $heading = round(fmod($hVal, 360.0), 1);
+            $features = [];
+            $nowTs = time();
+
+            foreach ($rows as $pos) {
+                $lat = (float) $pos->latitude;
+                $lng = (float) $pos->longitude;
+                if (!is_finite($lat) || !is_finite($lng) || $lat < -90.0 || $lat > 90.0 || $lng < -180.0 || $lng > 180.0 || ($lat === 0.0 && $lng === 0.0) || (bool) $pos->is_on_land) {
+                    continue;
                 }
-            }
 
-            $cog = null;
-            if ($pos->course_degrees !== null) {
-                $cVal = (float) $pos->course_degrees;
-                if (is_finite($cVal) && $cVal >= 0.0 && $cVal < 360.0 && (int) $cVal !== 3600) {
-                    $cog = round(fmod($cVal, 360.0), 1);
+                $flagInfo = FlagStateService::resolveFromCodeAndMmsi($pos->flag_state, $pos->mmsi);
+
+                $heading = null;
+                if ($pos->heading_degrees !== null) {
+                    $hVal = (float) $pos->heading_degrees;
+                    if (is_finite($hVal) && $hVal >= 0.0 && $hVal < 360.0 && (int) $hVal !== 511) {
+                        $heading = round(fmod($hVal, 360.0), 1);
+                    }
                 }
+
+                $cog = null;
+                if ($pos->course_degrees !== null) {
+                    $cVal = (float) $pos->course_degrees;
+                    if (is_finite($cVal) && $cVal >= 0.0 && $cVal < 360.0 && (int) $cVal !== 3600) {
+                        $cog = round(fmod($cVal, 360.0), 1);
+                    }
+                }
+
+                if ($heading !== null) {
+                    $orientationSource = 'heading';
+                    $orientationDegrees = $heading;
+                    $hasOrientation = true;
+                } elseif ($cog !== null) {
+                    $orientationSource = 'cog';
+                    $orientationDegrees = $cog;
+                    $hasOrientation = true;
+                } else {
+                    $orientationSource = 'unavailable';
+                    $orientationDegrees = 0.0;
+                    $hasOrientation = false;
+                }
+
+                $orientationType = $orientationSource === 'unavailable' ? 'neutral' : $orientationSource;
+
+                $obsTime = $pos->observed_at ? strtotime((string) $pos->observed_at) : false;
+                $isFresh = $obsTime ? (($nowTs - $obsTime) <= 7200) : false;
+                $observedAtIso = $obsTime ? gmdate('Y-m-d\TH:i:s\Z', $obsTime) : null;
+
+                $features[] = [
+                    'type' => 'Feature',
+                    'id' => $pos->id,
+                    'geometry' => [
+                        'type' => 'Point',
+                        'coordinates' => [$lng, $lat],
+                    ],
+                    'properties' => [
+                        'vessel_id' => $pos->vessel_id,
+                        'name' => $pos->name,
+                        'mmsi' => $pos->mmsi,
+                        'imo' => $pos->imo,
+                        'callsign' => $pos->callsign,
+                        'hull_code' => $pos->hull_code,
+                        'flag_state' => $flagInfo['iso2'],
+                        'flag_country' => $flagInfo['country_name'],
+                        'flag_emoji' => $flagInfo['flag_emoji'],
+                        'flag_label' => $flagInfo['label'],
+                        'flag_status' => $flagInfo['status'],
+                        'flag_verified' => $flagInfo['is_verified'],
+                        'vessel_type' => $pos->vessel_type,
+                        'enrichment_status' => $pos->enrichment_status ?? 'not_enriched',
+                        'verification_status' => $pos->verification_status ?? 'unverified',
+                        'is_manually_verified' => ($pos->verification_status === 'verified'),
+                        'speed_knots' => $pos->speed_knots !== null && is_finite((float) $pos->speed_knots) ? round((float) $pos->speed_knots, 1) : null,
+                        'course_degrees' => $cog,
+                        'heading_degrees' => $heading,
+                        'orientation_degrees' => $orientationDegrees,
+                        'orientation_source' => $orientationSource,
+                        'orientation_type' => $orientationType,
+                        'has_orientation' => $hasOrientation,
+                        'nav_status' => $pos->nav_status,
+                        'observed_at' => $observedAtIso,
+                        'is_fresh' => $isFresh,
+                        'data_quality_score' => (float) $pos->data_quality_score,
+                        'provider' => $pos->provider_name ?? 'Native AIS',
+                    ]
+                ];
             }
 
-            if ($heading !== null) {
-                $orientationSource = 'heading';
-                $orientationDegrees = $heading;
-                $hasOrientation = true;
-            } elseif ($cog !== null) {
-                $orientationSource = 'cog';
-                $orientationDegrees = $cog;
-                $hasOrientation = true;
-            } else {
-                $orientationSource = 'unavailable';
-                $orientationDegrees = 0.0;
-                $hasOrientation = false;
-            }
+            $stats = $this->getVesselStatistics();
 
-            $orientationType = $orientationSource === 'unavailable' ? 'neutral' : $orientationSource;
-
-            $obsTime = $pos->observed_at ? strtotime((string) $pos->observed_at) : false;
-            $isFresh = $obsTime ? (($nowTs - $obsTime) <= 7200) : false;
-            $observedAtIso = $obsTime ? gmdate('Y-m-d\TH:i:s\Z', $obsTime) : null;
-
-            $features[] = [
-                'type' => 'Feature',
-                'id' => $pos->id,
-                'geometry' => [
-                    'type' => 'Point',
-                    'coordinates' => [$lng, $lat],
-                ],
-                'properties' => [
-                    'vessel_id' => $pos->vessel_id,
-                    'name' => $pos->name,
-                    'mmsi' => $pos->mmsi,
-                    'imo' => $pos->imo,
-                    'callsign' => $pos->callsign,
-                    'hull_code' => $pos->hull_code,
-                    'flag_state' => $flagInfo['iso2'],
-                    'flag_country' => $flagInfo['country_name'],
-                    'flag_emoji' => $flagInfo['flag_emoji'],
-                    'flag_label' => $flagInfo['label'],
-                    'flag_status' => $flagInfo['status'],
-                    'flag_verified' => $flagInfo['is_verified'],
-                    'vessel_type' => $pos->vessel_type,
-                    'enrichment_status' => $pos->enrichment_status ?? 'not_enriched',
-                    'verification_status' => $pos->verification_status ?? 'unverified',
-                    'is_manually_verified' => ($pos->verification_status === 'verified'),
-                    'speed_knots' => $pos->speed_knots !== null && is_finite((float) $pos->speed_knots) ? round((float) $pos->speed_knots, 1) : null,
-                    'course_degrees' => $cog,
-                    'heading_degrees' => $heading,
-                    'orientation_degrees' => $orientationDegrees,
-                    'orientation_source' => $orientationSource,
-                    'orientation_type' => $orientationType,
-                    'has_orientation' => $hasOrientation,
-                    'nav_status' => $pos->nav_status,
-                    'observed_at' => $observedAtIso,
-                    'is_fresh' => $isFresh,
-                    'data_quality_score' => (float) $pos->data_quality_score,
-                    'provider' => $pos->provider_name ?? 'Native AIS',
+            return [
+                'type' => 'FeatureCollection',
+                'features' => $features,
+                'metadata' => [
+                    'mode' => $mode,
+                    'zoom' => $zoom,
+                    'bbox' => $bbox,
+                    'count' => count($features),
+                    'rendered_count' => count($features),
+                    'limit' => $limit,
+                    'page' => $page,
+                    'total_pages' => $totalPages,
+                    'total_in_viewport' => $totalInViewport,
+                    'has_more' => $hasMore,
+                    'next_page' => $nextPage,
+                    'vessel_types' => in_array('all', $selectedTypes, true) ? ['all'] : $validTypes,
+                    'default_filter' => 'fishing',
+                    'total_vessels' => $stats['total_vessels'],
+                    'valid_positions' => $stats['valid_positions'],
+                    'active_vessels' => $stats['active_vessels'],
+                    'stale_vessels' => $stats['stale_vessels'],
+                    'generated_at' => now()->toIso8601String(),
                 ]
             ];
-        }
-
-        $stats = $this->getVesselStatistics();
-
-        return [
-            'type' => 'FeatureCollection',
-            'features' => $features,
-            'metadata' => [
-                'mode' => $mode,
-                'zoom' => $zoom,
-                'bbox' => $bbox,
-                'count' => count($features),
-                'rendered_count' => count($features),
-                'limit' => $limit,
-                'page' => $page,
-                'total_pages' => $totalPages,
-                'total_in_viewport' => $totalInViewport,
-                'has_more' => $hasMore,
-                'next_page' => $nextPage,
-                'total_vessels' => $stats['total_vessels'],
-                'valid_positions' => $stats['valid_positions'],
-                'active_vessels' => $stats['active_vessels'],
-                'stale_vessels' => $stats['stale_vessels'],
-                'generated_at' => now()->toIso8601String(),
-            ]
-        ];
+        });
     }
 
     /**

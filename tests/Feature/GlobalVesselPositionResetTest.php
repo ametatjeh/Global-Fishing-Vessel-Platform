@@ -70,7 +70,7 @@ class GlobalVesselPositionResetTest extends TestCase
         $this->assertNull($vessel->last_seen_at, 'Vessel last_seen_at pointer must remain null when coordinate is on land');
 
         // Check map feature collection
-        $geojson = $this->spatial->getLiveVesselsFeatureCollection();
+        $geojson = $this->spatial->getLiveVesselsFeatureCollection(null, null, 2000, ['vessel_type' => 'all']);
         $feature = collect($geojson['features'])->firstWhere('properties.mmsi', '525001017');
         $this->assertNull($feature, 'Land coordinate must never appear as an active map marker');
     }
@@ -96,7 +96,7 @@ class GlobalVesselPositionResetTest extends TestCase
         $this->assertFalse((bool) $pos->is_on_land, 'Position must be flagged as is_on_land = false');
         $this->assertEquals(1.0, (float) $pos->data_quality_score);
 
-        $geojson = $this->spatial->getLiveVesselsFeatureCollection();
+        $geojson = $this->spatial->getLiveVesselsFeatureCollection(null, null, 2000, ['vessel_type' => 'all']);
         $feature = collect($geojson['features'])->firstWhere('properties.mmsi', '525002001');
 
         $this->assertNotNull($feature, 'Sea coordinate must appear as active map marker');
@@ -122,7 +122,7 @@ class GlobalVesselPositionResetTest extends TestCase
         $this->assertNotNull($pos);
         $this->assertFalse((bool) $pos->is_on_land);
 
-        $geojson = $this->spatial->getLiveVesselsFeatureCollection();
+        $geojson = $this->spatial->getLiveVesselsFeatureCollection(null, null, 2000, ['vessel_type' => 'all']);
         $feature = collect($geojson['features'])->firstWhere('properties.mmsi', '525003001');
 
         $this->assertNotNull($feature, 'High seas coordinate must not be excluded');
@@ -154,7 +154,7 @@ class GlobalVesselPositionResetTest extends TestCase
             'data_quality_score' => 1.0,
         ]);
 
-        $geojson = $this->spatial->getLiveVesselsFeatureCollection();
+        $geojson = $this->spatial->getLiveVesselsFeatureCollection(null, null, 2000, ['vessel_type' => 'all']);
         $feature = collect($geojson['features'])->firstWhere('properties.mmsi', '525004002');
         $this->assertNull($feature, '(0,0) sentinel must never be rendered on live map');
     }
@@ -228,7 +228,7 @@ class GlobalVesselPositionResetTest extends TestCase
         $this->assertEquals($seaPos->observed_at->toIso8601String(), $v->last_seen_at->toIso8601String());
 
         // Map collection must return the sea coordinates
-        $geojson = $this->spatial->getLiveVesselsFeatureCollection();
+        $geojson = $this->spatial->getLiveVesselsFeatureCollection(null, null, 2000, ['vessel_type' => 'all']);
         $feature = collect($geojson['features'])->firstWhere('properties.mmsi', '525006001');
 
         $this->assertNotNull($feature);
@@ -259,7 +259,7 @@ class GlobalVesselPositionResetTest extends TestCase
         $v->refresh();
         $this->assertNull($v->last_seen_at, 'Vessel last_seen_at must be cleared to null');
 
-        $geojson = $this->spatial->getLiveVesselsFeatureCollection();
+        $geojson = $this->spatial->getLiveVesselsFeatureCollection(null, null, 2000, ['vessel_type' => 'all']);
         $feature = collect($geojson['features'])->firstWhere('properties.mmsi', '525007001');
         $this->assertNull($feature, 'Vessel without any valid sea position must not produce a map marker');
     }
@@ -323,7 +323,7 @@ class GlobalVesselPositionResetTest extends TestCase
             ]);
         }
 
-        $geojson = $this->spatial->getLiveVesselsFeatureCollection();
+        $geojson = $this->spatial->getLiveVesselsFeatureCollection(null, null, 2000, ['vessel_type' => 'all']);
         $markers = collect($geojson['features'])->where('properties.mmsi', '525009001');
 
         $this->assertCount(1, $markers, 'There must be strictly 1 marker per vessel');
@@ -358,7 +358,7 @@ class GlobalVesselPositionResetTest extends TestCase
             $this->assertEquals($t['expected'], $vessel->vessel_type);
         }
 
-        $geojson = $this->spatial->getLiveVesselsFeatureCollection();
+        $geojson = $this->spatial->getLiveVesselsFeatureCollection(null, null, 2000, ['vessel_type' => 'all']);
         foreach ($types as $t) {
             $feature = collect($geojson['features'])->firstWhere('properties.mmsi', $t['mmsi']);
             $this->assertNotNull($feature, "Map marker for {$t['expected']} must be present");

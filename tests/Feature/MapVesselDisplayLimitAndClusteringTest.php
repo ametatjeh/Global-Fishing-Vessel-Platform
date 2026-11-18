@@ -32,7 +32,7 @@ class MapVesselDisplayLimitAndClusteringTest extends TestCase
     public function test_api_defaults_to_2000_vessels_in_global_mode_and_respects_max_limit(): void
     {
         // Create 25 vessels across various categories
-        $categories = ['fishing', 'cargo', 'tanker', 'pleasure', 'passenger', 'tug', 'unknown'];
+        $categories = ['fishing'];
         for ($i = 1; $i <= 25; $i++) {
             $cat = $categories[($i - 1) % count($categories)];
             $vessel = Vessel::create([
@@ -136,7 +136,7 @@ class MapVesselDisplayLimitAndClusteringTest extends TestCase
             ]);
         }
 
-        $result = $this->spatialService->getLiveVesselsFeatureCollection(null, null, 5000);
+        $result = $this->spatialService->getLiveVesselsFeatureCollection(null, null, 5000, ['vessel_type' => 'all']);
         $this->assertCount(7, $result['features']);
 
         $returnedTypes = collect($result['features'])->pluck('properties.vessel_type')->all();
@@ -287,7 +287,7 @@ class MapVesselDisplayLimitAndClusteringTest extends TestCase
         }
 
         // Fetch in global mode (defaults to 1500)
-        $result = $this->spatialService->getLiveVesselsFeatureCollection(null, null, 1500, [], 'global');
+        $result = $this->spatialService->getLiveVesselsFeatureCollection(null, null, 1500, ['vessel_type' => 'all'], 'global');
 
         $this->assertCount(1500, $result['features']);
         $this->assertEquals(1500, $result['metadata']['count']);
@@ -375,7 +375,7 @@ class MapVesselDisplayLimitAndClusteringTest extends TestCase
         $bbox = '100.0,-5.0,105.0,0.0';
 
         // 1. Fetch Batch 1 (limit 1000, page 1)
-        $resp1 = $this->actingAs($this->user)->getJson("/api/layers/vessels?mode=viewport&bbox={$bbox}&limit=1000&page=1");
+        $resp1 = $this->actingAs($this->user)->getJson("/api/layers/vessels?mode=viewport&bbox={$bbox}&limit=1000&page=1&types=all");
         $resp1->assertStatus(200);
         $d1 = $resp1->json();
 
@@ -388,7 +388,7 @@ class MapVesselDisplayLimitAndClusteringTest extends TestCase
         $this->assertEquals(2, $d1['metadata']['next_page']);
 
         // 2. Fetch Batch 2 (limit 1000, page 2)
-        $resp2 = $this->actingAs($this->user)->getJson("/api/layers/vessels?mode=viewport&bbox={$bbox}&limit=1000&page=2&total_in_viewport=2500");
+        $resp2 = $this->actingAs($this->user)->getJson("/api/layers/vessels?mode=viewport&bbox={$bbox}&limit=1000&page=2&total_in_viewport=2500&types=all");
         $resp2->assertStatus(200);
         $d2 = $resp2->json();
 
@@ -398,7 +398,7 @@ class MapVesselDisplayLimitAndClusteringTest extends TestCase
         $this->assertEquals(3, $d2['metadata']['next_page']);
 
         // 3. Fetch Batch 3 (limit 1000, page 3)
-        $resp3 = $this->actingAs($this->user)->getJson("/api/layers/vessels?mode=viewport&bbox={$bbox}&limit=1000&page=3&total_in_viewport=2500");
+        $resp3 = $this->actingAs($this->user)->getJson("/api/layers/vessels?mode=viewport&bbox={$bbox}&limit=1000&page=3&total_in_viewport=2500&types=all");
         $resp3->assertStatus(200);
         $d3 = $resp3->json();
 

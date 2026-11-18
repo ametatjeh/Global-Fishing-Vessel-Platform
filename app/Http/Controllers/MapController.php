@@ -62,14 +62,25 @@ class MapController extends Controller
                 ];
             });
 
+        // Standard maritime vessel types with fishing as primary default
+        $standardTypes = [
+            'fishing', 'cargo', 'tanker', 'passenger', 'tug', 'pleasure',
+            'other', 'unknown', 'pilot', 'towing', 'sar', 'diving', 'sailing', 'not_available'
+        ];
+        $existingDbTypes = Vessel::whereNotNull('vessel_type')
+            ->distinct()
+            ->pluck('vessel_type')
+            ->map(fn($t) => strtolower(trim((string)$t)))
+            ->filter()
+            ->values()
+            ->all();
+
+        $mergedTypes = array_values(array_unique(array_merge($standardTypes, $existingDbTypes)));
+        $orderedVesselTypes = array_merge(['fishing'], array_values(array_diff($mergedTypes, ['fishing'])));
+
         $filterMeta = [
             'flags' => $availableFlagCountries,
-            'vessel_types' => Vessel::whereNotNull('vessel_type')
-                ->distinct()
-                ->orderBy('vessel_type')
-                ->pluck('vessel_type')
-                ->filter()
-                ->values(),
+            'vessel_types' => $orderedVesselTypes,
             'review_statuses' => SatelliteDetection::getReviewStatuses(),
             'correlation_statuses' => [
                 'insufficient_data' => 'Insufficient Data (No AIS)',

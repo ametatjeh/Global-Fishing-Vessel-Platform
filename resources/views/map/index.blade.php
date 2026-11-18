@@ -124,15 +124,44 @@
                     </select>
                 </div>
 
-                <!-- Vessel Type -->
+                <!-- Vessel Type (Default Fishing Only) -->
                 <div>
-                    <label for="filter-vessel-type" class="block text-[10px] uppercase text-slate-400 font-mono mb-1">Vessel Type</label>
-                    <select id="filter-vessel-type" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400 capitalize">
-                        <option value="">All Vessel Types</option>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-[10px] uppercase text-slate-400 font-mono flex items-center gap-1.5">
+                            <span class="text-amber-400">🎣</span> Vessel Fleet Types
+                        </label>
+                        <div class="flex items-center gap-1">
+                            <button type="button" id="btnFilterFishingOnly" class="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition shadow-xs cursor-pointer" title="Reset to Fishing Vessels Only (Default)">
+                                Fishing Only
+                            </button>
+                            <button type="button" id="btnFilterSelectAllTypes" class="px-2 py-0.5 text-[10px] font-medium rounded bg-slate-800 text-slate-300 border border-slate-700 hover:text-white hover:bg-slate-700 transition cursor-pointer" title="Select all fleet types">
+                                Select All
+                            </button>
+                        </div>
+                    </div>
+                    <div id="vesselTypeCheckboxesContainer" class="grid grid-cols-2 gap-1.5 max-h-36 overflow-y-auto p-1.5 rounded-lg bg-slate-950 border border-slate-700/80 text-[11px] custom-scrollbar">
                         @foreach($vesselTypes as $vt)
-                            <option value="{{ $vt }}">{{ ucfirst($vt) }}</option>
+                            @php
+                                $vtLower = strtolower($vt);
+                                $isFishing = $vtLower === 'fishing';
+                                $typeBadgeColors = match($vtLower) {
+                                    'fishing' => 'text-amber-300 border-amber-500/40 bg-amber-500/10',
+                                    'cargo' => 'text-sky-300 border-sky-500/30 bg-sky-500/5',
+                                    'tanker' => 'text-rose-300 border-rose-500/30 bg-rose-500/5',
+                                    'passenger' => 'text-emerald-300 border-emerald-500/30 bg-emerald-500/5',
+                                    'tug', 'towing' => 'text-orange-300 border-orange-500/30 bg-orange-500/5',
+                                    'pleasure', 'sailing' => 'text-violet-300 border-violet-500/30 bg-violet-500/5',
+                                    default => 'text-slate-300 border-slate-700 bg-slate-800/40',
+                                };
+                            @endphp
+                            <label class="flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer border hover:bg-slate-800/60 transition {{ $typeBadgeColors }}">
+                                <input type="checkbox" name="vessel_types[]" value="{{ $vtLower }}" class="vessel-type-checkbox rounded bg-slate-900 border-slate-600 text-amber-500 focus:ring-0 focus:ring-offset-0 cursor-pointer" {{ $isFishing ? 'checked' : '' }}>
+                                <span class="capitalize truncate font-medium">{{ str_replace('_', ' ', $vt) }}</span>
+                            </label>
                         @endforeach
-                    </select>
+                    </div>
+                    <!-- Hidden input to maintain backwards compatibility -->
+                    <input type="hidden" id="filter-vessel-type" value="fishing">
                 </div>
 
                 <!-- SOG Range -->
@@ -1271,6 +1300,86 @@
             });
         }
 
+        // Helper to collect checked vessel types
+        function getSelectedVesselTypes() {
+            const checkedBoxes = Array.from(document.querySelectorAll('.vessel-type-checkbox:checked'));
+            const allBoxes = Array.from(document.querySelectorAll('.vessel-type-checkbox'));
+            if (checkedBoxes.length === 0) {
+                // If user unchecked everything, default back to fishing
+                const fishingBox = document.querySelector('.vessel-type-checkbox[value="fishing"]');
+                if (fishingBox) fishingBox.checked = true;
+                return 'fishing';
+            }
+            if (checkedBoxes.length === allBoxes.length && allBoxes.length > 0) {
+                return 'all';
+            }
+            return checkedBoxes.map(cb => cb.value.trim().toLowerCase()).join(',');
+        }
+
+        // Initialize checkboxes from URL query or hash params
+        (function initVesselTypeFromUrl() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const hashMatch = window.location.hash.match(/[?&](types|vessel_types|vessel_type)=([^&]+)/);
+                const rawParam = hashMatch ? decodeURIComponent(hashMatch[2]) : (urlParams.get('types') || urlParams.get('vessel_types') || urlParams.get('vessel_type'));
+                if (rawParam) {
+                    const parsed = rawParam.toLowerCase().split(',').map(s => s.trim());
+                    const isAll = parsed.includes('all');
+                    document.querySelectorAll('.vessel-type-checkbox').forEach(cb => {
+                        cb.checked = isAll || parsed.includes(cb.value.toLowerCase());
+                    });
+                    const hiddenInput = document.getElementById('filter-vessel-type');
+                    if (hiddenInput) hiddenInput.value = rawParam;
+                }
+            } catch (err) {
+                // fallback to default
+            }
+        })();
+
+        // Button: Fishing Only
+        const btnFishingOnly = document.getElementById('btnFilterFishingOnly');
+        if (btnFishingOnly) {
+            btnFishingOnly.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.querySelectorAll('.vessel-type-checkbox').forEach(cb => {
+                    cb.checked = (cb.value.toLowerCase() === 'fishing');
+                });
+                const hiddenInput = document.getElementById('filter-vessel-type');
+                if (hiddenInput) hiddenInput.value = 'fishing';
+                if (mapController) {
+                    mapController.applyFilters({ vesselType: 'fishing' });
+                }
+                const feedback = document.getElementById('filterFeedbackMsg');
+                if (feedback) {
+                    feedback.textContent = '✓ Filter set to Fishing Only (Default)';
+                    feedback.classList.remove('hidden');
+                    setTimeout(() => feedback.classList.add('hidden'), 2500);
+                }
+            });
+        }
+
+        // Button: Select All
+        const btnSelectAllTypes = document.getElementById('btnFilterSelectAllTypes');
+        if (btnSelectAllTypes) {
+            btnSelectAllTypes.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.querySelectorAll('.vessel-type-checkbox').forEach(cb => {
+                    cb.checked = true;
+                });
+                const hiddenInput = document.getElementById('filter-vessel-type');
+                if (hiddenInput) hiddenInput.value = 'all';
+                if (mapController) {
+                    mapController.applyFilters({ vesselType: 'all' });
+                }
+                const feedback = document.getElementById('filterFeedbackMsg');
+                if (feedback) {
+                    feedback.textContent = '✓ All vessel fleet types selected';
+                    feedback.classList.remove('hidden');
+                    setTimeout(() => feedback.classList.add('hidden'), 2500);
+                }
+            });
+        }
+
         if (btnApplyFilters) {
             btnApplyFilters.addEventListener('click', () => {
                 const minSogVal = document.getElementById('filter-min-sog')?.value;
@@ -1280,10 +1389,14 @@
                 const minTcrVal = document.getElementById('filter-min-tcr')?.value;
                 const maxTcrVal = document.getElementById('filter-max-tcr')?.value;
 
+                const vesselTypesVal = getSelectedVesselTypes();
+                const hiddenInput = document.getElementById('filter-vessel-type');
+                if (hiddenInput) hiddenInput.value = vesselTypesVal;
+
                 const collected = {
                     search: searchInput ? searchInput.value.trim() : '',
                     flag: document.getElementById('filter-vessel-flag')?.value || '',
-                    vesselType: document.getElementById('filter-vessel-type')?.value || '',
+                    vesselType: vesselTypesVal,
                     minSog: minSogVal !== '' && !isNaN(minSogVal) ? parseFloat(minSogVal) : null,
                     maxSog: maxSogVal !== '' && !isNaN(maxSogVal) ? parseFloat(maxSogVal) : null,
                     minCog: minCogVal !== '' && !isNaN(minCogVal) ? parseFloat(minCogVal) : null,
@@ -1322,11 +1435,19 @@
                 const form = document.getElementById('formAdvancedFilters');
                 if (form) form.reset();
                 if (customDateRangeContainer) customDateRangeContainer.classList.add('hidden');
+
+                // Reset checkboxes to default Fishing Only
+                document.querySelectorAll('.vessel-type-checkbox').forEach(cb => {
+                    cb.checked = (cb.value.toLowerCase() === 'fishing');
+                });
+                const hiddenInput = document.getElementById('filter-vessel-type');
+                if (hiddenInput) hiddenInput.value = 'fishing';
+
                 mapController.resetFilters();
 
                 const feedback = document.getElementById('filterFeedbackMsg');
                 if (feedback) {
-                    feedback.textContent = '✓ Filters reset to default';
+                    feedback.textContent = '✓ Filters reset to default (Fishing Only)';
                     feedback.classList.remove('hidden');
                     setTimeout(() => feedback.classList.add('hidden'), 2000);
                 }
