@@ -81,11 +81,17 @@
                 </p>
             </div>
         </div>
+        @if(auth()->user()?->isAdmin())
         <a href="{{ route('settings.retention.index') }}"
             class="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs transition shrink-0 flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20">
             <span>Manage Retention Policy</span>
             <span>&rarr;</span>
         </a>
+        @else
+        <span class="px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-slate-800 text-slate-400 border border-slate-700">
+            🔒 Admin Access Only
+        </span>
+        @endif
     </div>
 
     <!-- 2. System Health & Infrastructure Matrix -->

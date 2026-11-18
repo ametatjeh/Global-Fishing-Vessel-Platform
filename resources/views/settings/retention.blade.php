@@ -21,7 +21,7 @@
                 <span>AIS Data Retention Policy</span>
             </h1>
             <p class="text-xs text-slate-400 mt-1">
-                Management of historical AIS telemetry retention policies, controlled cleanup schedules, and permanent protection for fishing vessels.
+                Management of historical AIS telemetry retention policies, controlled background cleanup schedules, and permanent protection for fishing vessels.
             </p>
         </div>
 
@@ -75,11 +75,69 @@
     </div>
     @endif
 
+    <!-- Live Background Process Banner (If an active job is running or pending) -->
+    <div id="active-run-banner" class="{{ $activeRun ? '' : 'hidden' }} glass-panel p-5 rounded-2xl border-2 border-cyan-500/60 bg-gradient-to-r from-cyan-950/40 via-slate-900/80 to-slate-900/80 shadow-2xl space-y-3" data-run-id="{{ $activeRun?->id }}">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-cyan-800/40 pb-3">
+            <div class="flex items-center gap-2.5">
+                <span class="text-2xl animate-spin">⚙️</span>
+                <div>
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <span id="run-type-label">{{ $activeRun?->typeLabel() ?? 'Retention Task' }}</span>
+                        <span id="run-status-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold {{ $activeRun?->statusBadgeClass() ?? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' }}">
+                            {{ strtoupper($activeRun?->status ?? 'RUNNING') }}
+                        </span>
+                    </h3>
+                    <p class="text-[11px] text-cyan-200/80 mt-0.5">
+                        Proses retensi sedang berjalan di antrean latar belakang (Background Worker). Tidak membebani browser atau menyebabkan timeout.
+                    </p>
+                </div>
+            </div>
+
+            @if(auth()->user()?->isSuperAdmin() && $activeRun)
+            <form method="POST" action="{{ route('settings.retention.runs.cancel', $activeRun->id) }}" onsubmit="return confirm('Batalkan proses retensi yang sedang berjalan ini?');">
+                @csrf
+                <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-600/30 hover:bg-rose-600 text-rose-200 hover:text-white border border-rose-500/40 text-xs font-mono font-semibold transition cursor-pointer">
+                    ⏹ Batalkan Proses
+                </button>
+            </form>
+            @endif
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div class="p-2.5 rounded-xl bg-slate-950/60 border border-cyan-900/40">
+                <span class="text-[10px] text-slate-400 font-mono uppercase block">Status</span>
+                <span id="run-status-text" class="font-bold text-cyan-300 font-mono capitalize">{{ $activeRun?->status ?? 'Running' }}</span>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-950/60 border border-cyan-900/40">
+                <span class="text-[10px] text-slate-400 font-mono uppercase block">Records Purged</span>
+                <span id="run-purged-count" class="font-bold text-amber-300 font-mono">{{ number_format($activeRun?->total_records_purged ?? 0) }}</span>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-950/60 border border-cyan-900/40">
+                <span class="text-[10px] text-slate-400 font-mono uppercase block">Batches Processed</span>
+                <span id="run-batch-count" class="font-bold text-white font-mono">{{ number_format($activeRun?->batch_count ?? 0) }}</span>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-950/60 border border-cyan-900/40">
+                <span class="text-[10px] text-slate-400 font-mono uppercase block">Elapsed Duration</span>
+                <span id="run-duration" class="font-bold text-teal-300 font-mono">{{ $activeRun?->formattedDuration() ?? '0s' }}</span>
+            </div>
+        </div>
+
+        <!-- Progress Bar Indicator -->
+        <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-cyan-900/50">
+            <div id="run-progress-bar" class="bg-gradient-to-r from-teal-500 via-cyan-500 to-teal-400 h-2 rounded-full transition-all duration-500 animate-pulse" style="width: 100%;"></div>
+        </div>
+    </div>
+
     <!-- Storage Statistics Dashboard -->
     <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
         <!-- 1. Total Positions -->
         <div class="glass-panel p-4 rounded-xl border border-slate-800 shadow-sm flex flex-col justify-between">
-            <div class="text-[10px] font-mono uppercase text-slate-400 tracking-wider">Total AIS Positions</div>
+            <div class="flex items-center justify-between">
+                <span class="text-[10px] font-mono uppercase text-slate-400 tracking-wider">Total AIS Positions</span>
+                @if(!empty($stats['is_estimate']))
+                <span class="text-[8px] px-1 rounded bg-cyan-950 text-cyan-300 border border-cyan-800 font-mono" title="Estimasi berbasis statistik katalog pg_class untuk performa instan">ESTIMASI</span>
+                @endif
+            </div>
             <div class="text-2xl font-black text-white font-mono my-1">{{ number_format($stats['total_positions']) }}</div>
             <div class="text-[10px] text-slate-400 truncate">{{ $stats['positions_table_size'] }} (Table)</div>
         </div>
@@ -125,8 +183,8 @@
         </div>
     </div>
 
-    <!-- Telemetry Timestamp Span & Growth Projection -->
-    <div class="glass-panel p-4 rounded-xl border border-slate-800 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-slate-300 bg-slate-900/40">
+    <!-- Telemetry Timestamp Span, Cache Refresh & Growth Projection -->
+    <div class="glass-panel p-4 rounded-xl border border-slate-800 text-xs flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-slate-300 bg-slate-900/40">
         <div class="flex items-center gap-4 flex-wrap">
             <div>
                 <span class="text-slate-500 uppercase font-mono text-[10px] block">Oldest Record:</span>
@@ -141,14 +199,25 @@
                 <span class="font-mono text-slate-200">{{ $stats['avg_row_bytes'] }} Bytes</span>
             </div>
         </div>
-        <div class="flex items-center gap-2 font-mono text-teal-400 bg-teal-950/20 border border-teal-800/40 px-3 py-1.5 rounded-lg shrink-0">
-            <span>📈 Projected Monthly Growth:</span>
-            <span class="font-bold">{{ $stats['projected_monthly_growth'] }}</span>
+
+        <div class="flex items-center gap-3 flex-wrap">
+            <div class="flex items-center gap-2 font-mono text-teal-400 bg-teal-950/20 border border-teal-800/40 px-3 py-1.5 rounded-lg shrink-0">
+                <span>📈 Projected Monthly Growth:</span>
+                <span class="font-bold">{{ $stats['projected_monthly_growth'] }}</span>
+            </div>
+
+            <form method="POST" action="{{ route('settings.retention.refresh-stats') }}" class="inline">
+                @csrf
+                <button type="submit" class="px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1.5 cursor-pointer shadow-xs" title="Recalculate fresh metrics from database">
+                    <span>🔄</span>
+                    <span>Refresh Metrics</span>
+                </button>
+            </form>
         </div>
     </div>
 
-    <!-- Dry-Run Simulation Results (if session exists) -->
-    @if(!empty($simulation))
+    <!-- Dry-Run Simulation Results (if session exists or latest simulation available) -->
+    @if(!empty($simulation) && isset($simulation['breakdown']))
     <div class="glass-panel p-6 rounded-2xl border border-cyan-500/50 bg-cyan-950/20 shadow-xl space-y-4">
         <div class="flex items-center justify-between border-b border-cyan-800/40 pb-3">
             <h2 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
@@ -168,17 +237,17 @@
             </div>
             <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
                 <div class="text-[10px] text-slate-400 uppercase font-mono">Protected Evidence Vessels</div>
-                <div class="text-lg font-black text-teal-300 font-mono mt-0.5">{{ $simulation['protected_evidence_vessels'] }} Vessels</div>
+                <div class="text-lg font-black text-teal-300 font-mono mt-0.5">{{ $simulation['protected_evidence_vessels'] ?? 0 }} Vessels</div>
                 <div class="text-[10px] text-slate-400">SAR / Encounter / Investigation</div>
             </div>
             <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
                 <div class="text-[10px] text-slate-400 uppercase font-mono">Candidate Positions for Purge</div>
-                <div class="text-lg font-black text-amber-300 font-mono mt-0.5">{{ number_format($simulation['total_candidate_positions']) }}</div>
+                <div class="text-lg font-black text-amber-300 font-mono mt-0.5">{{ number_format($simulation['total_candidate_positions'] ?? 0) }}</div>
                 <div class="text-[10px] text-slate-400">Non-Fishing Beyond Retention</div>
             </div>
             <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
                 <div class="text-[10px] text-slate-400 uppercase font-mono">Estimated Disk Space Freed</div>
-                <div class="text-lg font-black text-cyan-300 font-mono mt-0.5">{{ $simulation['estimated_freed_size'] }}</div>
+                <div class="text-lg font-black text-cyan-300 font-mono mt-0.5">{{ $simulation['estimated_freed_size'] ?? '0 B' }}</div>
                 <div class="text-[10px] text-slate-400">Disk capacity reclaimed</div>
             </div>
         </div>
@@ -202,11 +271,11 @@
                             {{ $row['retention_days'] ? $row['retention_days'] . ' Days' : 'Permanent' }}
                         </td>
                         <td class="py-2 px-3 text-slate-400">{{ $row['cutoff_date'] ?: '—' }}</td>
-                        <td class="py-2 px-3 font-bold {{ $row['candidates'] > 0 ? 'text-amber-400' : 'text-slate-400' }}">
-                            {{ number_format($row['candidates']) }}
+                        <td class="py-2 px-3 font-bold {{ ($row['candidates'] ?? 0) > 0 ? 'text-amber-400' : 'text-slate-400' }}">
+                            {{ number_format($row['candidates'] ?? 0) }}
                         </td>
                         <td class="py-2 px-3">
-                            @if($row['status'] === 'PROTECTED_PERMANENT')
+                            @if(($row['status'] ?? '') === 'PROTECTED_PERMANENT')
                             <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                                 🛡️ PERMANENTLY PROTECTED
                             </span>
@@ -322,7 +391,7 @@
                                 <span class="font-bold text-white text-xs">{{ $policy?->label ?? ucfirst($type) }}</span>
                             </div>
                             <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                                {{ $breakdown['count'] ?? 0 }} Positions
+                                {{ number_format($breakdown['count'] ?? 0) }} Positions
                             </span>
                         </div>
 
@@ -387,7 +456,7 @@
 
                 <div class="flex items-center gap-2">
                     <span class="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-slate-900 border border-slate-700 text-slate-300">
-                        {{ $unknownBreakdown['count'] ?? 0 }} Positions ({{ $unknownBreakdown['estimated_size'] ?? '0 B' }})
+                        {{ number_format($unknownBreakdown['count'] ?? 0) }} Positions ({{ $unknownBreakdown['estimated_size'] ?? '0 B' }})
                     </span>
                 </div>
             </div>
@@ -446,7 +515,7 @@
                         <span>⏰</span>
                         <span>Section D: Automatic Cleanup Scheduler</span>
                     </h2>
-                    <p class="text-xs text-slate-400 mt-0.5">Configure background scheduler to purge non-fishing telemetry exceeding configured retention periods.</p>
+                    <p class="text-xs text-slate-400 mt-0.5">Configure background scheduler to purge non-fishing telemetry exceeding configured retention periods in batches.</p>
                 </div>
 
                 <div>
@@ -462,7 +531,7 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
                 <!-- Toggle Cleanup -->
                 <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
                     <label class="font-semibold text-white block">Enable Automatic Cleanup</label>
@@ -496,6 +565,14 @@
                         placeholder="03:00"
                         class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs font-mono focus:border-teal-400 focus:outline-hidden">
                 </div>
+
+                <!-- Batch Chunk Size -->
+                <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
+                    <label class="font-semibold text-white block">Batch Chunk Size</label>
+                    <p class="text-[11px] text-slate-400">Records per transaction batch (100–5000).</p>
+                    <input type="number" name="settings[chunk_size]" value="{{ $settings->chunk_size ?: 1000 }}" min="100" max="5000" step="100"
+                        class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs font-mono focus:border-teal-400 focus:outline-hidden">
+                </div>
             </div>
 
             <!-- Execution Status Metadata -->
@@ -506,7 +583,7 @@
                         {{ $settings->last_cleanup_at ? $settings->last_cleanup_at->format('Y-m-d H:i:s T') : 'Never Executed' }}
                     </span>
                     @if($settings->last_cleanup_records_purged > 0)
-                    <span class="text-[10px] text-teal-400 block mt-0.5">({{ $settings->last_cleanup_records_purged }} positions purged)</span>
+                    <span class="text-[10px] text-teal-400 block mt-0.5">({{ number_format($settings->last_cleanup_records_purged) }} positions purged)</span>
                     @endif
                 </div>
 
@@ -585,7 +662,7 @@
                         <span class="text-[9px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 font-mono">SUPER ADMIN</span>
                     </div>
                     <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
-                        Executes immediate cleanup of expired non-fishing telemetry in controlled batches. Fishing vessels and SAR/Encounter evidence remain 100% protected.
+                        Executes background cleanup of expired non-fishing telemetry in safe, throttled batches. Fishing vessels and SAR/Encounter evidence remain 100% protected.
                     </p>
                 </div>
 
@@ -615,7 +692,76 @@
         </div>
     </div>
 
-    <!-- SECTION F: AUDIT LOGS -->
+    <!-- SECTION F: RETENTION PROCESS EXECUTION HISTORY -->
+    <div class="glass-panel p-6 rounded-2xl border border-slate-800 shadow-xl space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+            <h2 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <span>📋</span>
+                <span>Retention Execution &amp; Cleanup History</span>
+            </h2>
+            <span class="text-xs text-slate-400 font-mono">
+                Total {{ number_format($runs->total()) }} execution records
+            </span>
+        </div>
+
+        @if($runs->isEmpty())
+        <div class="text-center py-6 text-xs text-slate-500">
+            No retention execution records logged yet.
+        </div>
+        @else
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                    <tr class="border-b border-slate-800 text-slate-400 uppercase font-mono text-[10px]">
+                        <th class="py-2 px-3">Run ID</th>
+                        <th class="py-2 px-3">Timestamp</th>
+                        <th class="py-2 px-3">Type</th>
+                        <th class="py-2 px-3">Records Purged</th>
+                        <th class="py-2 px-3">Batches</th>
+                        <th class="py-2 px-3">Duration</th>
+                        <th class="py-2 px-3">Status</th>
+                        <th class="py-2 px-3">Initiated By</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 font-mono">
+                    @foreach($runs as $r)
+                    <tr class="hover:bg-slate-800/30 transition">
+                        <td class="py-2.5 px-3 text-slate-400">#{{ $r->id }}</td>
+                        <td class="py-2.5 px-3 text-slate-300 whitespace-nowrap">{{ $r->created_at ? $r->created_at->format('Y-m-d H:i:s') : '—' }}</td>
+                        <td class="py-2.5 px-3 font-sans font-medium text-white">
+                            {{ $r->typeLabel() }}
+                            @if($r->is_dry_run)
+                            <span class="text-[9px] px-1 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono block w-fit mt-0.5">DRY-RUN</span>
+                            @endif
+                        </td>
+                        <td class="py-2.5 px-3 font-bold {{ $r->total_records_purged > 0 ? 'text-amber-400' : 'text-slate-400' }}">
+                            {{ number_format($r->total_records_purged) }}
+                        </td>
+                        <td class="py-2.5 px-3 text-slate-400">{{ number_format($r->batch_count) }}</td>
+                        <td class="py-2.5 px-3 text-slate-300">{{ $r->formattedDuration() }}</td>
+                        <td class="py-2.5 px-3">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border {{ $r->statusBadgeClass() }}">
+                                {{ $r->status }}
+                            </span>
+                        </td>
+                        <td class="py-2.5 px-3 font-sans text-slate-400">
+                            {{ $r->initiatedByUser?->name ?? 'System Scheduler' }}
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+
+        @if($runs->hasPages())
+        <div class="pt-3 border-t border-slate-800">
+            {{ $runs->appends(request()->except('runs_page'))->links() }}
+        </div>
+        @endif
+        @endif
+    </div>
+
+    <!-- SECTION G: AUDIT LOGS -->
     <div class="glass-panel p-6 rounded-2xl border border-slate-800 shadow-xl space-y-3">
         <div class="flex items-center justify-between border-b border-slate-800 pb-3">
             <h2 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
@@ -646,7 +792,7 @@
                 <tbody class="divide-y divide-slate-800/60 font-mono">
                     @foreach($recentLogs as $log)
                     <tr class="hover:bg-slate-800/30 transition">
-                        <td class="py-2.5 px-3 text-slate-400 whitespace-nowrap">{{ $log->created_at->format('Y-m-d H:i:s') }}</td>
+                        <td class="py-2.5 px-3 text-slate-400 whitespace-nowrap">{{ $log->created_at ? $log->created_at->format('Y-m-d H:i:s') : '—' }}</td>
                         <td class="py-2.5 px-3 font-sans font-semibold text-white">
                             {{ $log->user?->name ?? 'System' }}
                             <span class="text-[10px] text-slate-400 font-mono block">({{ $log->user?->email ?? 'Automated Worker' }})</span>
@@ -662,7 +808,7 @@
                             @if(isset($log->details['action_label']))
                                 {{ $log->details['action_label'] }}
                             @elseif(isset($log->details['total_purged']))
-                                Telemetry purge: {{ $log->details['total_purged'] }} records deleted.
+                                Telemetry purge: {{ number_format($log->details['total_purged']) }} records deleted.
                             @else
                                 {{ json_encode($log->details) }}
                             @endif
@@ -672,6 +818,12 @@
                 </tbody>
             </table>
         </div>
+
+        @if($recentLogs->hasPages())
+        <div class="pt-3 border-t border-slate-800">
+            {{ $recentLogs->appends(request()->except('logs_page'))->links() }}
+        </div>
+        @endif
         @endif
     </div>
 
@@ -690,5 +842,45 @@ function updateRetentionDays(type, value) {
         input.focus();
     }
 }
+
+// Live polling for active background retention run
+document.addEventListener('DOMContentLoaded', function () {
+    const banner = document.getElementById('active-run-banner');
+    if (!banner) return;
+
+    const runId = banner.getAttribute('data-run-id');
+    if (!runId) return;
+
+    let pollInterval = setInterval(function () {
+        fetch('/settings/retention/runs/' + runId + '/status', {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (!data || !data.id) return;
+
+            document.getElementById('run-status-text').textContent = data.status;
+            document.getElementById('run-purged-count').textContent = new Intl.NumberFormat().format(data.total_records_purged || 0);
+            document.getElementById('run-batch-count').textContent = new Intl.NumberFormat().format(data.batch_count || 0);
+            document.getElementById('run-duration').textContent = data.formatted_duration || '—';
+
+            if (!data.is_active) {
+                clearInterval(pollInterval);
+                document.getElementById('run-status-badge').textContent = data.status.toUpperCase();
+                document.getElementById('run-progress-bar').classList.remove('animate-pulse');
+
+                setTimeout(function () {
+                    window.location.reload();
+                }, 2000);
+            }
+        })
+        .catch(err => {
+            console.error('Failed to poll retention run status:', err);
+        });
+    }, 3000);
+});
 </script>
 @endsection

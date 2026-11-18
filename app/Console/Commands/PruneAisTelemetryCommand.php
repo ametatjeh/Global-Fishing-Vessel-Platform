@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\AisRetentionRun;
 use App\Services\DataRetentionPolicyService;
 use Illuminate\Console\Command;
 
@@ -25,7 +26,14 @@ class PruneAisTelemetryCommand extends Command
 
         if ($isDryRun) {
             $this->warn('[MODE SIMULASI / DRY-RUN] Menghitung kandidat retensi tanpa mengubah database...');
-            $simulation = $retentionService->simulateRetentionPurge();
+            $run = AisRetentionRun::create([
+                'run_type' => 'simulation',
+                'status' => 'running',
+                'is_dry_run' => true,
+                'started_at' => now(),
+                'target_policies' => $retentionService->getPolicies()->toArray(),
+            ]);
+            $simulation = $retentionService->simulateRetentionPurge($run);
 
             $this->newLine();
             $this->info("Total Posisi AIS Tersimpan: {$simulation['total_positions']}");
@@ -88,7 +96,16 @@ class PruneAisTelemetryCommand extends Command
         $this->alert('MENJALANKAN PEMBERSIHAN RETENSI AIS SECARA AKTUAL');
         $this->line('Kapal Fishing dan referensi bukti operasional dikecualikan secara mutlak.');
 
-        $result = $retentionService->executeRetentionPurge(force: $isForce, userId: null);
+        $run = AisRetentionRun::create([
+            'run_type' => 'scheduled_cleanup',
+            'status' => 'running',
+            'is_dry_run' => false,
+            'chunk_size' => $settings->chunk_size ?: 1000,
+            'started_at' => now(),
+            'target_policies' => $retentionService->getPolicies()->toArray(),
+        ]);
+
+        $result = $retentionService->executeRetentionPurge(force: $isForce, userId: null, run: $run);
 
         if (!$result['success']) {
             $this->error('Gagal menjalankan pembersihan: ' . ($result['message'] ?? 'Unknown error'));
