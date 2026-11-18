@@ -92,10 +92,13 @@ class ResearcherRoleAccessRestrictionTest extends TestCase
         $responseDetail->assertStatus(403);
     }
 
-    public function test_researcher_is_strictly_forbidden_from_classification_review_endpoint(): void
+    public function test_classification_review_endpoint_is_completely_removed(): void
     {
         $response = $this->actingAs($this->researcher)->get('/vessels/classification-review');
-        $response->assertStatus(403);
+        $response->assertStatus(404);
+
+        $responseSuper = $this->actingAs($this->superAdmin)->get('/vessels/classification-review');
+        $responseSuper->assertStatus(404);
     }
 
     public function test_researcher_is_strictly_forbidden_from_investigations_endpoints(): void
@@ -157,18 +160,15 @@ class ResearcherRoleAccessRestrictionTest extends TestCase
         $this->actingAs($this->superAdmin)->get('/admin/users')->assertStatus(200);
         $this->actingAs($this->superAdmin)->get('/audit-logs')->assertStatus(200);
         $this->actingAs($this->superAdmin)->get('/encounters')->assertStatus(200);
-        $this->actingAs($this->superAdmin)->get('/vessels/classification-review')->assertStatus(200);
         $this->actingAs($this->superAdmin)->get('/investigations')->assertStatus(200);
 
-        // Admin has access to encounters, classification-review, audit-logs, investigations
+        // Admin has access to encounters, audit-logs, investigations
         $this->actingAs($this->admin)->get('/audit-logs')->assertStatus(200);
         $this->actingAs($this->admin)->get('/encounters')->assertStatus(200);
-        $this->actingAs($this->admin)->get('/vessels/classification-review')->assertStatus(200);
         $this->actingAs($this->admin)->get('/investigations')->assertStatus(200);
 
-        // Analyst has access to encounters, classification-review, investigations
+        // Analyst has access to encounters, investigations
         $this->actingAs($this->analyst)->get('/encounters')->assertStatus(200);
-        $this->actingAs($this->analyst)->get('/vessels/classification-review')->assertStatus(200);
         $this->actingAs($this->analyst)->get('/investigations')->assertStatus(200);
     }
 }

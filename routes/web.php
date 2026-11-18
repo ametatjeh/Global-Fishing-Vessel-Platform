@@ -35,24 +35,15 @@ Route::middleware(['auth', 'role'])->group(function () {
     // 1. Global Vessel Map
     Route::get('/map', [MapController::class, 'index'])->name('map.index');
 
-    // 2. Vessel Registry & Classification Review
-    Route::get('/vessels/classification-review', [\App\Http\Controllers\VesselClassificationReviewController::class, 'index'])
-        ->middleware('role:super_admin,admin,analyst')
-        ->name('vessels.classification-review.index');
-    Route::get('/vessels/classification-review/{id}', [\App\Http\Controllers\VesselClassificationReviewController::class, 'show'])
-        ->middleware('role:super_admin,admin,analyst')
-        ->name('vessels.classification-review.show');
-    Route::post('/vessels/classification-review/{id}/decision', [\App\Http\Controllers\VesselClassificationReviewController::class, 'decision'])
-        ->middleware('role:super_admin,admin,analyst')
-        ->name('vessels.classification-review.decision');
-
+    // 2. Vessel Registry
     Route::get('/vessels', [VesselController::class, 'index'])->name('vessels.index');
-    Route::get('/vessels/{id}', [VesselController::class, 'show'])->name('vessels.show');
-    Route::post('/vessels/{id}/gfw-sync', [VesselController::class, 'syncGfw'])->name('vessels.gfw-sync');
-    Route::post('/vessels/{id}/enrich', [VesselController::class, 'enrichSingle'])->name('vessels.enrich');
+    Route::get('/vessels/{id}', [VesselController::class, 'show'])->whereUuid('id')->name('vessels.show');
+    Route::post('/vessels/{id}/gfw-sync', [VesselController::class, 'syncGfw'])->whereUuid('id')->name('vessels.gfw-sync');
+    Route::post('/vessels/{id}/enrich', [VesselController::class, 'enrichSingle'])->whereUuid('id')->name('vessels.enrich');
     Route::post('/vessels/enrich-bulk', [VesselController::class, 'enrichBulk'])->name('vessels.enrich-bulk');
     Route::post('/vessels/{id}/observations/{obsId}/accept', [VesselController::class, 'acceptObservation'])
         ->middleware('role:super_admin,admin,analyst')
+        ->whereUuid('id')
         ->name('vessels.observations.accept');
 
     // 3. Vessel Encounters (Restricted from Researcher)
