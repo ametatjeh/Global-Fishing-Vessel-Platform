@@ -913,7 +913,7 @@ class SpatialQueryService
 
         // Collect SQL WHERE clauses and bindings for the inner vessel_positions query
         $posWheres = [
-            "is_on_land = false",
+            "(is_on_land = false OR is_on_land IS NULL)",
             "NOT (latitude = 0.0 AND longitude = 0.0)",
             "(data_quality_score IS NULL OR data_quality_score > 0.0)",
         ];

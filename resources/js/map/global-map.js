@@ -1127,7 +1127,7 @@ export class GlobalMapController {
             cluster: false
         });
 
-        // 0a. Vessel Cluster Circles (High-Performance Aggregation: Zoom 0.0 - 5.0, Transition 5.1)
+        // 0a. Vessel Cluster Circles (High-Performance Aggregation: Zoom 0.0 - 5.0)
         this.map.addLayer({
             id: 'vessels-clusters',
             type: 'circle',
@@ -1168,6 +1168,7 @@ export class GlobalMapController {
             filter: ['has', 'point_count'],
             layout: {
                 'text-field': '{point_count_abbreviated}',
+                'text-font': ['Noto Sans Bold', 'Noto Sans Regular'],
                 'text-size': [
                     'step',
                     ['get', 'point_count'],
@@ -1184,12 +1185,11 @@ export class GlobalMapController {
             }
         });
 
-        // 0c. Selected Vessel Highlight Ring (Cincin Sorot Kapal Terpilih: Zoom > 5.1)
+        // 0c. Selected Vessel Highlight Ring (Visible at all zoom levels for active vessel)
         this.map.addLayer({
             id: 'vessels-selected-ring',
             type: 'circle',
-            source: 'vessels-raw-source',
-            minzoom: 5.12,
+            source: 'vessels-source',
             filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'vessel_id'], this.selectedVesselId || '']],
             layout: { visibility: this.activeLayers.vessels ? 'visible' : 'none' },
             paint: {
@@ -1222,75 +1222,65 @@ export class GlobalMapController {
             }
         });
 
-        // 1. Individual Vessels with Valid Orientation (Heading or COG: Zoom > 5.1)
+        // 1. Individual Vessels with Valid Orientation (Heading or COG) — Visible across all zoom levels when unclustered
         this.map.addLayer({
             id: 'vessels-oriented-layer',
             type: 'symbol',
-            source: 'vessels-raw-source',
-            minzoom: 5.12,
+            source: 'vessels-source',
             filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'has_orientation'], true]],
             layout: {
                 'icon-image': [
-                    'case',
-                    ['!=', ['get', 'is_fresh'], true],
-                    [
+                    'match',
+                    ['get', 'vessel_type'],
+                    'fishing', [
                         'case',
-                        ['==', ['get', 'orientation_source'], 'heading'], 'vessel-heading-stale',
-                        'vessel-cog-stale'
+                        ['==', ['get', 'is_fresh'], true], 'vessel-fishing-cog',
+                        'vessel-fishing-cog-stale'
+                    ],
+                    'cargo', [
+                        'case',
+                        ['==', ['get', 'is_fresh'], true], 'vessel-cargo-cog',
+                        'vessel-cargo-cog-stale'
+                    ],
+                    'tanker', [
+                        'case',
+                        ['==', ['get', 'is_fresh'], true], 'vessel-tanker-cog',
+                        'vessel-tanker-cog-stale'
+                    ],
+                    'passenger', [
+                        'case',
+                        ['==', ['get', 'is_fresh'], true], 'vessel-passenger-cog',
+                        'vessel-passenger-cog-stale'
+                    ],
+                    'support', [
+                        'case',
+                        ['==', ['get', 'is_fresh'], true], 'vessel-support-cog',
+                        'vessel-support-cog-stale'
+                    ],
+                    'carrier', [
+                        'case',
+                        ['==', ['get', 'is_fresh'], true], 'vessel-support-cog',
+                        'vessel-support-cog-stale'
+                    ],
+                    'patrol', [
+                        'case',
+                        ['==', ['get', 'is_fresh'], true], 'vessel-patrol-cog',
+                        'vessel-patrol-cog-stale'
+                    ],
+                    'military', [
+                        'case',
+                        ['==', ['get', 'is_fresh'], true], 'vessel-military-cog',
+                        'vessel-military-cog-stale'
+                    ],
+                    'law_enforcement', [
+                        'case',
+                        ['==', ['get', 'is_fresh'], true], 'vessel-law_enforcement-cog',
+                        'vessel-law_enforcement-cog-stale'
                     ],
                     [
-                        'match',
-                        ['get', 'vessel_type'],
-                        'fishing', [
-                            'case',
-                            ['!=', ['get', 'is_fresh'], true], 'vessel-fishing-cog-stale',
-                            'vessel-fishing-cog'
-                        ],
-                        'cargo', [
-                            'case',
-                            ['!=', ['get', 'is_fresh'], true], 'vessel-cargo-cog-stale',
-                            'vessel-cargo-cog'
-                        ],
-                        'tanker', [
-                            'case',
-                            ['!=', ['get', 'is_fresh'], true], 'vessel-tanker-cog-stale',
-                            'vessel-tanker-cog'
-                        ],
-                        'passenger', [
-                            'case',
-                            ['!=', ['get', 'is_fresh'], true], 'vessel-passenger-cog-stale',
-                            'vessel-passenger-cog'
-                        ],
-                        'support', [
-                            'case',
-                            ['!=', ['get', 'is_fresh'], true], 'vessel-support-cog-stale',
-                            'vessel-support-cog'
-                        ],
-                        'carrier', [
-                            'case',
-                            ['!=', ['get', 'is_fresh'], true], 'vessel-support-cog-stale',
-                            'vessel-support-cog'
-                        ],
-                        'patrol', [
-                            'case',
-                            ['!=', ['get', 'is_fresh'], true], 'vessel-patrol-cog-stale',
-                            'vessel-patrol-cog'
-                        ],
-                        'military', [
-                            'case',
-                            ['!=', ['get', 'is_fresh'], true], 'vessel-military-cog-stale',
-                            'vessel-military-cog'
-                        ],
-                        'law_enforcement', [
-                            'case',
-                            ['!=', ['get', 'is_fresh'], true], 'vessel-law_enforcement-cog-stale',
-                            'vessel-law_enforcement-cog'
-                        ],
-                        [
-                            'case',
-                            ['!=', ['get', 'is_fresh'], true], 'vessel-unknown-cog-stale',
-                            'vessel-unknown-cog'
-                        ]
+                        'case',
+                        ['==', ['get', 'is_fresh'], true], 'vessel-unknown-cog',
+                        'vessel-unknown-cog-stale'
                     ]
                 ],
                 'icon-rotate': ['get', 'orientation_degrees'],
@@ -1312,12 +1302,11 @@ export class GlobalMapController {
             }
         });
 
-        // 2. Individual Vessels with Direction Unavailable (Neutral Beacon Circle: Zoom > 5.1)
+        // 2. Individual Vessels with Direction Unavailable (Neutral Beacon Circle) — Visible across all zoom levels when unclustered
         this.map.addLayer({
             id: 'vessels-circle-layer',
             type: 'circle',
-            source: 'vessels-raw-source',
-            minzoom: 5.12,
+            source: 'vessels-source',
             filter: ['all', ['!', ['has', 'point_count']], ['!=', ['get', 'has_orientation'], true]],
             layout: { visibility: this.activeLayers.vessels ? 'visible' : 'none' },
             paint: {
@@ -1330,23 +1319,18 @@ export class GlobalMapController {
                     14, ['case', ['==', ['get', 'vessel_type'], 'fishing'], 9.5, 7.5]
                 ],
                 'circle-color': [
-                    'case',
-                    ['!=', ['get', 'is_fresh'], true],
-                    '#64748b', // Stale (> 2h)
-                    [
-                        'match',
-                        ['get', 'vessel_type'],
-                        'fishing', '#F59E0B', // Amber
-                        'cargo', '#2563EB',   // Blue
-                        'tanker', '#9333EA',  // Purple
-                        'passenger', '#06B6D4', // Cyan
-                        'support', '#64748B', // Slate
-                        'carrier', '#64748B', // Slate
-                        'patrol', '#DC2626',  // Red
-                        'military', '#DC2626', // Red
-                        'law_enforcement', '#DC2626', // Red
-                        '#94A3B8' // Unknown gray
-                    ]
+                    'match',
+                    ['get', 'vessel_type'],
+                    'fishing', ['case', ['==', ['get', 'is_fresh'], true], '#F59E0B', '#b45309'],
+                    'cargo', ['case', ['==', ['get', 'is_fresh'], true], '#2563EB', '#1e40af'],
+                    'tanker', ['case', ['==', ['get', 'is_fresh'], true], '#9333EA', '#6b21a8'],
+                    'passenger', ['case', ['==', ['get', 'is_fresh'], true], '#06B6D4', '#0e7490'],
+                    'support', ['case', ['==', ['get', 'is_fresh'], true], '#64748B', '#475569'],
+                    'carrier', ['case', ['==', ['get', 'is_fresh'], true], '#64748B', '#475569'],
+                    'patrol', ['case', ['==', ['get', 'is_fresh'], true], '#DC2626', '#991b1b'],
+                    'military', ['case', ['==', ['get', 'is_fresh'], true], '#DC2626', '#991b1b'],
+                    'law_enforcement', ['case', ['==', ['get', 'is_fresh'], true], '#DC2626', '#991b1b'],
+                    ['case', ['==', ['get', 'is_fresh'], true], '#94A3B8', '#64748B']
                 ],
                 'circle-stroke-width': [
                     'case',
@@ -1626,11 +1610,13 @@ export class GlobalMapController {
             }
         });
 
-        this.map.on('mouseenter', 'vessels-clusters', () => {
-            this.map.getCanvas().style.cursor = 'pointer';
-        });
-        this.map.on('mouseleave', 'vessels-clusters', () => {
-            this.map.getCanvas().style.cursor = '';
+        ['vessels-clusters', 'vessels-oriented-layer', 'vessels-circle-layer'].forEach((layerId) => {
+            this.map.on('mouseenter', layerId, () => {
+                this.map.getCanvas().style.cursor = 'pointer';
+            });
+            this.map.on('mouseleave', layerId, () => {
+                this.map.getCanvas().style.cursor = '';
+            });
         });
 
         // Individual Vessel Click (Oriented Chevron)
@@ -2230,8 +2216,9 @@ export class GlobalMapController {
                 west = -180;
                 east = 180;
             } else {
-                west = Math.max(-180, Math.min(180, west));
-                east = Math.max(-180, Math.min(180, east));
+                // Normalize unwrapped longitudes to [-180, 180]
+                west = ((((west + 180) % 360) + 360) % 360) - 180;
+                east = ((((east + 180) % 360) + 360) % 360) - 180;
             }
             south = Math.max(-90, Math.min(90, south));
             north = Math.max(-90, Math.min(90, north));
