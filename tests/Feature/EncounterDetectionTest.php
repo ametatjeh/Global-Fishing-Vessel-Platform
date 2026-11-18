@@ -174,16 +174,16 @@ class EncounterDetectionTest extends TestCase
 
         VesselPosition::create([
             'vessel_id' => $vesselA->id,
-            'latitude' => 0.0000,
-            'longitude' => 100.0000,
+            'latitude' => -5.9000,
+            'longitude' => 106.8000,
             'observed_at' => Carbon::parse('2026-10-19 10:00:00'),
             'received_at' => Carbon::parse('2026-10-19 10:00:00'),
             'data_quality_score' => 1.0,
         ]);
         VesselPosition::create([
             'vessel_id' => $vesselA->id,
-            'latitude' => 0.0001,
-            'longitude' => 100.0001,
+            'latitude' => -5.9001,
+            'longitude' => 106.8001,
             'observed_at' => Carbon::parse('2026-10-19 10:35:00'),
             'received_at' => Carbon::parse('2026-10-19 10:35:00'),
             'data_quality_score' => 1.0,
@@ -191,16 +191,16 @@ class EncounterDetectionTest extends TestCase
 
         VesselPosition::create([
             'vessel_id' => $vesselB->id,
-            'latitude' => 0.0010,
-            'longitude' => 100.0010,
+            'latitude' => -5.9010,
+            'longitude' => 106.8010,
             'observed_at' => Carbon::parse('2026-10-19 10:01:00'),
             'received_at' => Carbon::parse('2026-10-19 10:01:00'),
             'data_quality_score' => 1.0,
         ]);
         VesselPosition::create([
             'vessel_id' => $vesselB->id,
-            'latitude' => 0.0011,
-            'longitude' => 100.0011,
+            'latitude' => -5.9011,
+            'longitude' => 106.8011,
             'observed_at' => Carbon::parse('2026-10-19 10:36:00'),
             'received_at' => Carbon::parse('2026-10-19 10:36:00'),
             'data_quality_score' => 1.0,

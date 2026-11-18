@@ -15,10 +15,12 @@ return [
     |--------------------------------------------------------------------------
     */
     'encounters' => [
-        'algorithm_version' => 'v1.0-spatial-temporal',
+        'algorithm_version' => 'v2.0-open-sea-spatial-temporal',
         'max_distance_meters' => (float) env('ENCOUNTER_MAX_DISTANCE_METERS', 500.0),
         'min_duration_minutes' => (int) env('ENCOUNTER_MIN_DURATION_MINUTES', 30),
         'timestamp_tolerance_minutes' => (int) env('ENCOUNTER_TIMESTAMP_TOLERANCE_MINUTES', 10),
+        'port_exclusion_enabled' => (bool) env('ENCOUNTER_PORT_EXCLUSION_ENABLED', true),
+        'default_port_buffer_meters' => (int) env('ENCOUNTER_PORT_BUFFER_METERS', 5000),
         'categories' => [
             'fishing_carrier' => 'Fishing – Carrier',
             'fishing_support' => 'Fishing – Support',
@@ -32,7 +34,7 @@ return [
             'verified' => 'Verified',
             'rejected' => 'Rejected',
         ],
-        'disclaimer' => 'Observational proximity detection. Does not automatically establish proof of transshipment, maritime boundary violation, or illegal activity.',
+        'disclaimer' => 'Observational proximity detection in open sea waters. Does not automatically establish proof of transshipment, maritime boundary violation, or illegal activity.',
     ],
 
     /*

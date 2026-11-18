@@ -25,6 +25,7 @@ class DataRetentionController extends Controller
         $policies = $this->retentionService->getPolicies();
         $settings = $this->retentionService->getSettings();
         $stats = $this->retentionService->getStorageStatistics();
+        $encounterStats = $this->retentionService->getEncounterStorageStatistics();
         $nextRun = $this->retentionService->getNextScheduledRun();
 
         // Active running or pending background retention job
@@ -50,6 +51,7 @@ class DataRetentionController extends Controller
             'policies',
             'settings',
             'stats',
+            'encounterStats',
             'nextRun',
             'activeRun',
             'latestRun',
@@ -265,8 +267,77 @@ class DataRetentionController extends Controller
     public function refreshStats(Request $request): RedirectResponse
     {
         $this->retentionService->getStorageStatistics(forceFresh: true);
+        $this->retentionService->getEncounterStorageStatistics(forceFresh: true);
 
         return redirect()->route('settings.retention.index')
             ->with('status', 'Statistik retensi data AIS berhasil diperbarui secara langsung dari database.');
+    }
+
+    /**
+     * Purge all historical Vessel Encounter Events (Super Admin authorization).
+     */
+    public function purgeEncounters(Request $request): JsonResponse|RedirectResponse
+    {
+        $request->validate([
+            'confirm_encounter_purge' => ['required', 'accepted'],
+        ], [
+            'confirm_encounter_purge.accepted' => 'Anda harus mencentang kotak konfirmasi untuk menyetujui penghapusan seluruh data Vessel Encounter.',
+        ]);
+
+        $run = AisRetentionRun::create([
+            'run_type' => 'encounter_purge',
+            'status' => 'pending',
+            'is_dry_run' => false,
+            'chunk_size' => 1000,
+            'initiated_by_user_id' => $request->user()->id,
+            'target_policies' => ['type' => 'all_vessel_encounters'],
+        ]);
+
+        if (config('queue.default') === 'sync' || app()->environment('testing')) {
+            $result = $this->retentionService->purgeAllVesselEncounters(
+                chunkSize: 1000,
+                userId: $request->user()->id,
+                run: $run
+            );
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => $result['success'],
+                    'run_id' => $run->id,
+                    'status' => $result['success'] ? 'completed' : 'failed',
+                    'deleted_encounters' => $result['deleted_encounters'],
+                    'deleted_participants' => $result['deleted_participants'],
+                    'message' => $result['message'],
+                ]);
+            }
+
+            return redirect()->route('settings.retention.index')
+                ->with('status', $result['message']);
+        }
+
+        ExecuteRetentionCleanupJob::dispatch($run);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'run_id' => $run->id,
+                'status' => 'pending',
+                'message' => 'Penghapusan seluruh data Vessel Encounter Events sedang diproses di antrean latar belakang.',
+            ]);
+        }
+
+        return redirect()->route('settings.retention.index')
+            ->with('status', 'Penghapusan seluruh data Vessel Encounter Events sedang diproses di antrean latar belakang.');
+    }
+
+    /**
+     * Return live JSON statistics for Vessel Encounter Events.
+     */
+    public function encounterStats(Request $request): JsonResponse
+    {
+        $fresh = $request->boolean('fresh');
+        $stats = $this->retentionService->getEncounterStorageStatistics(forceFresh: $fresh);
+
+        return response()->json($stats);
     }
 }

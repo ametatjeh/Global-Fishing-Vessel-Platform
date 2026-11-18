@@ -113,6 +113,7 @@ class AisRetentionRun extends Model
     {
         return match ($this->run_type) {
             'manual_purge' => 'Manual Purge (Ad-Hoc)',
+            'encounter_purge' => 'Vessel Encounter Purge',
             'scheduled_cleanup' => 'Scheduled Automatic Purge',
             'simulation' => 'Dry-Run Simulation',
             'recalculate_stats' => 'Recalculate Metrics',

@@ -139,6 +139,12 @@ Route::middleware(['auth', 'role'])->group(function () {
     Route::post('/settings/retention/refresh-stats', [\App\Http\Controllers\DataRetentionController::class, 'refreshStats'])
         ->middleware('role:super_admin,admin')
         ->name('settings.retention.refresh-stats');
+    Route::post('/settings/retention/encounters/purge', [\App\Http\Controllers\DataRetentionController::class, 'purgeEncounters'])
+        ->middleware('role:super_admin')
+        ->name('settings.retention.encounters.purge');
+    Route::get('/settings/retention/encounters/stats', [\App\Http\Controllers\DataRetentionController::class, 'encounterStats'])
+        ->middleware('role:super_admin,admin')
+        ->name('settings.retention.encounters.stats');
 
     Route::get('/audit-logs', [SystemController::class, 'auditLogs'])
         ->middleware('role:super_admin,admin')

@@ -36,6 +36,7 @@ class DataRetentionPolicyService
      * Cache key for retention statistics.
      */
     public const CACHE_KEY_STATS = 'ais_retention_storage_stats';
+    public const CACHE_KEY_ENCOUNTER_STATS = 'ais_retention_encounter_stats';
 
     /**
      * Cache TTL in seconds (1 hour).
@@ -691,6 +692,14 @@ class DataRetentionPolicyService
             'error_message' => null,
         ]);
 
+        if ($run->run_type === 'encounter_purge') {
+            return $this->purgeAllVesselEncounters(
+                chunkSize: $run->chunk_size ?? 1000,
+                userId: $run->initiated_by_user_id,
+                run: $run
+            );
+        }
+
         if ($run->is_dry_run) {
             return $this->simulateRetentionPurge($run);
         }
@@ -938,5 +947,229 @@ class DataRetentionPolicyService
         $i = min($i, count($units) - 1);
 
         return round($bytes / pow(1024, $i), 2) . ' ' . $units[$i];
+    }
+
+    /**
+     * Calculate comprehensive statistics for Vessel Encounter Events.
+     */
+    public function getEncounterStorageStatistics(bool $forceFresh = false): array
+    {
+        if (!$forceFresh && Cache::has(self::CACHE_KEY_ENCOUNTER_STATS)) {
+            $cached = Cache::get(self::CACHE_KEY_ENCOUNTER_STATS);
+            if (is_array($cached)) {
+                return $cached;
+            }
+        }
+
+        if (!Schema::hasTable('vessel_encounters')) {
+            return [
+                'total_encounters' => 0,
+                'total_participants' => 0,
+                'candidate' => 0,
+                'needs_review' => 0,
+                'verified' => 0,
+                'rejected' => 0,
+                'oldest' => null,
+                'newest' => null,
+                'is_empty' => true,
+            ];
+        }
+
+        $totalEncounters = DB::table('vessel_encounters')->count();
+        $totalParticipants = Schema::hasTable('encounter_vessels') ? DB::table('encounter_vessels')->count() : 0;
+
+        $statusBreakdown = DB::table('vessel_encounters')
+            ->select('status', DB::raw('count(*) as count'))
+            ->groupBy('status')
+            ->pluck('count', 'status')
+            ->toArray();
+
+        $oldest = $totalEncounters > 0 ? DB::table('vessel_encounters')->orderBy('start_time', 'asc')->value('start_time') : null;
+        $newest = $totalEncounters > 0 ? DB::table('vessel_encounters')->orderBy('start_time', 'desc')->value('start_time') : null;
+
+        $stats = [
+            'total_encounters' => $totalEncounters,
+            'total_participants' => $totalParticipants,
+            'candidate' => $statusBreakdown['candidate'] ?? 0,
+            'needs_review' => $statusBreakdown['needs_review'] ?? 0,
+            'verified' => $statusBreakdown['verified'] ?? 0,
+            'rejected' => $statusBreakdown['rejected'] ?? 0,
+            'oldest' => $oldest,
+            'newest' => $newest,
+            'is_empty' => $totalEncounters === 0,
+        ];
+
+        Cache::put(self::CACHE_KEY_ENCOUNTER_STATS, $stats, self::CACHE_TTL_SECONDS);
+
+        return $stats;
+    }
+
+    /**
+     * Purge all Vessel Encounter Events in safe, throttled batches.
+     * Preserves vessels, vessel positions, AIS live tracking, and compliance events structure.
+     *
+     * @param int $chunkSize
+     * @param string|null $userId
+     * @param AisRetentionRun|null $run
+     * @return array{success: bool, deleted_encounters: int, deleted_participants: int, duration_sec: float, message: string}
+     */
+    public function purgeAllVesselEncounters(
+        int $chunkSize = 1000,
+        ?string $userId = null,
+        ?AisRetentionRun $run = null
+    ): array {
+        $startTime = microtime(true);
+        $totalDeletedEncounters = 0;
+        $totalDeletedParticipants = 0;
+        $batchCount = 0;
+
+        if (!Schema::hasTable('vessel_encounters')) {
+            return [
+                'success' => true,
+                'deleted_encounters' => 0,
+                'deleted_participants' => 0,
+                'duration_sec' => 0,
+                'message' => 'Tabel vessel_encounters tidak ditemukan.',
+            ];
+        }
+
+        // 1. Initial count
+        $initialCount = DB::table('vessel_encounters')->count();
+
+        if ($run) {
+            $run->update([
+                'status' => 'running',
+                'started_at' => now(),
+                'total_candidates' => $initialCount,
+            ]);
+        }
+
+        if ($initialCount === 0) {
+            if ($run) {
+                $run->update([
+                    'status' => 'completed',
+                    'completed_at' => now(),
+                    'total_records_purged' => 0,
+                    'batch_count' => 0,
+                    'duration_seconds' => 0,
+                    'summary' => ['message' => 'No vessel encounter records to delete (already empty).'],
+                ]);
+            }
+            Cache::forget(self::CACHE_KEY_ENCOUNTER_STATS);
+            return [
+                'success' => true,
+                'deleted_encounters' => 0,
+                'deleted_participants' => 0,
+                'duration_sec' => 0,
+                'message' => 'Tidak ada record Vessel Encounter Events yang perlu dihapus (database sudah kosong).',
+            ];
+        }
+
+        // 2. Safely nullify foreign keys in compliance_events and investigations
+        try {
+            if (Schema::hasTable('compliance_events') && Schema::hasColumn('compliance_events', 'related_encounter_id')) {
+                DB::table('compliance_events')
+                    ->whereNotNull('related_encounter_id')
+                    ->update(['related_encounter_id' => null]);
+            }
+
+            if (Schema::hasTable('investigations') && Schema::hasColumn('investigations', 'related_encounter_id')) {
+                DB::table('investigations')
+                    ->whereNotNull('related_encounter_id')
+                    ->update(['related_encounter_id' => null]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning("[Encounter Purge] Could not nullify related_encounter_id: " . $e->getMessage());
+        }
+
+        // 3. Batched chunk deletion
+        $batchSize = max(100, min(5000, $chunkSize));
+
+        while (true) {
+            // Check cancellation request
+            if ($run && $run->fresh()->status === 'cancelled') {
+                break;
+            }
+
+            $chunkIds = DB::table('vessel_encounters')
+                ->limit($batchSize)
+                ->pluck('id')
+                ->toArray();
+
+            if (empty($chunkIds)) {
+                break;
+            }
+
+            $deletedInBatch = DB::transaction(function () use ($chunkIds, &$totalDeletedParticipants) {
+                if (Schema::hasTable('encounter_vessels')) {
+                    $evDeleted = DB::table('encounter_vessels')
+                        ->whereIn('encounter_id', $chunkIds)
+                        ->delete();
+                    $totalDeletedParticipants += $evDeleted;
+                }
+
+                return DB::table('vessel_encounters')
+                    ->whereIn('id', $chunkIds)
+                    ->delete();
+            });
+
+            $totalDeletedEncounters += $deletedInBatch;
+            $batchCount++;
+
+            if ($run) {
+                $run->update([
+                    'total_records_purged' => $totalDeletedEncounters,
+                    'batch_count' => $batchCount,
+                ]);
+            }
+
+            // 20ms pause between batches to protect disk I/O and autovacuum
+            usleep(20000);
+        }
+
+        $duration = round(microtime(true) - $startTime, 2);
+
+        // Clear statistics cache
+        Cache::forget(self::CACHE_KEY_ENCOUNTER_STATS);
+        Cache::forget(self::CACHE_KEY_STATS);
+
+        // Audit log
+        AuditLog::log(
+            'purge_vessel_encounters',
+            'vessel_encounter',
+            null,
+            [
+                'deleted_encounters' => $totalDeletedEncounters,
+                'deleted_participants' => $totalDeletedParticipants,
+                'initial_count' => $initialCount,
+                'remaining_count' => DB::table('vessel_encounters')->count(),
+                'batch_count' => $batchCount,
+                'duration_sec' => $duration,
+            ],
+            userId: $userId
+        );
+
+        if ($run) {
+            $run->update([
+                'status' => 'completed',
+                'completed_at' => now(),
+                'total_records_purged' => $totalDeletedEncounters,
+                'batch_count' => $batchCount,
+                'duration_seconds' => (int) round($duration),
+                'summary' => [
+                    'deleted_encounters' => $totalDeletedEncounters,
+                    'deleted_participants' => $totalDeletedParticipants,
+                    'duration_sec' => $duration,
+                ],
+            ]);
+        }
+
+        return [
+            'success' => true,
+            'deleted_encounters' => $totalDeletedEncounters,
+            'deleted_participants' => $totalDeletedParticipants,
+            'duration_sec' => $duration,
+            'message' => "Berhasil menghapus {$totalDeletedEncounters} Vessel Encounter Events dan {$totalDeletedParticipants} participant records dalam {$batchCount} batch ({$duration}s).",
+        ];
     }
 }

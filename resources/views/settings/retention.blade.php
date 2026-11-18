@@ -692,7 +692,194 @@
         </div>
     </div>
 
-    <!-- SECTION F: RETENTION PROCESS EXECUTION HISTORY -->
+    <!-- SECTION E2: VESSEL ENCOUNTER EVENTS RETENTION & PURGE -->
+    <div class="glass-panel p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4" id="encounter-retention-section">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+            <div>
+                <h2 class="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    <span>🤝</span>
+                    <span>Vessel Encounter Events Retention &amp; Cleanup</span>
+                </h2>
+                <p class="text-xs text-slate-400 mt-0.5">
+                    Manage and safely purge historical observational proximity events between vessels. Vessel profiles, positions, and live AIS tracking remain 100% protected.
+                </p>
+            </div>
+            <div>
+                @if($encounterStats['is_empty'] ?? true)
+                <span id="encounter-status-badge" class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-800 text-slate-400 border border-slate-700">
+                    STATUS: EMPTY (0 RECORDS)
+                </span>
+                @else
+                <span id="encounter-status-badge" class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    STATUS: {{ number_format($encounterStats['total_encounters']) }} ACTIVE RECORDS
+                </span>
+                @endif
+            </div>
+        </div>
+
+        <!-- Metrics Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+                <div class="text-[10px] text-slate-400 uppercase font-mono">Total Encounters</div>
+                <div class="text-xl font-black text-cyan-300 font-mono mt-0.5" id="enc-total-count">
+                    {{ number_format($encounterStats['total_encounters'] ?? 0) }}
+                </div>
+                <div class="text-[10px] text-slate-500 mt-0.5">Events recorded</div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+                <div class="text-[10px] text-slate-400 uppercase font-mono">Participants</div>
+                <div class="text-xl font-black text-slate-200 font-mono mt-0.5" id="enc-participants-count">
+                    {{ number_format($encounterStats['total_participants'] ?? 0) }}
+                </div>
+                <div class="text-[10px] text-slate-500 mt-0.5">Vessel associations</div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+                <div class="text-[10px] text-amber-400 uppercase font-mono">Candidate</div>
+                <div class="text-xl font-black text-amber-300 font-mono mt-0.5">
+                    {{ number_format($encounterStats['candidate'] ?? 0) }}
+                </div>
+                <div class="text-[10px] text-slate-500 mt-0.5">Pending evaluation</div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+                <div class="text-[10px] text-indigo-400 uppercase font-mono">Needs Review</div>
+                <div class="text-xl font-black text-indigo-300 font-mono mt-0.5">
+                    {{ number_format($encounterStats['needs_review'] ?? 0) }}
+                </div>
+                <div class="text-[10px] text-slate-500 mt-0.5">Flagged for analyst</div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+                <div class="text-[10px] text-emerald-400 uppercase font-mono">Verified</div>
+                <div class="text-xl font-black text-emerald-300 font-mono mt-0.5">
+                    {{ number_format($encounterStats['verified'] ?? 0) }}
+                </div>
+                <div class="text-[10px] text-slate-500 mt-0.5">Confirmed encounters</div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+                <div class="text-[10px] text-rose-400 uppercase font-mono">Rejected</div>
+                <div class="text-xl font-black text-rose-300 font-mono mt-0.5">
+                    {{ number_format($encounterStats['rejected'] ?? 0) }}
+                </div>
+                <div class="text-[10px] text-slate-500 mt-0.5">Disproved proximity</div>
+            </div>
+        </div>
+
+        <!-- Info & Date Range -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 bg-slate-950/40 p-3 rounded-xl border border-slate-800/60">
+            <div class="flex items-center gap-2">
+                <span class="text-cyan-400">📅</span>
+                <span>Date Range:</span>
+                <span class="font-mono text-slate-200">
+                    {{ $encounterStats['oldest'] ? \Carbon\Carbon::parse($encounterStats['oldest'])->format('d M Y H:i') : '—' }}
+                </span>
+                <span>to</span>
+                <span class="font-mono text-slate-200">
+                    {{ $encounterStats['newest'] ? \Carbon\Carbon::parse($encounterStats['newest'])->format('d M Y H:i') : '—' }}
+                </span>
+            </div>
+            <div class="text-[11px] text-slate-500">
+                Protection: Vessels, AIS tracks, and compliance records are strictly preserved.
+            </div>
+        </div>
+
+        <!-- Purge Action Control -->
+        <div class="pt-2">
+            @if(auth()->user()?->isSuperAdmin())
+                @if(($encounterStats['total_encounters'] ?? 0) > 0)
+                <div class="p-4 rounded-xl bg-rose-950/20 border border-rose-900/40 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2 text-rose-300 font-bold text-xs uppercase tracking-wide">
+                            <span>⚠️</span>
+                            <span>Purge All Historical Vessel Encounters</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 leading-relaxed max-w-2xl">
+                            Permanently removes all {{ number_format($encounterStats['total_encounters']) }} vessel encounter events and participant linkages across all statuses.
+                            This operation runs in throttled batches to protect database performance.
+                        </p>
+                    </div>
+
+                    <button type="button" onclick="openEncounterPurgeModal()"
+                        class="px-4 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition flex items-center justify-center gap-2 shadow-sm cursor-pointer whitespace-nowrap">
+                        <span>🗑️</span>
+                        <span>Delete All ({{ number_format($encounterStats['total_encounters']) }} Records)</span>
+                    </button>
+                </div>
+                @else
+                <div class="p-3.5 rounded-xl bg-slate-900/40 border border-slate-800 text-center flex items-center justify-center gap-2 text-slate-400 text-xs">
+                    <span class="text-emerald-400">✓</span>
+                    <span>No vessel encounters stored in database. The encounter registry is clean (0 records).</span>
+                </div>
+                @endif
+            @else
+                <div class="p-3 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-500 text-center">
+                    Only Super Admins are authorized to execute vessel encounter bulk deletion.
+                </div>
+            @endif
+        </div>
+    </div>
+
+    <!-- Encounter Purge Confirmation Modal -->
+    <div id="encounter-purge-modal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass-panel max-w-lg w-full p-6 rounded-2xl border border-rose-900/50 shadow-2xl space-y-4 bg-slate-900">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2 text-rose-400 font-bold text-sm uppercase tracking-wide">
+                    <span>⚠️</span>
+                    <span>Confirm Delete All Encounters</span>
+                </div>
+                <button type="button" onclick="closeEncounterPurgeModal()" class="text-slate-400 hover:text-white transition text-lg leading-none">&times;</button>
+            </div>
+
+            <div class="space-y-3 text-xs text-slate-300">
+                <p class="leading-relaxed">
+                    You are about to delete <strong class="text-rose-400">{{ number_format($encounterStats['total_encounters'] ?? 0) }}</strong> Vessel Encounter Events and their participant associations.
+                </p>
+
+                <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-[11px]">
+                    <div class="text-emerald-400 font-bold flex items-center gap-1.5">
+                        <span>✓</span>
+                        <span>What is SAFE &amp; PRESERVED:</span>
+                    </div>
+                    <ul class="list-disc list-inside text-slate-400 space-y-0.5 ml-1">
+                        <li>All vessel identity records (<code class="text-slate-300 font-mono">vessels</code>)</li>
+                        <li>All AIS telemetry &amp; positions (<code class="text-slate-300 font-mono">vessel_positions</code>)</li>
+                        <li>Live map tracking and search indices</li>
+                        <li>Compliance rules &amp; investigation case notes</li>
+                    </ul>
+                </div>
+
+                <div class="p-3 rounded-xl bg-rose-950/30 border border-rose-900/40 text-[11px] text-rose-300">
+                    <strong>PERMANENT ACTION:</strong> Deleted encounters cannot be restored. New encounters will only be detected in open sea waters when the detection algorithm runs.
+                </div>
+            </div>
+
+            <form id="encounter-purge-form" method="POST" action="{{ route('settings.retention.encounters.purge') }}">
+                @csrf
+                <div class="space-y-4">
+                    <label class="flex items-start gap-2.5 cursor-pointer text-slate-300 text-xs select-none">
+                        <input type="checkbox" id="confirm-enc-checkbox" name="confirm_encounter_purge" value="1" required
+                            class="mt-0.5 rounded border-slate-700 bg-slate-950 text-rose-500 focus:ring-0">
+                        <span>I confirm that I want to delete ALL vessel encounter records permanently.</span>
+                    </label>
+
+                    <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-800">
+                        <button type="button" onclick="closeEncounterPurgeModal()"
+                            class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition">
+                            Cancel
+                        </button>
+                        <button type="submit" id="btn-submit-enc-purge"
+                            class="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition flex items-center gap-2 cursor-pointer">
+                            <span>🗑️</span>
+                            <span>Confirm &amp; Delete All</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
     <div class="glass-panel p-6 rounded-2xl border border-slate-800 shadow-xl space-y-3">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
             <h2 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
@@ -841,6 +1028,16 @@ function updateRetentionDays(type, value) {
     } else {
         input.focus();
     }
+}
+
+function openEncounterPurgeModal() {
+    const modal = document.getElementById('encounter-purge-modal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeEncounterPurgeModal() {
+    const modal = document.getElementById('encounter-purge-modal');
+    if (modal) modal.classList.add('hidden');
 }
 
 // Live polling for active background retention run
