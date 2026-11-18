@@ -523,9 +523,19 @@ class CopernicusSarAdapter implements ProviderAdapterInterface
                         ]
                     ];
 
+                    $prodName = (string) ($prod['Name'] ?? '');
+                    $platformName = 'Sentinel-1';
+                    if (str_starts_with($prodName, 'S1B')) {
+                        $platformName = 'Sentinel-1B';
+                    } elseif (str_starts_with($prodName, 'S1C')) {
+                        $platformName = 'Sentinel-1C';
+                    } elseif (str_starts_with($prodName, 'S1A')) {
+                        $platformName = 'Sentinel-1A';
+                    }
+
                     SatelliteScene::create([
                         'scene_id' => $sceneId,
-                        'platform_name' => 'Sentinel-1A',
+                        'platform_name' => $platformName,
                         'instrument' => 'C-SAR',
                         'sensor_mode' => 'IW',
                         'polarization' => 'VV+VH',
@@ -537,6 +547,7 @@ class CopernicusSarAdapter implements ProviderAdapterInterface
                         'provider_url' => "https://dataspace.copernicus.eu/browser/?id={$sceneId}",
                         'processing_status' => 'cataloged',
                         'metadata' => [
+                            'product_name' => $prodName,
                             'content_length' => $contentLen,
                             'origin' => 'ESA Copernicus Data Space',
                         ],
