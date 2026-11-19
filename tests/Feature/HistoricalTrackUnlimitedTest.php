@@ -339,17 +339,22 @@ class HistoricalTrackUnlimitedTest extends TestCase
     }
 
     /**
-     * Test 10: Map blade page renders Historical Track UI and Playback Dock.
+     * Test 10: Map blade page renders Track History UI and Playback Dock.
      */
-    public function test_10_map_page_renders_historical_track_and_playback_dock(): void
+    public function test_10_map_page_renders_track_history_and_playback_dock(): void
     {
         $response = $this->actingAs($this->admin)->get('/map#map');
 
         $response->assertStatus(200);
-        $response->assertSee('D. Historical Track (AIS)', false);
+        $response->assertSee('D. Track History', false);
         $response->assertSee('historicalTrackPlaybackDock', false);
         $response->assertSee('trackPeriodButtonGrid', false);
-        $response->assertSee('All History ♾️', false);
+        $response->assertSee('24 Hours', false);
+        $response->assertSee('7 Days', false);
+        $response->assertSee('30 Days', false);
+        $response->assertSee('1 Year', false);
+        $response->assertSee('trackLoadingIndicator', false);
+        $response->assertSee('trackStatusMessage', false);
         $response->assertSee('dockTimelineSlider', false);
         $response->assertSee('btnExportTrackCsv', false);
         $response->assertSee('btnExportTrackGeoJson', false);

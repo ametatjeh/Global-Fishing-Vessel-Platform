@@ -862,37 +862,41 @@
                 </div>
             </div>
 
-            <!-- D. HISTORICAL TRACK & ANALYSIS -->
+            <!-- D. TRACK HISTORY & ANALYSIS -->
             <div class="space-y-1.5 font-mono text-[11px]">
                 <div class="text-[10px] uppercase font-bold text-cyan-400 tracking-wider flex items-center justify-between">
-                    <span>D. Historical Track (AIS)</span>
+                    <span>D. Track History</span>
                     <span id="panelTrackPointBadge" class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-cyan-950 text-cyan-300 border border-cyan-800">0 points</span>
                 </div>
                 
                 <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2.5">
-                    <!-- Period Selector -->
+                    <!-- Period Selector (Exact 6 Options) -->
                     <div>
-                        <div class="text-[9px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between">
+                        <div class="text-[9px] uppercase font-bold text-slate-400 mb-1.5 flex items-center justify-between">
                             <span>Track Period:</span>
                             <span id="trackActivePeriodLabel" class="text-cyan-400 font-bold">7 Days (Default)</span>
                         </div>
-                        <div class="grid grid-cols-4 gap-1 text-[10px]" id="trackPeriodButtonGrid">
-                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="24h">24h</button>
-                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="48h">48h</button>
-                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="72h">72h</button>
-                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-cyan-950 border border-cyan-500 text-cyan-300 font-bold transition text-center" data-range="7d">7d</button>
-                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="14d">14d</button>
-                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="30d">30d</button>
-                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="90d">90d</button>
-                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="180d">180d</button>
-                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="1y">1 Year</button>
-                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-amber-950/60 hover:bg-amber-900/60 border border-amber-800/80 text-amber-300 transition text-center col-span-2 font-bold" data-range="all" title="Full history from earliest recorded observation">All History ♾️</button>
-                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="custom" id="btnTrackCustomToggle">Custom 📅</button>
+                        <div class="grid grid-cols-3 gap-1.5 text-[10px]" id="trackPeriodButtonGrid">
+                            <button type="button" class="btn-track-range px-2 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center font-medium" data-range="24h">24 Hours</button>
+                            <button type="button" class="btn-track-range px-2 py-1.5 rounded-lg bg-cyan-950 border border-cyan-500 text-cyan-300 font-bold transition text-center shadow-sm" data-range="7d">7 Days</button>
+                            <button type="button" class="btn-track-range px-2 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center font-medium" data-range="30d">30 Days</button>
+                            <button type="button" class="btn-track-range px-2 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center font-medium" data-range="1y">1 Year</button>
+                            <button type="button" class="btn-track-range px-2 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center font-medium" data-range="all" title="All available historical records for this vessel">All</button>
+                            <button type="button" class="btn-track-range px-2 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center font-medium" data-range="custom" id="btnTrackCustomToggle">Custom</button>
                         </div>
                     </div>
 
+                    <!-- Loading Indicator -->
+                    <div id="trackLoadingIndicator" class="hidden flex items-center justify-center gap-2 py-2 px-3 bg-cyan-950/40 rounded-lg border border-cyan-500/30 text-cyan-300 text-[10px]">
+                        <svg class="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                        <span>Loading AIS track history...</span>
+                    </div>
+
+                    <!-- Status / No Data Message -->
+                    <div id="trackStatusMessage" class="hidden p-2 rounded-lg bg-amber-950/40 border border-amber-800/60 text-amber-300 text-[10px]"></div>
+
                     <!-- Custom Date Range Form (Collapsible) -->
-                    <div id="trackCustomRangeBox" class="hidden p-2 rounded-lg bg-slate-900 border border-cyan-800/60 space-y-2">
+                    <div id="trackCustomRangeBox" class="hidden p-2.5 rounded-lg bg-slate-900 border border-cyan-800/60 space-y-2">
                         <div class="text-[9px] uppercase font-bold text-cyan-300 flex items-center justify-between">
                             <span>Custom Date &amp; Time Range</span>
                             <span class="text-slate-400">UTC</span>
@@ -1023,7 +1027,7 @@
             <div class="flex items-center gap-2 min-w-0">
                 <span class="text-base text-amber-400">⏱️</span>
                 <div class="truncate">
-                    <span class="font-bold text-white text-xs uppercase tracking-wide">Historical Track Playback:</span>
+                    <span class="font-bold text-white text-xs uppercase tracking-wide">Track History Playback:</span>
                     <span id="dockVesselTitle" class="text-cyan-300 font-bold ml-1">Vessel Name</span>
                     <span id="dockVesselMmsi" class="text-[10px] text-slate-400 font-mono ml-1">(MMSI: -)</span>
                 </div>
@@ -1653,22 +1657,17 @@
             });
         }
 
-        // Historical Track Range Buttons (24h, 48h, 72h, 7d, 14d, 30d, 90d, 180d, 1y, all, custom)
+        // Track History Range Buttons (24h, 7d, 30d, 1y, all, custom)
         const trackCustomBox = document.getElementById('trackCustomRangeBox');
         const activePeriodLabel = document.getElementById('trackActivePeriodLabel');
 
         const periodLabels = {
             '24h': '24 Hours',
-            '48h': '48 Hours',
-            '72h': '72 Hours',
             '7d': '7 Days (Default)',
-            '14d': '14 Days',
             '30d': '30 Days',
-            '90d': '90 Days',
-            '180d': '180 Days',
             '1y': '1 Year',
-            'all': 'All Available History ♾️',
-            'custom': 'Custom Date Range 📅',
+            'all': 'All',
+            'custom': 'Custom',
         };
 
         document.querySelectorAll('.btn-track-range').forEach(btn => {
@@ -1677,9 +1676,9 @@
                 const targetId = mapController.selectedVesselId || mapController.selectedMmsi;
 
                 document.querySelectorAll('.btn-track-range').forEach(b => {
-                    b.className = 'btn-track-range px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center';
+                    b.className = 'btn-track-range px-2 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center font-medium';
                 });
-                e.currentTarget.className = 'btn-track-range px-1.5 py-1 rounded-lg bg-cyan-950 border border-cyan-500 text-cyan-300 font-bold transition text-center';
+                e.currentTarget.className = 'btn-track-range px-2 py-1.5 rounded-lg bg-cyan-950 border border-cyan-500 text-cyan-300 font-bold transition text-center shadow-sm';
 
                 if (activePeriodLabel) {
                     activePeriodLabel.textContent = periodLabels[range] || range;
@@ -1715,19 +1714,27 @@
 
                 if (!startDate || !endDate) {
                     if (errorEl) {
-                        errorEl.textContent = 'Please specify both Start Date and End Date.';
+                        errorEl.textContent = 'Harap tentukan tanggal mulai dan tanggal selesai.';
                         errorEl.classList.remove('hidden');
                     }
                     return;
                 }
 
-                const startDt = new Date(`${startDate}T${startTime}`);
-                const endDt = new Date(`${endDate}T${endTime}`);
+                if (startDate > endDate) {
+                    if (errorEl) {
+                        errorEl.textContent = 'Start Date tidak boleh lebih besar dari End Date.';
+                        errorEl.classList.remove('hidden');
+                    }
+                    return;
+                }
+
+                const startDt = new Date(`${startDate}T${startTime}Z`);
+                const endDt = new Date(`${endDate}T${endTime}Z`);
                 const now = new Date();
 
                 if (endDt < startDt) {
                     if (errorEl) {
-                        errorEl.textContent = 'End Date cannot be earlier than Start Date.';
+                        errorEl.textContent = 'Waktu akhir tidak boleh lebih awal dari waktu mulai.';
                         errorEl.classList.remove('hidden');
                     }
                     return;
@@ -1735,7 +1742,7 @@
 
                 if (startDt > now) {
                     if (errorEl) {
-                        errorEl.textContent = 'Cannot request dates in the future.';
+                        errorEl.textContent = 'Tidak boleh meminta data masa depan.';
                         errorEl.classList.remove('hidden');
                     }
                     return;

@@ -2095,6 +2095,29 @@ export class GlobalMapController {
 
         panel.classList.remove('hidden');
 
+        // Sync active period button in Track History panel
+        const currentRange = this.activeTrackRange || '7d';
+        document.querySelectorAll('.btn-track-range').forEach(b => {
+            const r = b.getAttribute('data-range');
+            if (r === currentRange) {
+                b.className = 'btn-track-range px-2 py-1.5 rounded-lg bg-cyan-950 border border-cyan-500 text-cyan-300 font-bold transition text-center shadow-sm';
+            } else {
+                b.className = 'btn-track-range px-2 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center font-medium';
+            }
+        });
+        const periodLabels = {
+            '24h': '24 Hours',
+            '7d': '7 Days (Default)',
+            '30d': '30 Days',
+            '1y': '1 Year',
+            'all': 'All',
+            'custom': 'Custom',
+        };
+        const activeLabel = document.getElementById('trackActivePeriodLabel');
+        if (activeLabel) {
+            activeLabel.textContent = periodLabels[currentRange] || currentRange;
+        }
+
         // Automatically load track for selected vessel
         this.showVesselTrack(props.vessel_id || props.mmsi, { range: this.activeTrackRange, fitBounds: false });
         this.updateUrlHash();
@@ -3156,7 +3179,7 @@ export class GlobalMapController {
     }
 
     /**
-     * Show AIS historical track line and points for a vessel (Unlimited Historical Track)
+     * Show AIS historical track line and points for a vessel (Track History)
      */
     async showVesselTrack(vesselIdentifier, options = {}) {
         if (!vesselIdentifier) return;
@@ -3165,9 +3188,14 @@ export class GlobalMapController {
         const range = options.range || this.activeTrackRange || '7d';
         this.activeTrackRange = range;
 
+        const loader = document.getElementById('trackLoadingIndicator');
+        const statusMsg = document.getElementById('trackStatusMessage');
+        if (loader) loader.classList.remove('hidden');
+        if (statusMsg) statusMsg.classList.add('hidden');
+
         // Prevent race conditions when user switches vessels quickly
         this.activeTrackVesselId = idStr;
-        this.notifyTrackStatus('loading', `Loading historical AIS track (${range})...`);
+        this.notifyTrackStatus('loading', `Loading Track History (${range})...`);
 
         try {
             let url = `/api/vessels/${encodeURIComponent(idStr)}/track?range=${encodeURIComponent(range)}`;
@@ -3180,16 +3208,23 @@ export class GlobalMapController {
 
             const res = await fetch(url);
             if (!res.ok) {
-                if (res.status === 404) {
-                    this.notifyTrackStatus('error', `Vessel identifier '${idStr}' not found.`);
-                } else {
-                    this.notifyTrackStatus('error', `Failed to load AIS track (HTTP ${res.status}).`);
+                if (loader) loader.classList.add('hidden');
+                const errMsg = res.status === 404
+                    ? `Vessel identifier '${idStr}' not found.`
+                    : `Failed to load Track History (HTTP ${res.status}).`;
+                this.notifyTrackStatus('error', errMsg);
+                if (statusMsg) {
+                    statusMsg.textContent = errMsg;
+                    statusMsg.classList.remove('hidden');
                 }
                 return;
             }
 
             // Stale check
-            if (this.activeTrackVesselId !== idStr) return;
+            if (this.activeTrackVesselId !== idStr) {
+                if (loader) loader.classList.add('hidden');
+                return;
+            }
 
             const geoJson = await res.json();
             this.currentTrackGeoJson = geoJson;
@@ -3210,12 +3245,21 @@ export class GlobalMapController {
                 .sort((a, b) => new Date(a.properties.observed_at) - new Date(b.properties.observed_at));
             this.playback.currentIndex = 0;
 
+            if (loader) loader.classList.add('hidden');
+
             if (count === 0) {
-                this.notifyTrackStatus('warning', geoJson.properties?.message || `No historical AIS track available (${range}) for ${vesselName}.`);
+                const emptyMsg = geoJson.properties?.message || `No AIS positions recorded within ${range} for ${vesselName}.`;
+                this.notifyTrackStatus('warning', emptyMsg);
+                if (statusMsg) {
+                    statusMsg.textContent = emptyMsg;
+                    statusMsg.classList.remove('hidden');
+                }
             } else if (count === 1) {
                 this.notifyTrackStatus('info', `Only 1 AIS position available for ${vesselName} (single point).`);
+                if (statusMsg) statusMsg.classList.add('hidden');
             } else {
-                this.notifyTrackStatus('success', `AIS Track (${range}): ${vesselName} (${count} points).`);
+                this.notifyTrackStatus('success', `Track History (${range}): ${vesselName} (${count} points).`);
+                if (statusMsg) statusMsg.classList.add('hidden');
             }
 
             // Update UI widgets, statistics & export links
@@ -3231,7 +3275,13 @@ export class GlobalMapController {
             }
         } catch (err) {
             console.error('[GlobalMap] Error loading vessel track:', err);
-            this.notifyTrackStatus('error', 'Network error while loading vessel track.');
+            if (loader) loader.classList.add('hidden');
+            const errStr = 'Network error while loading Track History.';
+            this.notifyTrackStatus('error', errStr);
+            if (statusMsg) {
+                statusMsg.textContent = errStr;
+                statusMsg.classList.remove('hidden');
+            }
         }
     }
 
