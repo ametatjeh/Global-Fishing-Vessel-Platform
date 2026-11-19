@@ -862,23 +862,99 @@
                 </div>
             </div>
 
-            <!-- D. ANALISIS & KORELASI -->
+            <!-- D. HISTORICAL TRACK & ANALYSIS -->
             <div class="space-y-1.5 font-mono text-[11px]">
-                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">D. Analysis &amp; Correlation</div>
+                <div class="text-[10px] uppercase font-bold text-cyan-400 tracking-wider flex items-center justify-between">
+                    <span>D. Historical Track (AIS)</span>
+                    <span id="panelTrackPointBadge" class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-cyan-950 text-cyan-300 border border-cyan-800">0 points</span>
+                </div>
                 
-                <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
-                    <div class="space-y-1">
+                <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2.5">
+                    <!-- Period Selector -->
+                    <div>
+                        <div class="text-[9px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between">
+                            <span>Track Period:</span>
+                            <span id="trackActivePeriodLabel" class="text-cyan-400 font-bold">7 Days (Default)</span>
+                        </div>
+                        <div class="grid grid-cols-4 gap-1 text-[10px]" id="trackPeriodButtonGrid">
+                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="24h">24h</button>
+                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="48h">48h</button>
+                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="72h">72h</button>
+                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-cyan-950 border border-cyan-500 text-cyan-300 font-bold transition text-center" data-range="7d">7d</button>
+                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="14d">14d</button>
+                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="30d">30d</button>
+                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="90d">90d</button>
+                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="180d">180d</button>
+                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="1y">1 Year</button>
+                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-amber-950/60 hover:bg-amber-900/60 border border-amber-800/80 text-amber-300 transition text-center col-span-2 font-bold" data-range="all" title="Full history from earliest recorded observation">All History ♾️</button>
+                            <button type="button" class="btn-track-range px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="custom" id="btnTrackCustomToggle">Custom 📅</button>
+                        </div>
+                    </div>
+
+                    <!-- Custom Date Range Form (Collapsible) -->
+                    <div id="trackCustomRangeBox" class="hidden p-2 rounded-lg bg-slate-900 border border-cyan-800/60 space-y-2">
+                        <div class="text-[9px] uppercase font-bold text-cyan-300 flex items-center justify-between">
+                            <span>Custom Date &amp; Time Range</span>
+                            <span class="text-slate-400">UTC</span>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="block text-[9px] text-slate-400">Start (Date &amp; Time):</label>
+                            <div class="grid grid-cols-2 gap-1">
+                                <input type="date" id="trackCustomStartDate" class="px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 text-[10px] focus:outline-none focus:border-cyan-400">
+                                <input type="time" id="trackCustomStartTime" value="00:00" class="px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 text-[10px] focus:outline-none focus:border-cyan-400">
+                            </div>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="block text-[9px] text-slate-400">End (Date &amp; Time):</label>
+                            <div class="grid grid-cols-2 gap-1">
+                                <input type="date" id="trackCustomEndDate" class="px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 text-[10px] focus:outline-none focus:border-cyan-400">
+                                <input type="time" id="trackCustomEndTime" value="23:59" class="px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 text-[10px] focus:outline-none focus:border-cyan-400">
+                            </div>
+                        </div>
+                        <div id="trackCustomRangeError" class="hidden text-[10px] text-rose-400 font-sans"></div>
+                        <button type="button" id="btnApplyCustomTrackRange" class="w-full py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-center transition text-[10px]">
+                            Apply Custom Range
+                        </button>
+                    </div>
+
+                    <!-- Track Statistics Card -->
+                    <div id="panelTrackStatsCard" class="p-2 rounded-lg bg-slate-900/90 border border-slate-800 space-y-1 text-[10px]">
+                        <div class="text-[9px] uppercase font-bold text-slate-400 pb-1 border-b border-slate-800 flex items-center justify-between">
+                            <span>Track Statistics</span>
+                            <span id="trackStatStatus" class="text-cyan-400 font-semibold">Active</span>
+                        </div>
                         <div class="flex items-center justify-between">
-                            <span class="text-slate-400">Track History:</span>
-                            <span id="panelTrackPointBadge" class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-cyan-950 text-cyan-300 border border-cyan-800">0 points</span>
+                            <span class="text-slate-400">Positions in Range:</span>
+                            <span id="trackStatPoints" class="text-slate-200 font-semibold">0 points</span>
                         </div>
-                        <div class="grid grid-cols-4 gap-1 text-[11px]">
-                            <button type="button" class="btn-track-range px-2 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="1h">1 Hour</button>
-                            <button type="button" class="btn-track-range px-2 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="6h">6 Hours</button>
-                            <button type="button" class="btn-track-range px-2 py-1 rounded-lg bg-cyan-950 border border-cyan-500 text-cyan-300 font-bold transition text-center" data-range="24h">24 Hours</button>
-                            <button type="button" class="btn-track-range px-2 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center" data-range="7d">7 Days</button>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-400">Est. Distance Traveled:</span>
+                            <span id="trackStatDistance" class="text-slate-200 font-semibold">0.0 NM</span>
                         </div>
-                        <div class="flex items-center gap-1.5 pt-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-400">Speed (Avg / Max):</span>
+                            <span id="trackStatSpeed" class="text-slate-200 font-semibold">- / - kts</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-400">First Observation:</span>
+                            <span id="trackStatFirstObs" class="text-slate-300 font-mono text-[9px] truncate max-w-[170px]">-</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-400">Last Observation:</span>
+                            <span id="trackStatLastObs" class="text-slate-300 font-mono text-[9px] truncate max-w-[170px]">-</span>
+                        </div>
+                        <div id="trackStatGapRow" class="hidden flex items-center justify-between pt-0.5 border-t border-slate-800/60 text-amber-400">
+                            <span>Signal Gaps (&gt;4h):</span>
+                            <span id="trackStatGaps" class="font-bold">0 gaps</span>
+                        </div>
+                        <div class="pt-1 border-t border-slate-800 text-[9px] text-slate-400 font-sans" id="trackStatAllTimeNote">
+                            All-time history: <span id="trackStatAllTimeSpan" class="text-slate-300 font-mono">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Action & Playback Buttons -->
+                    <div class="space-y-1.5 pt-1">
+                        <div class="flex items-center gap-1.5">
                             <button type="button" id="panelBtnFitTrack" class="flex-1 px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 font-semibold text-center transition flex items-center justify-center gap-1">
                                 <span>🧭</span> <span>Fit Track</span>
                             </button>
@@ -886,6 +962,20 @@
                                 <span id="panelToggleTrackIcon">👁️</span> <span id="panelToggleTrackText">Hide Track</span>
                             </button>
                         </div>
+                        <button type="button" id="panelBtnOpenPlayback" class="w-full px-2 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-bold text-center transition flex items-center justify-center gap-1.5 shadow-sm">
+                            <span>▶</span> <span>Interactive Timeline Playback</span>
+                        </button>
+                    </div>
+
+                    <!-- Export Options -->
+                    <div class="pt-1 border-t border-slate-800 flex items-center gap-1.5">
+                        <span class="text-[9px] uppercase font-bold text-slate-400">Export:</span>
+                        <a id="btnExportTrackCsv" href="#" target="_blank" class="flex-1 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-semibold text-center transition text-[10px] flex items-center justify-center gap-1">
+                            <span>📥</span> <span>CSV</span>
+                        </a>
+                        <a id="btnExportTrackGeoJson" href="#" target="_blank" class="flex-1 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-semibold text-center transition text-[10px] flex items-center justify-center gap-1">
+                            <span>📥</span> <span>GeoJSON</span>
+                        </a>
                     </div>
 
                     <div class="pt-2 border-t border-slate-800/80 space-y-1.5">
@@ -923,6 +1013,70 @@
             <button type="button" id="panelBtnShareUrl" class="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold transition flex items-center gap-1" title="Copy link to vessel position">
                 <span>🔗</span>
             </button>
+        </div>
+    </div>
+
+    <!-- Floating Historical Track Interactive Playback & Timeline Dock -->
+    <div id="historicalTrackPlaybackDock" class="hidden absolute bottom-12 left-1/2 -translate-x-1/2 z-30 w-11/12 max-w-3xl glass-panel bg-slate-900/95 border border-cyan-500/40 rounded-2xl shadow-2xl backdrop-blur-xl p-3.5 space-y-2.5 font-mono text-xs max-sm:bottom-2 max-sm:w-[96%]">
+        <!-- Dock Header -->
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div class="flex items-center gap-2 min-w-0">
+                <span class="text-base text-amber-400">⏱️</span>
+                <div class="truncate">
+                    <span class="font-bold text-white text-xs uppercase tracking-wide">Historical Track Playback:</span>
+                    <span id="dockVesselTitle" class="text-cyan-300 font-bold ml-1">Vessel Name</span>
+                    <span id="dockVesselMmsi" class="text-[10px] text-slate-400 font-mono ml-1">(MMSI: -)</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <span id="dockPointCounter" class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-950 text-slate-300 border border-slate-800">Point 0 / 0</span>
+                <button type="button" id="btnClosePlaybackDock" class="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 text-base leading-none transition" title="Close Playback Dock">&times;</button>
+            </div>
+        </div>
+
+        <!-- Timeline Slider -->
+        <div class="space-y-1">
+            <div class="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                <span id="dockTimelineStart">Start</span>
+                <span id="dockTimelineCurrent" class="text-amber-400 font-bold text-[11px]">2026-00-00 00:00:00 UTC</span>
+                <span id="dockTimelineEnd">End</span>
+            </div>
+            <input type="range" id="dockTimelineSlider" min="0" max="0" value="0" step="1" class="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-cyan-400 focus:outline-none">
+        </div>
+
+        <!-- Telemetry & Gap Alert -->
+        <div class="flex flex-wrap items-center justify-between gap-2 text-[10px] bg-slate-950/80 p-2 rounded-xl border border-slate-800">
+            <div class="flex items-center gap-3 text-slate-300">
+                <div><span class="text-slate-500">Speed:</span> <span id="dockTelemetrySpeed" class="text-emerald-400 font-bold">- kts</span></div>
+                <div><span class="text-slate-500">Course:</span> <span id="dockTelemetryCourse" class="text-sky-400 font-bold">-°</span></div>
+                <div><span class="text-slate-500">Heading:</span> <span id="dockTelemetryHeading" class="text-sky-300 font-bold">-°</span></div>
+                <div class="hidden sm:inline"><span class="text-slate-500">Coord:</span> <span id="dockTelemetryCoord" class="text-slate-300 font-mono">-</span></div>
+            </div>
+            <div id="dockGapAlert" class="hidden px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-bold flex items-center gap-1 animate-pulse">
+                <span>⚠️</span> <span>Transmission Gap Detected (&gt;4h)</span>
+            </div>
+        </div>
+
+        <!-- Controls: Play/Pause, Reset, Speed Selection -->
+        <div class="flex items-center justify-between gap-2 pt-1">
+            <div class="flex items-center gap-1.5">
+                <button type="button" id="dockBtnReset" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition font-bold flex items-center gap-1" title="Reset to Start (First Position)">
+                    <span>⏮</span> <span class="hidden sm:inline">Reset</span>
+                </button>
+                <button type="button" id="dockBtnPlayPause" class="px-4 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 transition font-bold flex items-center gap-1.5 shadow-md" title="Play / Pause Track">
+                    <span id="dockPlayIcon">▶</span> <span id="dockPlayText">Play</span>
+                </button>
+            </div>
+
+            <!-- Speed Controls -->
+            <div class="flex items-center gap-1 text-[10px]">
+                <span class="text-slate-500 hidden sm:inline mr-1 text-[9px] uppercase">Speed:</span>
+                <button type="button" class="btn-dock-speed px-2 py-1 rounded bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-400 transition" data-speed="0.5">0.5x</button>
+                <button type="button" class="btn-dock-speed px-2 py-1 rounded bg-cyan-950 border border-cyan-500 text-cyan-300 font-bold transition" data-speed="1">1x</button>
+                <button type="button" class="btn-dock-speed px-2 py-1 rounded bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-400 transition" data-speed="2">2x</button>
+                <button type="button" class="btn-dock-speed px-2 py-1 rounded bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-400 transition" data-speed="5">5x</button>
+                <button type="button" class="btn-dock-speed px-2 py-1 rounded bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-400 transition" data-speed="10">10x</button>
+            </div>
         </div>
     </div>
 
@@ -1499,18 +1653,150 @@
             });
         }
 
-        // Track time window filter buttons (1h, 6h, 24h, 7d)
+        // Historical Track Range Buttons (24h, 48h, 72h, 7d, 14d, 30d, 90d, 180d, 1y, all, custom)
+        const trackCustomBox = document.getElementById('trackCustomRangeBox');
+        const activePeriodLabel = document.getElementById('trackActivePeriodLabel');
+
+        const periodLabels = {
+            '24h': '24 Hours',
+            '48h': '48 Hours',
+            '72h': '72 Hours',
+            '7d': '7 Days (Default)',
+            '14d': '14 Days',
+            '30d': '30 Days',
+            '90d': '90 Days',
+            '180d': '180 Days',
+            '1y': '1 Year',
+            'all': 'All Available History ♾️',
+            'custom': 'Custom Date Range 📅',
+        };
+
         document.querySelectorAll('.btn-track-range').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const range = e.currentTarget.getAttribute('data-range');
-                document.querySelectorAll('.btn-track-range').forEach(b => {
-                    b.className = 'btn-track-range px-2 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center';
-                });
-                e.currentTarget.className = 'btn-track-range px-2 py-1 rounded-lg bg-cyan-950 border border-cyan-500 text-cyan-300 font-bold transition text-center';
                 const targetId = mapController.selectedVesselId || mapController.selectedMmsi;
+
+                document.querySelectorAll('.btn-track-range').forEach(b => {
+                    b.className = 'btn-track-range px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-center';
+                });
+                e.currentTarget.className = 'btn-track-range px-1.5 py-1 rounded-lg bg-cyan-950 border border-cyan-500 text-cyan-300 font-bold transition text-center';
+
+                if (activePeriodLabel) {
+                    activePeriodLabel.textContent = periodLabels[range] || range;
+                }
+
+                if (range === 'custom') {
+                    if (trackCustomBox) {
+                        trackCustomBox.classList.toggle('hidden');
+                    }
+                    return;
+                }
+
+                if (trackCustomBox) {
+                    trackCustomBox.classList.add('hidden');
+                }
+
                 if (targetId) {
                     mapController.showVesselTrack(targetId, { range: range, fitBounds: false });
                 }
+            });
+        });
+
+        // Apply Custom Track Range
+        const btnApplyCustom = document.getElementById('btnApplyCustomTrackRange');
+        if (btnApplyCustom) {
+            btnApplyCustom.addEventListener('click', () => {
+                const targetId = mapController.selectedVesselId || mapController.selectedMmsi;
+                const startDate = document.getElementById('trackCustomStartDate')?.value;
+                const startTime = document.getElementById('trackCustomStartTime')?.value || '00:00';
+                const endDate = document.getElementById('trackCustomEndDate')?.value;
+                const endTime = document.getElementById('trackCustomEndTime')?.value || '23:59';
+                const errorEl = document.getElementById('trackCustomRangeError');
+
+                if (!startDate || !endDate) {
+                    if (errorEl) {
+                        errorEl.textContent = 'Please specify both Start Date and End Date.';
+                        errorEl.classList.remove('hidden');
+                    }
+                    return;
+                }
+
+                const startDt = new Date(`${startDate}T${startTime}`);
+                const endDt = new Date(`${endDate}T${endTime}`);
+                const now = new Date();
+
+                if (endDt < startDt) {
+                    if (errorEl) {
+                        errorEl.textContent = 'End Date cannot be earlier than Start Date.';
+                        errorEl.classList.remove('hidden');
+                    }
+                    return;
+                }
+
+                if (startDt > now) {
+                    if (errorEl) {
+                        errorEl.textContent = 'Cannot request dates in the future.';
+                        errorEl.classList.remove('hidden');
+                    }
+                    return;
+                }
+
+                if (errorEl) errorEl.classList.add('hidden');
+
+                if (targetId) {
+                    mapController.showVesselTrack(targetId, {
+                        range: 'custom',
+                        startDate,
+                        startTime,
+                        endDate,
+                        endTime,
+                        fitBounds: true
+                    });
+                }
+            });
+        }
+
+        // Playback Dock Controls
+        const btnOpenPlayback = document.getElementById('panelBtnOpenPlayback');
+        const btnClosePlayback = document.getElementById('btnClosePlaybackDock');
+        const btnPlayPause = document.getElementById('dockBtnPlayPause');
+        const btnResetPlayback = document.getElementById('dockBtnReset');
+        const timelineSlider = document.getElementById('dockTimelineSlider');
+
+        if (btnOpenPlayback) {
+            btnOpenPlayback.addEventListener('click', () => {
+                mapController.openPlaybackDock();
+            });
+        }
+
+        if (btnClosePlayback) {
+            btnClosePlayback.addEventListener('click', () => {
+                mapController.closePlaybackDock();
+            });
+        }
+
+        if (btnPlayPause) {
+            btnPlayPause.addEventListener('click', () => {
+                mapController.togglePlaybackPlayPause();
+            });
+        }
+
+        if (btnResetPlayback) {
+            btnResetPlayback.addEventListener('click', () => {
+                mapController.resetTrackPlayback();
+            });
+        }
+
+        if (timelineSlider) {
+            timelineSlider.addEventListener('input', (e) => {
+                mapController.seekPlayback(e.target.value);
+            });
+        }
+
+        document.querySelectorAll('.btn-dock-speed').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const speed = e.currentTarget.getAttribute('data-speed');
+                mapController.setPlaybackSpeed(speed);
             });
         });
 

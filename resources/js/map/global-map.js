@@ -96,14 +96,24 @@ export class GlobalMapController {
         };
         this.activeFilterCount = 0;
 
-        // Vessel Track State (Tahap 11 & Open Waters Track Time Ranges)
+        // Vessel Track State (Unlimited Historical Track)
         this.currentTrackGeoJson = null;
         this.activeTrackVesselId = null;
-        this.activeTrackRange = '24h';
+        this.activeTrackRange = '7d'; // Default 7 Days per requirement
         this.trackVisible = true;
         this.onTrackUpdated = null;
         this.onTrackVisibilityChanged = null;
         this.onTrackStatus = null;
+
+        // Interactive Playback & Timeline State
+        this.playback = {
+            active: false,
+            playing: false,
+            currentIndex: 0,
+            speed: 1,
+            timer: null,
+            points: [],
+        };
 
         this.init();
     }
@@ -1438,6 +1448,46 @@ export class GlobalMapController {
                 'circle-stroke-width': 2.0
             }
         });
+
+        // 4. Playback Interactive Marker Layers
+        if (!this.map.getSource('vessel-track-playback-source')) {
+            this.map.addSource('vessel-track-playback-source', {
+                type: 'geojson',
+                data: { type: 'FeatureCollection', features: [] }
+            });
+
+            // Outer pulse/glow
+            this.map.addLayer({
+                id: 'vessel-track-playback-glow-layer',
+                type: 'circle',
+                source: 'vessel-track-playback-source',
+                layout: {
+                    'visibility': 'visible'
+                },
+                paint: {
+                    'circle-radius': 14.0,
+                    'circle-color': '#f59e0b',
+                    'circle-opacity': 0.35,
+                    'circle-blur': 0.4
+                }
+            });
+
+            // Core pulsing marker
+            this.map.addLayer({
+                id: 'vessel-track-playback-marker-layer',
+                type: 'circle',
+                source: 'vessel-track-playback-source',
+                layout: {
+                    'visibility': 'visible'
+                },
+                paint: {
+                    'circle-radius': 7.5,
+                    'circle-color': '#f59e0b', // amber-500
+                    'circle-stroke-color': '#ffffff',
+                    'circle-stroke-width': 2.5
+                }
+            });
+        }
     }
 
     addSarSceneLayer() {
@@ -1550,7 +1600,10 @@ export class GlobalMapController {
             // 4b. Vessel Track Line & Observation Points
             'vessel-track-line-layer',
             'vessel-track-points-layer',
+            'vessel-track-start-point-layer',
             'vessel-track-latest-point-layer',
+            'vessel-track-playback-glow-layer',
+            'vessel-track-playback-marker-layer',
 
             // 5. Vessels — clusters and strictly topmost individual oriented and neutral markers
             'vessels-clusters',
@@ -3103,13 +3156,13 @@ export class GlobalMapController {
     }
 
     /**
-     * Show AIS historical track line and points for a vessel (Tahap 11)
+     * Show AIS historical track line and points for a vessel (Unlimited Historical Track)
      */
     async showVesselTrack(vesselIdentifier, options = {}) {
         if (!vesselIdentifier) return;
         const fitBounds = options.fitBounds !== false;
         const idStr = String(vesselIdentifier);
-        const range = options.range || this.activeTrackRange || '24h';
+        const range = options.range || this.activeTrackRange || '7d';
         this.activeTrackRange = range;
 
         // Prevent race conditions when user switches vessels quickly
@@ -3117,7 +3170,15 @@ export class GlobalMapController {
         this.notifyTrackStatus('loading', `Loading historical AIS track (${range})...`);
 
         try {
-            const res = await fetch(`/api/vessels/${encodeURIComponent(idStr)}/track?range=${encodeURIComponent(range)}`);
+            let url = `/api/vessels/${encodeURIComponent(idStr)}/track?range=${encodeURIComponent(range)}`;
+            if (options.startDate) url += `&start_date=${encodeURIComponent(options.startDate)}`;
+            if (options.startTime) url += `&start_time=${encodeURIComponent(options.startTime)}`;
+            if (options.endDate) url += `&end_date=${encodeURIComponent(options.endDate)}`;
+            if (options.endTime) url += `&end_time=${encodeURIComponent(options.endTime)}`;
+            if (options.cursor) url += `&cursor=${encodeURIComponent(options.cursor)}`;
+            if (options.limit) url += `&limit=${encodeURIComponent(options.limit)}`;
+
+            const res = await fetch(url);
             if (!res.ok) {
                 if (res.status === 404) {
                     this.notifyTrackStatus('error', `Vessel identifier '${idStr}' not found.`);
@@ -3143,19 +3204,23 @@ export class GlobalMapController {
             const count = geoJson.properties?.position_count ?? 0;
             const vesselName = geoJson.properties?.name || geoJson.properties?.mmsi || idStr;
 
+            // Store track points in chronological order for interactive playback
+            this.playback.points = (geoJson.features || [])
+                .filter(f => f.geometry?.type === 'Point')
+                .sort((a, b) => new Date(a.properties.observed_at) - new Date(b.properties.observed_at));
+            this.playback.currentIndex = 0;
+
             if (count === 0) {
-                this.notifyTrackStatus('warning', `No historical AIS track available (${range}) for ${vesselName}.`);
+                this.notifyTrackStatus('warning', geoJson.properties?.message || `No historical AIS track available (${range}) for ${vesselName}.`);
             } else if (count === 1) {
                 this.notifyTrackStatus('info', `Only 1 AIS position available for ${vesselName} (single point).`);
             } else {
                 this.notifyTrackStatus('success', `AIS Track (${range}): ${vesselName} (${count} points).`);
             }
 
-            // Update badge in side panel if present
-            const panelTrackBadge = document.getElementById('panelTrackPointBadge');
-            if (panelTrackBadge) {
-                panelTrackBadge.textContent = `${count} points`;
-            }
+            // Update UI widgets, statistics & export links
+            this.updateTrackStatisticsUI(geoJson.properties);
+            this.updateExportLinks(idStr, range, options);
 
             if (fitBounds && count > 0) {
                 this.fitVesselTrack();
@@ -3171,12 +3236,330 @@ export class GlobalMapController {
     }
 
     /**
+     * Update track statistics card in vessel detail panel
+     */
+    updateTrackStatisticsUI(props) {
+        if (!props) return;
+        const stats = props.statistics || {};
+        const count = props.position_count ?? 0;
+        const totalRange = props.total_in_range ?? count;
+
+        const panelTrackBadge = document.getElementById('panelTrackPointBadge');
+        if (panelTrackBadge) {
+            panelTrackBadge.textContent = `${count} points`;
+        }
+
+        const elPoints = document.getElementById('trackStatPoints');
+        if (elPoints) {
+            elPoints.textContent = totalRange > count ? `${count} of ${totalRange} points` : `${count} points`;
+        }
+
+        const elDistance = document.getElementById('trackStatDistance');
+        if (elDistance) {
+            const nm = stats.estimated_distance_nm ?? 0;
+            const km = stats.estimated_distance_km ?? (nm * 1.852).toFixed(1);
+            elDistance.textContent = `${nm} NM (${km} km)`;
+        }
+
+        const elSpeed = document.getElementById('trackStatSpeed');
+        if (elSpeed) {
+            const avg = stats.average_speed_knots !== null && stats.average_speed_knots !== undefined ? stats.average_speed_knots : '-';
+            const max = stats.maximum_speed_knots !== null && stats.maximum_speed_knots !== undefined ? stats.maximum_speed_knots : '-';
+            elSpeed.textContent = `Avg ${avg} / Max ${max} kts`;
+        }
+
+        const elFirst = document.getElementById('trackStatFirstObs');
+        if (elFirst) {
+            elFirst.textContent = stats.first_observation ? this.formatDateUtc(stats.first_observation) : 'None';
+        }
+
+        const elLast = document.getElementById('trackStatLastObs');
+        if (elLast) {
+            elLast.textContent = stats.last_observation ? this.formatDateUtc(stats.last_observation) : 'None';
+        }
+
+        const gapRow = document.getElementById('trackStatGapRow');
+        const elGaps = document.getElementById('trackStatGaps');
+        if (gapRow && elGaps) {
+            const gaps = stats.gap_count ?? 0;
+            if (gaps > 0) {
+                elGaps.textContent = `${gaps} gap(s) detected`;
+                gapRow.classList.remove('hidden');
+            } else {
+                gapRow.classList.add('hidden');
+            }
+        }
+
+        const elAllTime = document.getElementById('trackStatAllTimeSpan');
+        if (elAllTime) {
+            if (stats.all_time_first_observation && stats.all_time_last_observation) {
+                const f = this.formatDateUtc(stats.all_time_first_observation).slice(0, 10);
+                const l = this.formatDateUtc(stats.all_time_last_observation).slice(0, 10);
+                elAllTime.textContent = `${f} → ${l} (${stats.all_time_total_positions || 0} total)`;
+            } else {
+                elAllTime.textContent = 'None';
+            }
+        }
+    }
+
+    /**
+     * Update CSV and GeoJSON export links
+     */
+    updateExportLinks(idStr, range, options = {}) {
+        const btnCsv = document.getElementById('btnExportTrackCsv');
+        const btnGeoJson = document.getElementById('btnExportTrackGeoJson');
+        let queryParams = `range=${encodeURIComponent(range)}`;
+        if (options.startDate) queryParams += `&start_date=${encodeURIComponent(options.startDate)}`;
+        if (options.startTime) queryParams += `&start_time=${encodeURIComponent(options.startTime)}`;
+        if (options.endDate) queryParams += `&end_date=${encodeURIComponent(options.endDate)}`;
+        if (options.endTime) queryParams += `&end_time=${encodeURIComponent(options.endTime)}`;
+
+        if (btnCsv) {
+            btnCsv.href = `/api/vessels/${encodeURIComponent(idStr)}/track/export?format=csv&${queryParams}`;
+        }
+        if (btnGeoJson) {
+            btnGeoJson.href = `/api/vessels/${encodeURIComponent(idStr)}/track/export?format=geojson&${queryParams}`;
+        }
+    }
+
+    /**
+     * Open interactive timeline playback floating dock
+     */
+    openPlaybackDock() {
+        if (!this.playback.points || this.playback.points.length === 0) {
+            this.notifyTrackStatus('warning', 'No AIS track positions available to play.');
+            return;
+        }
+
+        const dock = document.getElementById('historicalTrackPlaybackDock');
+        if (!dock) return;
+        dock.classList.remove('hidden');
+
+        const vesselProps = this.currentTrackGeoJson?.properties || {};
+        const titleEl = document.getElementById('dockVesselTitle');
+        const mmsiEl = document.getElementById('dockVesselMmsi');
+        if (titleEl) titleEl.textContent = vesselProps.name || 'Vessel Track';
+        if (mmsiEl) mmsiEl.textContent = `(MMSI: ${vesselProps.mmsi || '-'})`;
+
+        const slider = document.getElementById('dockTimelineSlider');
+        if (slider) {
+            slider.min = 0;
+            slider.max = Math.max(0, this.playback.points.length - 1);
+            slider.value = this.playback.currentIndex || 0;
+        }
+
+        const startEl = document.getElementById('dockTimelineStart');
+        const endEl = document.getElementById('dockTimelineEnd');
+        if (startEl && this.playback.points[0]?.properties?.observed_at) {
+            startEl.textContent = this.formatDateUtc(this.playback.points[0].properties.observed_at).slice(5, 16);
+        }
+        if (endEl && this.playback.points[this.playback.points.length - 1]?.properties?.observed_at) {
+            endEl.textContent = this.formatDateUtc(this.playback.points[this.playback.points.length - 1].properties.observed_at).slice(5, 16);
+        }
+
+        this.updatePlaybackUI();
+        this.updatePlaybackMarker();
+    }
+
+    /**
+     * Close interactive timeline playback dock
+     */
+    closePlaybackDock() {
+        this.pauseTrackPlayback();
+        const dock = document.getElementById('historicalTrackPlaybackDock');
+        if (dock) dock.classList.add('hidden');
+
+        // Clear playback marker
+        const src = this.map ? this.map.getSource('vessel-track-playback-source') : null;
+        if (src && typeof src.setData === 'function') {
+            src.setData({ type: 'FeatureCollection', features: [] });
+        }
+    }
+
+    /**
+     * Toggle play and pause
+     */
+    togglePlaybackPlayPause() {
+        if (this.playback.playing) {
+            this.pauseTrackPlayback();
+        } else {
+            this.playTrackPlayback();
+        }
+    }
+
+    /**
+     * Start animation playback along AIS points
+     */
+    playTrackPlayback() {
+        if (!this.playback.points || this.playback.points.length === 0) return;
+        this.playback.playing = true;
+
+        const icon = document.getElementById('dockPlayIcon');
+        const text = document.getElementById('dockPlayText');
+        if (icon) icon.textContent = '⏸';
+        if (text) text.textContent = 'Pause';
+
+        if (this.playback.timer) clearInterval(this.playback.timer);
+
+        const interval = Math.max(80, Math.round(1000 / (this.playback.speed || 1)));
+
+        this.playback.timer = setInterval(() => {
+            if (this.playback.currentIndex >= this.playback.points.length - 1) {
+                this.pauseTrackPlayback();
+                return;
+            }
+            this.playback.currentIndex++;
+            this.updatePlaybackMarker();
+            this.updatePlaybackUI();
+        }, interval);
+    }
+
+    /**
+     * Pause playback
+     */
+    pauseTrackPlayback() {
+        this.playback.playing = false;
+        if (this.playback.timer) {
+            clearInterval(this.playback.timer);
+            this.playback.timer = null;
+        }
+        const icon = document.getElementById('dockPlayIcon');
+        const text = document.getElementById('dockPlayText');
+        if (icon) icon.textContent = '▶';
+        if (text) text.textContent = 'Play';
+    }
+
+    /**
+     * Reset playback to start
+     */
+    resetTrackPlayback() {
+        this.pauseTrackPlayback();
+        this.playback.currentIndex = 0;
+        this.updatePlaybackMarker();
+        this.updatePlaybackUI();
+    }
+
+    /**
+     * Set playback speed (0.5x, 1x, 2x, 5x, 10x)
+     */
+    setPlaybackSpeed(speed) {
+        this.playback.speed = Number(speed) || 1;
+        document.querySelectorAll('.btn-dock-speed').forEach(b => {
+            const s = Number(b.getAttribute('data-speed'));
+            if (s === this.playback.speed) {
+                b.className = 'btn-dock-speed px-2 py-1 rounded bg-cyan-950 border border-cyan-500 text-cyan-300 font-bold transition';
+            } else {
+                b.className = 'btn-dock-speed px-2 py-1 rounded bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-400 transition';
+            }
+        });
+        if (this.playback.playing) {
+            this.pauseTrackPlayback();
+            this.playTrackPlayback();
+        }
+    }
+
+    /**
+     * Seek playback to index
+     */
+    seekPlayback(index) {
+        const idx = Math.min(Math.max(0, parseInt(index, 10)), this.playback.points.length - 1);
+        this.playback.currentIndex = idx;
+        this.updatePlaybackMarker();
+        this.updatePlaybackUI();
+    }
+
+    /**
+     * Update active playback marker on map
+     */
+    updatePlaybackMarker() {
+        if (!this.map) return;
+        const pt = this.playback.points[this.playback.currentIndex];
+        if (!pt) return;
+
+        const src = this.map.getSource('vessel-track-playback-source');
+        if (src && typeof src.setData === 'function') {
+            src.setData({
+                type: 'FeatureCollection',
+                features: [pt]
+            });
+        }
+    }
+
+    /**
+     * Update playback dock UI widgets
+     */
+    updatePlaybackUI() {
+        const pt = this.playback.points[this.playback.currentIndex];
+        if (!pt) return;
+
+        const total = this.playback.points.length;
+        const cur = this.playback.currentIndex + 1;
+
+        const counterEl = document.getElementById('dockPointCounter');
+        if (counterEl) counterEl.textContent = `Point ${cur} / ${total}`;
+
+        const slider = document.getElementById('dockTimelineSlider');
+        if (slider && Number(slider.value) !== this.playback.currentIndex) {
+            slider.value = this.playback.currentIndex;
+        }
+
+        const timeEl = document.getElementById('dockTimelineCurrent');
+        if (timeEl && pt.properties?.observed_at) {
+            timeEl.textContent = this.formatDateUtc(pt.properties.observed_at);
+        }
+
+        const spdEl = document.getElementById('dockTelemetrySpeed');
+        if (spdEl) spdEl.textContent = pt.properties?.speed_knots !== null && pt.properties?.speed_knots !== undefined ? `${pt.properties.speed_knots} kts` : '-';
+
+        const crsEl = document.getElementById('dockTelemetryCourse');
+        if (crsEl) crsEl.textContent = pt.properties?.course_degrees !== null && pt.properties?.course_degrees !== undefined ? `${pt.properties.course_degrees}°` : '-';
+
+        const hdgEl = document.getElementById('dockTelemetryHeading');
+        if (hdgEl) hdgEl.textContent = pt.properties?.heading_degrees !== null && pt.properties?.heading_degrees !== undefined ? `${pt.properties.heading_degrees}°` : '-';
+
+        const coordEl = document.getElementById('dockTelemetryCoord');
+        if (coordEl && pt.geometry?.coordinates) {
+            const lng = pt.geometry.coordinates[0]?.toFixed(4);
+            const lat = pt.geometry.coordinates[1]?.toFixed(4);
+            coordEl.textContent = `${lat}°, ${lng}°`;
+        }
+
+        const gapEl = document.getElementById('dockGapAlert');
+        if (gapEl) {
+            let isGap = pt.properties?.is_gap;
+            if (!isGap && this.playback.currentIndex > 0) {
+                const prevPt = this.playback.points[this.playback.currentIndex - 1];
+                const curT = new Date(pt.properties?.observed_at).getTime();
+                const prevT = new Date(prevPt.properties?.observed_at).getTime();
+                if (curT && prevT && (curT - prevT) > 4 * 3600 * 1000) {
+                    isGap = true;
+                }
+            }
+            if (isGap) {
+                gapEl.classList.remove('hidden');
+            } else {
+                gapEl.classList.add('hidden');
+            }
+        }
+    }
+
+    formatDateUtc(isoString) {
+        if (!isoString) return '';
+        try {
+            const d = new Date(isoString);
+            return d.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+        } catch (e) {
+            return String(isoString);
+        }
+    }
+
+    /**
      * Set visibility of vessel track line and point layers
      */
     setTrackVisibility(visible) {
         this.trackVisible = visible;
         const val = visible ? 'visible' : 'none';
-        ['vessel-track-line-layer', 'vessel-track-points-layer', 'vessel-track-start-point-layer', 'vessel-track-latest-point-layer'].forEach(id => {
+        ['vessel-track-line-layer', 'vessel-track-points-layer', 'vessel-track-start-point-layer', 'vessel-track-latest-point-layer', 'vessel-track-playback-glow-layer', 'vessel-track-playback-marker-layer'].forEach(id => {
             if (this.map && this.map.getLayer(id)) {
                 this.map.setLayoutProperty(id, 'visibility', val);
             }
@@ -3254,12 +3637,17 @@ export class GlobalMapController {
      * Clear and reset active vessel track visual from map (UI selection only, non-destructive)
      */
     clearVesselTrack() {
+        this.closePlaybackDock();
         this.activeTrackVesselId = null;
         this.currentTrackGeoJson = null;
 
         const src = this.map ? this.map.getSource('vessel-track-source') : null;
         if (src && typeof src.setData === 'function') {
             src.setData({ type: 'FeatureCollection', features: [] });
+        }
+        const pSrc = this.map ? this.map.getSource('vessel-track-playback-source') : null;
+        if (pSrc && typeof pSrc.setData === 'function') {
+            pSrc.setData({ type: 'FeatureCollection', features: [] });
         }
 
         this.setTrackVisibility(true);

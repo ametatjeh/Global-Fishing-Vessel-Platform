@@ -1593,17 +1593,153 @@ class SpatialQueryService
     }
 
     /**
-     * Generate GeoJSON FeatureCollection for a vessel's historical AIS track (Tahap 11).
+     * Calculate geodesic distance between two coordinate pairs in Nautical Miles using Haversine formula.
+     */
+    public function haversineDistanceNm(float $lat1, float $lon1, float $lat2, float $lon2): float
+    {
+        $lat1Rad = deg2rad($lat1);
+        $lon1Rad = deg2rad($lon1);
+        $lat2Rad = deg2rad($lat2);
+        $lon2Rad = deg2rad($lon2);
+
+        $dLat = $lat2Rad - $lat1Rad;
+        $dLon = $lon2Rad - $lon1Rad;
+
+        $a = sin($dLat / 2) * sin($dLat / 2) +
+            cos($lat1Rad) * cos($lat2Rad) *
+            sin($dLon / 2) * sin($dLon / 2);
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        // Earth radius in nautical miles: 3440.065 NM
+        return 3440.065 * $c;
+    }
+
+    /**
+     * Generate GeoJSON FeatureCollection for a vessel's historical AIS track (Unlimited Historical Track).
      *
      * @param Vessel $vessel
-     * @param int $limit Maximum historical positions to return (default: 200, max: 1000)
-     * @return array GeoJSON FeatureCollection containing LineString and Point features
+     * @param int $limit Maximum historical positions to return in this batch (default: 1000, max: 5000)
+     * @param string|null $timeRange '24h', '48h', '72h', '7d', '14d', '30d', '90d', '180d', '1y', 'all', 'custom'
+     * @param array $options Additional options: 'start_date', 'start_time', 'end_date', 'end_time', 'cursor', 'fresh'
+     * @return array GeoJSON FeatureCollection containing LineString, Point features, and forensic statistics
      */
-    public function getVesselTrackFeatureCollection(Vessel $vessel, int $limit = 200, ?string $timeRange = null): array
-    {
-        $limit = min(max($limit, 10), 2000);
+    public function getVesselTrackFeatureCollection(
+        Vessel $vessel,
+        int $limit = 1000,
+        ?string $timeRange = '7d',
+        array $options = []
+    ): array {
+        $limit = min(max($limit, 1), 5000);
+        $rangeStr = strtolower(trim($timeRange ?: '7d'));
+        $cursor = $options['cursor'] ?? null;
+        $isFresh = !empty($options['fresh']);
 
-        $query = VesselPosition::where('vessel_id', $vessel->id)
+        $startDateTime = null;
+        $endDateTime = now();
+
+        if ($rangeStr === 'custom') {
+            $startDateStr = $options['start_date'] ?? null;
+            $startTimeStr = $options['start_time'] ?? '00:00:00';
+            $endDateStr = $options['end_date'] ?? null;
+            $endTimeStr = $options['end_time'] ?? '23:59:59';
+
+            if ($startDateStr) {
+                try {
+                    $startDateTime = \Carbon\Carbon::parse("{$startDateStr} {$startTimeStr}");
+                } catch (\Throwable $e) {
+                    $startDateTime = null;
+                }
+            }
+            if ($endDateStr) {
+                try {
+                    $parsedEnd = \Carbon\Carbon::parse("{$endDateStr} {$endTimeStr}");
+                    $endDateTime = $parsedEnd->gt(now()) ? now() : $parsedEnd;
+                } catch (\Throwable $e) {
+                    $endDateTime = now();
+                }
+            }
+
+            if ($startDateTime && $endDateTime && $endDateTime->lt($startDateTime)) {
+                $temp = $startDateTime;
+                $startDateTime = $endDateTime;
+                $endDateTime = $temp;
+            }
+        } elseif ($rangeStr === '24h' || $rangeStr === '24 hours') {
+            $startDateTime = now()->subHours(24);
+        } elseif ($rangeStr === '48h' || $rangeStr === '48 hours') {
+            $startDateTime = now()->subHours(48);
+        } elseif ($rangeStr === '72h' || $rangeStr === '72 hours') {
+            $startDateTime = now()->subHours(72);
+        } elseif ($rangeStr === '7d' || $rangeStr === '7 days') {
+            $startDateTime = now()->subDays(7);
+        } elseif ($rangeStr === '14d' || $rangeStr === '14 days') {
+            $startDateTime = now()->subDays(14);
+        } elseif ($rangeStr === '30d' || $rangeStr === '30 days') {
+            $startDateTime = now()->subDays(30);
+        } elseif ($rangeStr === '90d' || $rangeStr === '90 days') {
+            $startDateTime = now()->subDays(90);
+        } elseif ($rangeStr === '180d' || $rangeStr === '180 days') {
+            $startDateTime = now()->subDays(180);
+        } elseif ($rangeStr === '1y' || $rangeStr === '365d' || $rangeStr === '1 year') {
+            $startDateTime = now()->subDays(365);
+        } elseif ($rangeStr === 'all' || $rangeStr === 'all_available') {
+            $startDateTime = null;
+            $endDateTime = null;
+        } elseif ($rangeStr === '1h') {
+            $startDateTime = now()->subHours(1);
+        } elseif ($rangeStr === '6h') {
+            $startDateTime = now()->subHours(6);
+        } elseif (is_numeric($rangeStr)) {
+            $startDateTime = now()->subHours((int) $rangeStr);
+        } else {
+            $startDateTime = now()->subDays(7);
+        }
+
+        // Cache evaluation (Section 10): 30s to 300s TTL depending on time range volatility
+        $cacheTtlSeconds = match (true) {
+            in_array($rangeStr, ['1h', '6h', '24h', '48h']) => 30,
+            in_array($rangeStr, ['72h', '7d', '14d']) => 60,
+            default => 300,
+        };
+
+        $cacheKey = sprintf(
+            'hist_track_%s_%s_%s_%s_%d_%s',
+            $vessel->id,
+            $rangeStr,
+            $startDateTime ? $startDateTime->timestamp : 'none',
+            $endDateTime ? $endDateTime->timestamp : 'none',
+            $limit,
+            $cursor ? md5($cursor) : 'head'
+        );
+
+        if (!$isFresh && Cache::has($cacheKey)) {
+            $cached = Cache::get($cacheKey);
+            if (is_array($cached)) {
+                return $cached;
+            }
+        }
+
+        // Retrieve all-time observation bounds for vessel without full-table scan (uses vessel_id, observed_at index)
+        $allTimeBounds = VesselPosition::where('vessel_id', $vessel->id)
+            ->selectRaw('MIN(observed_at) as earliest_obs, MAX(observed_at) as latest_obs, COUNT(*) as total_count')
+            ->first();
+
+        // Optimized column selection: explicitly omit heavy raw_payload JSON column
+        $columns = [
+            'id',
+            'vessel_id',
+            'latitude',
+            'longitude',
+            'speed_knots',
+            'course_degrees',
+            'heading_degrees',
+            'nav_status',
+            'observed_at',
+            'data_quality_score',
+            'is_gap_indicator',
+        ];
+
+        $baseQuery = VesselPosition::where('vessel_id', $vessel->id)
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->whereBetween('latitude', [-90.0, 90.0])
@@ -1614,24 +1750,41 @@ class SpatialQueryService
                   ->orWhere('data_quality_score', '>', 0.0);
             });
 
-        if (!empty($timeRange)) {
-            $rangeStr = strtolower(trim($timeRange));
-            if ($rangeStr === '1h') {
-                $query->where('observed_at', '>=', now()->subHours(1));
-            } elseif ($rangeStr === '6h') {
-                $query->where('observed_at', '>=', now()->subHours(6));
-            } elseif ($rangeStr === '24h') {
-                $query->where('observed_at', '>=', now()->subHours(24));
-            } elseif ($rangeStr === '7d') {
-                $query->where('observed_at', '>=', now()->subDays(7));
-            } elseif (is_numeric($rangeStr)) {
-                $query->where('observed_at', '>=', now()->subHours((int) $rangeStr));
+        if ($startDateTime) {
+            $baseQuery->where('observed_at', '>=', $startDateTime);
+        }
+        if ($endDateTime) {
+            $baseQuery->where('observed_at', '<=', $endDateTime);
+        }
+
+        // Count in filtered range using index
+        $rangeTotalCount = (clone $baseQuery)->count();
+
+        // Apply cursor pagination if specified
+        $cursorQuery = (clone $baseQuery);
+        if ($cursor) {
+            try {
+                $cursorDate = \Carbon\Carbon::parse($cursor);
+                $cursorQuery->where('observed_at', '>', $cursorDate);
+            } catch (\Throwable $e) {
+                // Ignore malformed cursor
             }
         }
 
-        $rawPositions = $query->orderBy('observed_at', 'asc')
-            ->limit($limit)
+        // Fetch limit + 1 to detect whether more data exists in range
+        $rawPositions = $cursorQuery->select($columns)
+            ->orderBy('observed_at', 'asc')
+            ->limit($limit + 1)
             ->get();
+
+        $hasMore = false;
+        $nextCursor = null;
+        if ($rawPositions->count() > $limit) {
+            $hasMore = true;
+            $rawPositions = $rawPositions->slice(0, $limit);
+            $lastItem = $rawPositions->last();
+            $nextCursor = $lastItem->observed_at ? $lastItem->observed_at->toIso8601String() : null;
+        }
 
         // Sanitize and deduplicate timestamps
         $validPositions = [];
@@ -1645,10 +1798,8 @@ class SpatialQueryService
                 continue;
             }
 
-            // Consistent handling of duplicate timestamps: retain latest position record
             $timeKey = $pos->observed_at ? $pos->observed_at->getTimestamp() : $pos->id;
             if (isset($seenTimestamps[$timeKey])) {
-                // Replace previous entry with the most up-to-date position record
                 $prevIndex = $seenTimestamps[$timeKey];
                 $validPositions[$prevIndex] = $pos;
                 continue;
@@ -1658,31 +1809,59 @@ class SpatialQueryService
             $validPositions[] = $pos;
         }
 
-        // Re-index array cleanly
         $validPositions = array_values($validPositions);
         $count = count($validPositions);
 
-        $features = [];
+        // Calculate analytical statistics
+        $estimatedDistanceNm = 0.0;
+        $validSpeeds = [];
+        $gapCount = 0;
+        $maxGapSeconds = 4 * 3600; // 4 hours
 
-        if ($count === 0) {
-            return [
-                'type' => 'FeatureCollection',
-                'features' => [],
-                'properties' => [
-                    'vessel_id' => $vessel->id,
-                    'mmsi' => $vessel->mmsi,
-                    'name' => $vessel->name,
-                    'position_count' => 0,
-                    'track_status' => 'empty',
-                    'message' => 'No historical AIS track available',
-                ],
-            ];
+        for ($i = 0; $i < $count; $i++) {
+            $cur = $validPositions[$i];
+            $spd = $cur->speed_knots !== null ? (float) $cur->speed_knots : null;
+            if ($spd !== null && is_finite($spd) && $spd >= 0.0 && $spd <= 102.0) {
+                $validSpeeds[] = $spd;
+            }
+
+            if ($i === 0) {
+                continue;
+            }
+
+            $prev = $validPositions[$i - 1];
+            $timeGap = ($cur->observed_at && $prev->observed_at)
+                ? abs($cur->observed_at->getTimestamp() - $prev->observed_at->getTimestamp())
+                : 0;
+
+            $dLat = abs((float) $cur->latitude - (float) $prev->latitude);
+            $dLng = abs((float) $cur->longitude - (float) $prev->longitude);
+
+            if ($timeGap > $maxGapSeconds || $dLat > 2.0 || $dLng > 2.0 || $cur->is_gap_indicator) {
+                $gapCount++;
+            } else {
+                $dist = $this->haversineDistanceNm(
+                    (float) $prev->latitude,
+                    (float) $prev->longitude,
+                    (float) $cur->latitude,
+                    (float) $cur->longitude
+                );
+                if (is_finite($dist) && $dist > 0.0 && $dist < 500.0) {
+                    $estimatedDistanceNm += $dist;
+                }
+            }
         }
+
+        $avgSpeed = !empty($validSpeeds) ? round(array_sum($validSpeeds) / count($validSpeeds), 1) : null;
+        $maxSpeed = !empty($validSpeeds) ? round(max($validSpeeds), 1) : null;
+        $firstObs = $count > 0 ? $validPositions[0]->observed_at?->toIso8601String() : null;
+        $lastObs = $count > 0 ? $validPositions[$count - 1]->observed_at?->toIso8601String() : null;
+
+        $features = [];
 
         // Segment tracks to avoid connecting across significant gaps (> 4 hours or large distance jumps)
         $segments = [];
         $currentSegment = [];
-        $maxGapSeconds = 4 * 3600; // 4 hours
 
         foreach ($validPositions as $pos) {
             if (empty($currentSegment)) {
@@ -1698,8 +1877,7 @@ class SpatialQueryService
             $dLat = abs((float) $pos->latitude - (float) $prevPos->latitude);
             $dLng = abs((float) $pos->longitude - (float) $prevPos->longitude);
 
-            if ($timeGap > $maxGapSeconds || ($dLat > 2.0 || $dLng > 2.0)) {
-                // Large gap detected: finish current segment and begin new one
+            if ($timeGap > $maxGapSeconds || ($dLat > 2.0 || $dLng > 2.0) || $pos->is_gap_indicator) {
                 if (count($currentSegment) >= 2) {
                     $segments[] = $currentSegment;
                 }
@@ -1760,24 +1938,77 @@ class SpatialQueryService
                     'speed_knots' => $p->speed_knots !== null && is_finite((float) $p->speed_knots) ? round((float) $p->speed_knots, 1) : null,
                     'course_degrees' => $p->course_degrees !== null && is_finite((float) $p->course_degrees) ? round((float) $p->course_degrees, 1) : null,
                     'heading_degrees' => $p->heading_degrees !== null && is_finite((float) $p->heading_degrees) ? round((float) $p->heading_degrees, 1) : null,
+                    'nav_status' => $p->nav_status,
                     'is_start' => $isStart,
                     'is_latest' => $isLatest,
+                    'is_gap' => (bool) $p->is_gap_indicator,
                     'is_fresh' => $p->isFresh(),
                 ],
             ];
         }
 
-        return [
+        $allTimeEarliest = $allTimeBounds?->earliest_obs ? \Carbon\Carbon::parse($allTimeBounds->earliest_obs)->toIso8601String() : null;
+        $allTimeLatest = $allTimeBounds?->latest_obs ? \Carbon\Carbon::parse($allTimeBounds->latest_obs)->toIso8601String() : null;
+        $allTimeTotal = (int) ($allTimeBounds?->total_count ?? 0);
+
+        $result = [
             'type' => 'FeatureCollection',
             'features' => $features,
             'properties' => [
                 'vessel_id' => $vessel->id,
                 'mmsi' => $vessel->mmsi,
                 'name' => $vessel->name,
+                'vessel_type' => $vessel->vessel_type,
+                'flag_code' => $vessel->flag_code,
                 'position_count' => $count,
-                'track_status' => $count >= 2 ? 'available' : 'single_point',
-                'message' => $count >= 2 ? 'Historical AIS track available' : 'Single AIS position available (insufficient for track line)',
+                'total_in_range' => $rangeTotalCount,
+                'has_more' => $hasMore,
+                'next_cursor' => $nextCursor,
+                'time_range' => $rangeStr,
+                'start_at' => $startDateTime?->toIso8601String(),
+                'end_at' => $endDateTime?->toIso8601String(),
+                'track_status' => $count >= 2 ? 'available' : ($count === 1 ? 'single_point' : 'empty'),
+                'message' => $count === 0
+                    ? ($rangeTotalCount === 0
+                        ? "No AIS positions recorded within requested period ({$rangeStr})." . ($allTimeTotal > 0 ? " Total history available from {$allTimeEarliest} to {$allTimeLatest}." : '')
+                        : "No positions returned.")
+                    : "Historical AIS track loaded ({$count} points).",
+                'statistics' => [
+                    'vessel_name' => $vessel->name,
+                    'mmsi' => $vessel->mmsi,
+                    'vessel_type' => $vessel->vessel_type,
+                    'first_recorded_position' => $count > 0 ? [
+                        'latitude' => (float) $validPositions[0]->latitude,
+                        'longitude' => (float) $validPositions[0]->longitude,
+                        'observed_at' => $firstObs,
+                    ] : null,
+                    'last_recorded_position' => $count > 0 ? [
+                        'latitude' => (float) $validPositions[$count - 1]->latitude,
+                        'longitude' => (float) $validPositions[$count - 1]->longitude,
+                        'observed_at' => $lastObs,
+                    ] : null,
+                    'total_positions_range' => $rangeTotalCount,
+                    'points_loaded' => $count,
+                    'estimated_distance_nm' => round($estimatedDistanceNm, 1),
+                    'estimated_distance_km' => round($estimatedDistanceNm * 1.852, 1),
+                    'average_speed_knots' => $avgSpeed,
+                    'maximum_speed_knots' => $maxSpeed,
+                    'first_observation' => $firstObs,
+                    'last_observation' => $lastObs,
+                    'gap_count' => $gapCount,
+                    'all_time_first_observation' => $allTimeEarliest,
+                    'all_time_last_observation' => $allTimeLatest,
+                    'all_time_total_positions' => $allTimeTotal,
+                ],
             ],
         ];
+
+        try {
+            Cache::put($cacheKey, $result, $cacheTtlSeconds);
+        } catch (\Throwable $e) {
+            // Ignore cache storage errors
+        }
+
+        return $result;
     }
 }

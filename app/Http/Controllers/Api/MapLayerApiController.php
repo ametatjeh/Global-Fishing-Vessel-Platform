@@ -7,10 +7,12 @@ use App\Models\DataProvider;
 use App\Models\SatelliteDetection;
 use App\Models\Vessel;
 use App\Models\VesselEncounter;
+use App\Models\VesselPosition;
 use App\Services\Maritime\FlagStateService;
 use App\Services\SpatialQueryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class MapLayerApiController extends Controller
 {
@@ -452,7 +454,7 @@ class MapLayerApiController extends Controller
     }
 
     /**
-     * Get historical AIS track GeoJSON for a vessel (Tahap 11).
+     * Get historical AIS track GeoJSON for a vessel (Unlimited Historical Track).
      */
     public function vesselTrack(Request $request, string $id): JsonResponse
     {
@@ -467,14 +469,227 @@ class MapLayerApiController extends Controller
             ], 404);
         }
 
-        $limit = min(max((int) $request->query('limit', 500), 10), 2000);
-        $range = $request->query('range', $request->query('window'));
-        $geoJson = $this->spatial->getVesselTrackFeatureCollection($vessel, $limit, $range);
+        $limit = min(max((int) $request->query('limit', 1000), 1), 5000);
+        $range = $request->query('range', $request->query('window', '7d'));
+
+        $options = [
+            'cursor' => $request->query('cursor'),
+            'start_date' => $request->query('start_date'),
+            'start_time' => $request->query('start_time'),
+            'end_date' => $request->query('end_date'),
+            'end_time' => $request->query('end_time'),
+            'fresh' => $request->boolean('fresh', false),
+        ];
+
+        $geoJson = $this->spatial->getVesselTrackFeatureCollection($vessel, $limit, $range, $options);
 
         return response()->json($geoJson, 200, [
             'Content-Type' => 'application/json',
             'Cache-Control' => 'private, max-age=30',
         ]);
+    }
+
+    /**
+     * Export Historical AIS track in CSV or GeoJSON format (streaming).
+     */
+    public function exportTrack(Request $request, string $id): StreamedResponse|JsonResponse
+    {
+        $vessel = \Illuminate\Support\Str::isUuid($id)
+            ? Vessel::where('id', $id)->first()
+            : Vessel::where('mmsi', $id)->first();
+
+        if (!$vessel) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Vessel with identifier '{$id}' not found.",
+            ], 404);
+        }
+
+        $format = strtolower($request->query('format', 'csv'));
+        $range = $request->query('range', '7d');
+
+        $options = [
+            'start_date' => $request->query('start_date'),
+            'start_time' => $request->query('start_time'),
+            'end_date' => $request->query('end_date'),
+            'end_time' => $request->query('end_time'),
+        ];
+
+        if ($format === 'geojson') {
+            return $this->exportTrackGeoJson($vessel, $range, $options);
+        }
+
+        return $this->exportTrackCsv($vessel, $range, $options);
+    }
+
+    /**
+     * Stream CSV export of raw historical AIS positions.
+     */
+    protected function exportTrackCsv(Vessel $vessel, string $range, array $options): StreamedResponse
+    {
+        $query = $this->buildTrackQuery($vessel, $range, $options);
+        $cleanName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $vessel->name ?: 'vessel');
+        $filename = "historical_track_{$cleanName}_{$vessel->mmsi}_{$range}_" . now()->format('Ymd_His') . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=utf-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
+        ];
+
+        return response()->streamDownload(function () use ($query, $vessel) {
+            $handle = fopen('php://output', 'w');
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM
+
+            fputcsv($handle, [
+                'Position ID',
+                'Vessel ID',
+                'MMSI',
+                'Vessel Name',
+                'Vessel Type',
+                'Observed At (UTC)',
+                'Latitude',
+                'Longitude',
+                'Speed (Knots)',
+                'Course (Degrees)',
+                'Heading (Degrees)',
+                'Navigation Status',
+                'Data Quality Score',
+                'Is Gap Indicator',
+            ]);
+
+            $query->chunk(1000, function ($positions) use ($handle, $vessel) {
+                foreach ($positions as $pos) {
+                    fputcsv($handle, [
+                        $pos->id,
+                        $vessel->id,
+                        $vessel->mmsi,
+                        $vessel->name,
+                        $vessel->vessel_type,
+                        $pos->observed_at ? $pos->observed_at->toIso8601String() : '',
+                        (float) $pos->latitude,
+                        (float) $pos->longitude,
+                        $pos->speed_knots !== null ? (float) $pos->speed_knots : '',
+                        $pos->course_degrees !== null ? (float) $pos->course_degrees : '',
+                        $pos->heading_degrees !== null ? (float) $pos->heading_degrees : '',
+                        $pos->nav_status ?? '',
+                        $pos->data_quality_score ?? '',
+                        $pos->is_gap_indicator ? 'true' : 'false',
+                    ]);
+                }
+            });
+
+            fclose($handle);
+        }, $filename, $headers);
+    }
+
+    /**
+     * Stream GeoJSON export of historical AIS track.
+     */
+    protected function exportTrackGeoJson(Vessel $vessel, string $range, array $options): StreamedResponse
+    {
+        $cleanName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $vessel->name ?: 'vessel');
+        $filename = "historical_track_{$cleanName}_{$vessel->mmsi}_{$range}_" . now()->format('Ymd_His') . '.geojson';
+
+        $headers = [
+            'Content-Type' => 'application/geo+json; charset=utf-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
+        ];
+
+        // Retrieve full track collection (up to 5000 points)
+        $geoJson = $this->spatial->getVesselTrackFeatureCollection(
+            $vessel,
+            5000,
+            $range,
+            array_merge($options, ['fresh' => true])
+        );
+
+        return response()->streamDownload(function () use ($geoJson) {
+            echo json_encode($geoJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        }, $filename, $headers);
+    }
+
+    /**
+     * Build optimized track query using index.
+     */
+    protected function buildTrackQuery(Vessel $vessel, string $range, array $options)
+    {
+        $rangeStr = strtolower(trim($range));
+        $startDateTime = null;
+        $endDateTime = now();
+
+        if ($rangeStr === 'custom') {
+            $startDateStr = $options['start_date'] ?? null;
+            $startTimeStr = $options['start_time'] ?? '00:00:00';
+            $endDateStr = $options['end_date'] ?? null;
+            $endTimeStr = $options['end_time'] ?? '23:59:59';
+
+            if ($startDateStr) {
+                try {
+                    $startDateTime = \Carbon\Carbon::parse("{$startDateStr} {$startTimeStr}");
+                } catch (\Throwable $e) {}
+            }
+            if ($endDateStr) {
+                try {
+                    $parsedEnd = \Carbon\Carbon::parse("{$endDateStr} {$endTimeStr}");
+                    $endDateTime = $parsedEnd->gt(now()) ? now() : $parsedEnd;
+                } catch (\Throwable $e) {}
+            }
+            if ($startDateTime && $endDateTime && $endDateTime->lt($startDateTime)) {
+                $temp = $startDateTime;
+                $startDateTime = $endDateTime;
+                $endDateTime = $temp;
+            }
+        } elseif ($rangeStr === '24h' || $rangeStr === '24 hours') {
+            $startDateTime = now()->subHours(24);
+        } elseif ($rangeStr === '48h' || $rangeStr === '48 hours') {
+            $startDateTime = now()->subHours(48);
+        } elseif ($rangeStr === '72h' || $rangeStr === '72 hours') {
+            $startDateTime = now()->subHours(72);
+        } elseif ($rangeStr === '7d' || $rangeStr === '7 days') {
+            $startDateTime = now()->subDays(7);
+        } elseif ($rangeStr === '14d' || $rangeStr === '14 days') {
+            $startDateTime = now()->subDays(14);
+        } elseif ($rangeStr === '30d' || $rangeStr === '30 days') {
+            $startDateTime = now()->subDays(30);
+        } elseif ($rangeStr === '90d' || $rangeStr === '90 days') {
+            $startDateTime = now()->subDays(90);
+        } elseif ($rangeStr === '180d' || $rangeStr === '180 days') {
+            $startDateTime = now()->subDays(180);
+        } elseif ($rangeStr === '1y' || $rangeStr === '365d' || $rangeStr === '1 year') {
+            $startDateTime = now()->subDays(365);
+        } elseif ($rangeStr === 'all' || $rangeStr === 'all_available') {
+            $startDateTime = null;
+            $endDateTime = null;
+        } else {
+            $startDateTime = now()->subDays(7);
+        }
+
+        $query = VesselPosition::select([
+            'id', 'vessel_id', 'latitude', 'longitude', 'speed_knots',
+            'course_degrees', 'heading_degrees', 'nav_status',
+            'observed_at', 'data_quality_score', 'is_gap_indicator',
+        ])
+            ->where('vessel_id', $vessel->id)
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->whereBetween('latitude', [-90.0, 90.0])
+            ->whereBetween('longitude', [-180.0, 180.0])
+            ->whereRaw('NOT (latitude = 0.0 AND longitude = 0.0)');
+
+        if ($startDateTime) {
+            $query->where('observed_at', '>=', $startDateTime);
+        }
+        if ($endDateTime) {
+            $query->where('observed_at', '<=', $endDateTime);
+        }
+
+        return $query->orderBy('observed_at', 'asc');
     }
 
     /**

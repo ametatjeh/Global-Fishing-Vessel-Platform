@@ -30,8 +30,9 @@ Route::middleware(['web', 'role'])->group(function () {
 
     Route::get('/encounters/{id}', [MapLayerApiController::class, 'encounterDetail'])->name('api.encounters.detail');
 
-    // Historical AIS Vessel Track API (Tahap 11)
+    // Historical AIS Vessel Track API (Unlimited Historical Track)
     Route::get('/vessels/{id}/track', [MapLayerApiController::class, 'vesselTrack'])->name('api.vessels.track');
+    Route::get('/vessels/{id}/track/export', [MapLayerApiController::class, 'exportTrack'])->name('api.vessels.track.export');
 
     // SAR Evidence & Track API (Tahap 8 & 9)
     Route::get('/sar/candidates/{id}/evidence', [\App\Http\Controllers\SarEvidenceController::class, 'apiEvidence'])->name('api.sar.candidates.evidence');
