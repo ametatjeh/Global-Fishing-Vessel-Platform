@@ -1721,6 +1721,15 @@ class SpatialQueryService
 
         // Retrieve all-time observation bounds for vessel without full-table scan (uses vessel_id, observed_at index)
         $allTimeBounds = VesselPosition::where('vessel_id', $vessel->id)
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->whereBetween('latitude', [-90.0, 90.0])
+            ->whereBetween('longitude', [-180.0, 180.0])
+            ->whereRaw('NOT (latitude = 0.0 AND longitude = 0.0)')
+            ->where(function ($q) {
+                $q->whereNull('data_quality_score')
+                  ->orWhere('data_quality_score', '>', 0.0);
+            })
             ->selectRaw('MIN(observed_at) as earliest_obs, MAX(observed_at) as latest_obs, COUNT(*) as total_count')
             ->first();
 
@@ -1951,6 +1960,78 @@ class SpatialQueryService
         $allTimeLatest = $allTimeBounds?->latest_obs ? \Carbon\Carbon::parse($allTimeBounds->latest_obs)->toIso8601String() : null;
         $allTimeTotal = (int) ($allTimeBounds?->total_count ?? 0);
 
+        $periodLabel = match ($rangeStr) {
+            '24h', '24 hours' => '24 Hours',
+            '48h', '48 hours' => '48 Hours',
+            '72h', '72 hours' => '72 Hours',
+            '7d', '7 days' => '7 Days',
+            '14d', '14 days' => '14 Days',
+            '30d', '30 days' => '30 Days',
+            '90d', '90 days' => '90 Days',
+            '180d', '180 days' => '180 Days',
+            '1y', '365d', '1 year' => '1 Year',
+            'all', 'all_available' => 'All Available History',
+            'custom' => 'Custom Range',
+            default => $rangeStr,
+        };
+
+        $formatHumanUtc = static function (?string $dateStr): ?string {
+            if (!$dateStr) {
+                return null;
+            }
+            try {
+                return \Carbon\Carbon::parse($dateStr)->utc()->format('d M Y, H:i') . ' UTC';
+            } catch (\Throwable $e) {
+                return $dateStr;
+            }
+        };
+
+        $allTimeEarliestHuman = $formatHumanUtc($allTimeEarliest);
+        $allTimeLatestHuman = $formatHumanUtc($allTimeLatest);
+        $firstObsHuman = $formatHumanUtc($firstObs);
+        $lastObsHuman = $formatHumanUtc($lastObs);
+
+        if ($count === 0) {
+            $noticeTitle = 'Historical data unavailable';
+            if ($allTimeTotal === 0) {
+                $noticeDesc = 'Riwayat AIS belum tersedia untuk kapal ini.';
+                $noticeRangeText = null;
+                $noticeSuggestion = null;
+                $noticeSuggestionText = null;
+                $message = 'Riwayat AIS belum tersedia untuk kapal ini.';
+            } elseif ($allTimeTotal === 1) {
+                $noticeDesc = "Belum ditemukan posisi AIS untuk kapal ini dalam periode yang dipilih ({$periodLabel}).";
+                $noticeRangeText = "Tercatat 1 posisi AIS pada {$allTimeEarliestHuman}.";
+                $noticeSuggestion = 'all';
+                $noticeSuggestionText = "Pilih opsi 'All' untuk menampilkan posisi tunggal ini di peta.";
+                $message = "Belum ditemukan posisi AIS untuk kapal ini dalam periode {$periodLabel}. {$noticeRangeText} Disarankan memilih periode 'All' untuk menampilkan posisi tersebut.";
+            } else {
+                $noticeDesc = "Belum ditemukan posisi AIS untuk kapal ini dalam periode yang dipilih ({$periodLabel}).";
+                if ($allTimeEarliestHuman === $allTimeLatestHuman) {
+                    $noticeRangeText = "Rentang riwayat tercatat pada {$allTimeEarliestHuman} ({$allTimeTotal} posisi).";
+                } else {
+                    $noticeRangeText = "Rentang riwayat tersedia dari {$allTimeEarliestHuman} hingga {$allTimeLatestHuman} ({$allTimeTotal} posisi).";
+                }
+                $noticeSuggestion = 'all';
+                $noticeSuggestionText = "Disarankan memilih periode 'All' atau gunakan 'Custom' untuk menelusuri rentang waktu tersebut.";
+                $message = "Belum ditemukan posisi AIS untuk kapal ini dalam periode {$periodLabel}. {$noticeRangeText} Disarankan memilih periode 'All' atau 'Custom'.";
+            }
+        } elseif ($count === 1) {
+            $noticeTitle = 'Historical AIS single position';
+            $noticeDesc = "Tercatat 1 posisi AIS pada {$firstObsHuman}.";
+            $noticeRangeText = "Tercatat 1 posisi AIS pada {$firstObsHuman}.";
+            $noticeSuggestion = null;
+            $noticeSuggestionText = null;
+            $message = "Historical AIS single position loaded (1 point on {$firstObsHuman}).";
+        } else {
+            $noticeTitle = 'Historical AIS track loaded';
+            $noticeDesc = "Menampilkan {$count} posisi AIS dari {$firstObsHuman} hingga {$lastObsHuman}.";
+            $noticeRangeText = "Dari {$firstObsHuman} hingga {$lastObsHuman}.";
+            $noticeSuggestion = null;
+            $noticeSuggestionText = null;
+            $message = "Historical AIS track loaded ({$count} points).";
+        }
+
         $result = [
             'type' => 'FeatureCollection',
             'features' => $features,
@@ -1965,14 +2046,24 @@ class SpatialQueryService
                 'has_more' => $hasMore,
                 'next_cursor' => $nextCursor,
                 'time_range' => $rangeStr,
+                'period_label' => $periodLabel,
                 'start_at' => $startDateTime?->toIso8601String(),
                 'end_at' => $endDateTime?->toIso8601String(),
                 'track_status' => $count >= 2 ? 'available' : ($count === 1 ? 'single_point' : 'empty'),
-                'message' => $count === 0
-                    ? ($rangeTotalCount === 0
-                        ? "No AIS positions recorded within requested period ({$rangeStr})." . ($allTimeTotal > 0 ? " Total history available from {$allTimeEarliest} to {$allTimeLatest}." : '')
-                        : "No positions returned.")
-                    : "Historical AIS track loaded ({$count} points).",
+                'message' => $message,
+                'notice' => [
+                    'title' => $noticeTitle,
+                    'description' => $noticeDesc,
+                    'range_text' => $noticeRangeText,
+                    'period_label' => $periodLabel,
+                    'all_time_total' => $allTimeTotal,
+                    'all_time_earliest' => $allTimeEarliest,
+                    'all_time_latest' => $allTimeLatest,
+                    'all_time_earliest_human' => $allTimeEarliestHuman,
+                    'all_time_latest_human' => $allTimeLatestHuman,
+                    'suggestion' => $noticeSuggestion,
+                    'suggestion_text' => $noticeSuggestionText,
+                ],
                 'statistics' => [
                     'vessel_name' => $vessel->name,
                     'mmsi' => $vessel->mmsi,
@@ -1981,11 +2072,13 @@ class SpatialQueryService
                         'latitude' => (float) $validPositions[0]->latitude,
                         'longitude' => (float) $validPositions[0]->longitude,
                         'observed_at' => $firstObs,
+                        'observed_at_human' => $firstObsHuman,
                     ] : null,
                     'last_recorded_position' => $count > 0 ? [
                         'latitude' => (float) $validPositions[$count - 1]->latitude,
                         'longitude' => (float) $validPositions[$count - 1]->longitude,
                         'observed_at' => $lastObs,
+                        'observed_at_human' => $lastObsHuman,
                     ] : null,
                     'total_positions_range' => $rangeTotalCount,
                     'points_loaded' => $count,
@@ -1995,9 +2088,13 @@ class SpatialQueryService
                     'maximum_speed_knots' => $maxSpeed,
                     'first_observation' => $firstObs,
                     'last_observation' => $lastObs,
+                    'first_observation_human' => $firstObsHuman,
+                    'last_observation_human' => $lastObsHuman,
                     'gap_count' => $gapCount,
                     'all_time_first_observation' => $allTimeEarliest,
                     'all_time_last_observation' => $allTimeLatest,
+                    'all_time_first_observation_human' => $allTimeEarliestHuman,
+                    'all_time_last_observation_human' => $allTimeLatestHuman,
                     'all_time_total_positions' => $allTimeTotal,
                 ],
             ],

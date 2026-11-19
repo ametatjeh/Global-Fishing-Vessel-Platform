@@ -3247,19 +3247,77 @@ export class GlobalMapController {
 
             if (loader) loader.classList.add('hidden');
 
+            const notice = geoJson.properties?.notice || {};
+            const noticeTitle = notice.title || 'Historical data unavailable';
+            const noticeDesc = notice.description || 'Belum ditemukan posisi AIS untuk kapal ini dalam periode yang dipilih.';
+            const noticeRangeText = notice.range_text || '';
+            const noticeSuggestion = notice.suggestion;
+            const periodLabel = notice.period_label || range;
+
             if (count === 0) {
-                const emptyMsg = geoJson.properties?.message || `No AIS positions recorded within ${range} for ${vesselName}.`;
-                this.notifyTrackStatus('warning', emptyMsg);
+                this.notifyTrackStatus('warning', `${noticeTitle}: ${noticeDesc}`);
                 if (statusMsg) {
-                    statusMsg.textContent = emptyMsg;
+                    let quickActionHtml = '';
+                    if (noticeSuggestion === 'all') {
+                        quickActionHtml = `
+                            <div class="mt-2 pt-2 border-t border-amber-800/40 flex items-center gap-1.5 flex-wrap">
+                                <button type="button" class="btn-track-switch-range px-2 py-1 rounded-md bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 text-[9px] font-bold transition flex items-center gap-1 shadow-sm" data-switch-range="all">
+                                    <span>🌐</span> <span>Pilih Periode "All"</span>
+                                </button>
+                                <button type="button" class="btn-track-switch-range px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[9px] font-medium transition flex items-center gap-1" data-switch-range="custom">
+                                    <span>📅</span> <span>Buka "Custom"</span>
+                                </button>
+                            </div>
+                        `;
+                    }
+
+                    statusMsg.className = 'p-2.5 rounded-lg bg-amber-950/40 border border-amber-800/60 text-amber-300 text-[10px] space-y-1.5';
+                    statusMsg.innerHTML = `
+                        <div class="flex items-center justify-between font-bold text-amber-200">
+                            <span class="flex items-center gap-1.5">
+                                <span>⚠️</span> <span>${noticeTitle}</span>
+                            </span>
+                            <span class="px-1.5 py-0.5 rounded bg-amber-950/80 border border-amber-800 text-[9px] text-amber-300 font-mono">${periodLabel}</span>
+                        </div>
+                        <div class="text-amber-300/90 text-[10px] leading-relaxed">${noticeDesc}</div>
+                        ${noticeRangeText ? `<div class="p-1.5 rounded bg-amber-950/70 border border-amber-800/50 text-[9px] text-amber-200 font-sans"><span class="text-slate-400">Rentang Riwayat:</span> <strong class="text-amber-100">${noticeRangeText}</strong></div>` : ''}
+                        ${quickActionHtml}
+                    `;
                     statusMsg.classList.remove('hidden');
+
+                    statusMsg.querySelectorAll('.btn-track-switch-range').forEach(btn => {
+                        btn.addEventListener('click', (ev) => {
+                            ev.preventDefault();
+                            const targetRange = btn.getAttribute('data-switch-range');
+                            if (targetRange === 'all') {
+                                const allBtn = document.querySelector('.btn-track-range[data-range="all"]');
+                                if (allBtn) allBtn.click();
+                            } else if (targetRange === 'custom') {
+                                const customBtn = document.querySelector('.btn-track-range[data-range="custom"]');
+                                if (customBtn) customBtn.click();
+                            }
+                        });
+                    });
                 }
             } else if (count === 1) {
-                this.notifyTrackStatus('info', `Only 1 AIS position available for ${vesselName} (single point).`);
-                if (statusMsg) statusMsg.classList.add('hidden');
+                const singleDate = noticeRangeText || (geoJson.features[0]?.properties?.observed_at ? this.formatDateHumanUtc(geoJson.features[0].properties.observed_at) : '');
+                this.notifyTrackStatus('info', `Hanya 1 posisi AIS tersedia untuk ${vesselName} (${singleDate}).`);
+                if (statusMsg) {
+                    statusMsg.className = 'p-2 rounded-lg bg-cyan-950/40 border border-cyan-800/60 text-cyan-300 text-[10px]';
+                    statusMsg.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <span class="flex items-center gap-1 font-semibold"><span>📍</span> <span>Tercatat 1 posisi AIS (titik tunggal)</span></span>
+                            <span class="font-mono text-cyan-200 text-[9px]">${singleDate}</span>
+                        </div>
+                    `;
+                    statusMsg.classList.remove('hidden');
+                }
             } else {
                 this.notifyTrackStatus('success', `Track History (${range}): ${vesselName} (${count} points).`);
-                if (statusMsg) statusMsg.classList.add('hidden');
+                if (statusMsg) {
+                    statusMsg.innerHTML = '';
+                    statusMsg.classList.add('hidden');
+                }
             }
 
             // Update UI widgets, statistics & export links
@@ -3279,6 +3337,7 @@ export class GlobalMapController {
             const errStr = 'Network error while loading Track History.';
             this.notifyTrackStatus('error', errStr);
             if (statusMsg) {
+                statusMsg.className = 'p-2 rounded-lg bg-rose-950/40 border border-rose-800/60 text-rose-300 text-[10px]';
                 statusMsg.textContent = errStr;
                 statusMsg.classList.remove('hidden');
             }
@@ -3297,6 +3356,20 @@ export class GlobalMapController {
         const panelTrackBadge = document.getElementById('panelTrackPointBadge');
         if (panelTrackBadge) {
             panelTrackBadge.textContent = `${count} points`;
+        }
+
+        const elStatus = document.getElementById('trackStatStatus');
+        if (elStatus) {
+            if (count >= 2) {
+                elStatus.textContent = 'Track Line Active';
+                elStatus.className = 'text-emerald-400 font-semibold';
+            } else if (count === 1) {
+                elStatus.textContent = 'Single Point';
+                elStatus.className = 'text-cyan-400 font-semibold';
+            } else {
+                elStatus.textContent = 'No Data in Range';
+                elStatus.className = 'text-amber-400 font-semibold';
+            }
         }
 
         const elPoints = document.getElementById('trackStatPoints');
@@ -3320,12 +3393,12 @@ export class GlobalMapController {
 
         const elFirst = document.getElementById('trackStatFirstObs');
         if (elFirst) {
-            elFirst.textContent = stats.first_observation ? this.formatDateUtc(stats.first_observation) : 'None';
+            elFirst.textContent = stats.first_observation_human || (stats.first_observation ? this.formatDateHumanUtc(stats.first_observation) : '-');
         }
 
         const elLast = document.getElementById('trackStatLastObs');
         if (elLast) {
-            elLast.textContent = stats.last_observation ? this.formatDateUtc(stats.last_observation) : 'None';
+            elLast.textContent = stats.last_observation_human || (stats.last_observation ? this.formatDateHumanUtc(stats.last_observation) : '-');
         }
 
         const gapRow = document.getElementById('trackStatGapRow');
@@ -3342,12 +3415,16 @@ export class GlobalMapController {
 
         const elAllTime = document.getElementById('trackStatAllTimeSpan');
         if (elAllTime) {
-            if (stats.all_time_first_observation && stats.all_time_last_observation) {
-                const f = this.formatDateUtc(stats.all_time_first_observation).slice(0, 10);
-                const l = this.formatDateUtc(stats.all_time_last_observation).slice(0, 10);
-                elAllTime.textContent = `${f} → ${l} (${stats.all_time_total_positions || 0} total)`;
-            } else {
+            const allTotal = stats.all_time_total_positions || 0;
+            if (allTotal === 0 || !stats.all_time_first_observation) {
                 elAllTime.textContent = 'None';
+            } else if (allTotal === 1 || stats.all_time_first_observation === stats.all_time_last_observation) {
+                const single = stats.all_time_first_observation_human || this.formatDateHumanUtc(stats.all_time_first_observation);
+                elAllTime.textContent = `${single} (1 posisi)`;
+            } else {
+                const f = stats.all_time_first_observation_human || this.formatDateHumanUtc(stats.all_time_first_observation);
+                const l = stats.all_time_last_observation_human || this.formatDateHumanUtc(stats.all_time_last_observation);
+                elAllTime.textContent = `${f} → ${l} (${allTotal} total)`;
             }
         }
     }
@@ -3598,6 +3675,23 @@ export class GlobalMapController {
         try {
             const d = new Date(isoString);
             return d.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+        } catch (e) {
+            return String(isoString);
+        }
+    }
+
+    formatDateHumanUtc(isoString) {
+        if (!isoString) return '-';
+        try {
+            const d = new Date(isoString);
+            if (isNaN(d.getTime())) return String(isoString);
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const day = String(d.getUTCDate()).padStart(2, '0');
+            const month = months[d.getUTCMonth()];
+            const year = d.getUTCFullYear();
+            const hours = String(d.getUTCHours()).padStart(2, '0');
+            const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+            return `${day} ${month} ${year}, ${hours}:${minutes} UTC`;
         } catch (e) {
             return String(isoString);
         }

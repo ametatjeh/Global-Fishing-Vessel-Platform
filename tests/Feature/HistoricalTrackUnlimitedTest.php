@@ -359,4 +359,75 @@ class HistoricalTrackUnlimitedTest extends TestCase
         $response->assertSee('btnExportTrackCsv', false);
         $response->assertSee('btnExportTrackGeoJson', false);
     }
+
+    /**
+     * Test 11: Vessel with single position outside requested 7d period shows clean notice without duplicate dates.
+     */
+    public function test_11_vessel_with_single_position_outside_period_shows_clean_notice_without_duplicate_dates(): void
+    {
+        $vessel = $this->createVessel('KM TUNGGAL TUA', '525990011', 'fishing');
+        // Single position recorded 10 days ago (outside 7d window)
+        $obsTime = now()->subDays(10);
+        $this->addPosition($vessel, -5.55, 106.66, $obsTime, 9.0);
+
+        $response = $this->actingAs($this->admin)->getJson("/api/vessels/{$vessel->id}/track?range=7d&fresh=1");
+        $response->assertStatus(200);
+
+        $data = $response->json();
+        $this->assertEquals(0, $data['properties']['position_count']);
+        $this->assertEquals('empty', $data['properties']['track_status']);
+
+        $notice = $data['properties']['notice'];
+        $this->assertEquals('Historical data unavailable', $notice['title']);
+        $this->assertStringContainsString('7 Days', $notice['description']);
+        $this->assertStringContainsString('Tercatat 1 posisi AIS pada', $notice['range_text']);
+        $this->assertEquals('all', $notice['suggestion']);
+
+        // Must not contain identical start/end duplicate date range string
+        $this->assertStringNotContainsString('Total history available from', $data['properties']['message']);
+        $this->assertStringNotContainsString('hingga', $notice['range_text']);
+    }
+
+    /**
+     * Test 12: Vessel with multiple positions outside requested period shows formatted range and suggestions.
+     */
+    public function test_12_vessel_with_multiple_positions_outside_period_shows_formatted_range_and_suggestion(): void
+    {
+        $vessel = $this->createVessel('KM HISTORI JAUH', '525990012', 'fishing');
+        $this->addPosition($vessel, -5.1, 106.1, now()->subDays(20));
+        $this->addPosition($vessel, -5.2, 106.2, now()->subDays(15));
+        $this->addPosition($vessel, -5.3, 106.3, now()->subDays(10));
+
+        // Query 24h -> 0 in range, but 3 all-time
+        $response = $this->actingAs($this->admin)->getJson("/api/vessels/{$vessel->id}/track?range=24h&fresh=1");
+        $response->assertStatus(200);
+
+        $data = $response->json();
+        $this->assertEquals(0, $data['properties']['position_count']);
+
+        $notice = $data['properties']['notice'];
+        $this->assertEquals('Historical data unavailable', $notice['title']);
+        $this->assertStringContainsString('24 Hours', $notice['description']);
+        $this->assertStringContainsString('hingga', $notice['range_text']);
+        $this->assertStringContainsString('3 posisi', $notice['range_text']);
+        $this->assertEquals('all', $notice['suggestion']);
+    }
+
+    /**
+     * Test 13: Vessel with zero positions shows empty history message.
+     */
+    public function test_13_vessel_with_zero_positions_shows_empty_history_message(): void
+    {
+        $vessel = $this->createVessel('KM TANPA POSISI', '525990013', 'cargo');
+
+        $response = $this->actingAs($this->admin)->getJson("/api/vessels/{$vessel->id}/track?range=7d&fresh=1");
+        $response->assertStatus(200);
+
+        $data = $response->json();
+        $this->assertEquals(0, $data['properties']['position_count']);
+        $this->assertEquals('Riwayat AIS belum tersedia untuk kapal ini.', $data['properties']['message']);
+        $this->assertEquals('Riwayat AIS belum tersedia untuk kapal ini.', $data['properties']['notice']['description']);
+        $this->assertNull($data['properties']['notice']['range_text']);
+        $this->assertNull($data['properties']['notice']['suggestion']);
+    }
 }

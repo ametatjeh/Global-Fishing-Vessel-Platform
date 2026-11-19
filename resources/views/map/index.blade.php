@@ -5,20 +5,20 @@
 
 @section('content')
 @php
-    $flags = $filterMeta['flags'] ?? [];
-    $vesselTypes = $filterMeta['vessel_types'] ?? [];
-    $reviewStatuses = $filterMeta['review_statuses'] ?? [];
-    $correlationStatuses = $filterMeta['correlation_statuses'] ?? [];
-    $platforms = $filterMeta['platforms'] ?? [];
+$flags = $filterMeta['flags'] ?? [];
+$vesselTypes = $filterMeta['vessel_types'] ?? [];
+$reviewStatuses = $filterMeta['review_statuses'] ?? [];
+$correlationStatuses = $filterMeta['correlation_statuses'] ?? [];
+$platforms = $filterMeta['platforms'] ?? [];
 @endphp
 <div class="relative flex-1 w-full h-[calc(100dvh-4rem)] sm:h-[calc(100vh-8.5rem)] min-h-0 sm:min-h-[580px] rounded-none sm:rounded-2xl overflow-hidden border-0 sm:border sm:border-slate-800 shadow-none sm:shadow-2xl flex flex-col bg-slate-950 font-sans">
 
     <!-- Top Floating Toolbar: Quick Actions, Search & Control Popovers -->
     <div class="absolute top-2 sm:top-3 left-2 sm:left-3 z-30 flex items-center gap-1.5 sm:gap-2 pointer-events-none max-w-[calc(100%-1rem)] sm:max-w-none">
-        
+
         <!-- Left: Search & Navigation Toolbar -->
         <div class="pointer-events-auto flex items-center gap-1 sm:gap-1.5 p-1 rounded-xl glass-panel border border-slate-700/80 shadow-2xl text-xs backdrop-blur-md">
-            
+
             <!-- A. SEARCH WITH LIVE AUTOCOMPLETE -->
             <div class="relative flex items-center">
                 <input type="text" id="inputVesselSearch" placeholder="Search vessel, MMSI, or candidate..."
@@ -33,7 +33,10 @@
             </div>
 
             <button type="button" id="btnFilterSearch" class="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold transition flex items-center justify-center shrink-0 text-[11px] sm:text-xs" title="Search vessel or radar target">
-                <svg class="w-3.5 h-3.5 sm:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <svg class="w-3.5 h-3.5 sm:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
                 <span class="hidden sm:inline">Search</span>
             </button>
 
@@ -42,10 +45,15 @@
             <!-- B. FILTER BUTTON -->
             <button type="button" id="btnToggleAdvancedFilters" class="btn-popover-trigger px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-teal-300 font-medium transition border border-slate-700 flex items-center justify-center gap-1 shrink-0 text-xs" title="Open vessel & radar filter panel">
                 <svg class="w-3.5 h-3.5 text-teal-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line>
-                    <line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line>
-                    <line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line>
-                    <line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line>
+                    <line x1="4" y1="21" x2="4" y2="14"></line>
+                    <line x1="4" y1="10" x2="4" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12" y2="3"></line>
+                    <line x1="20" y1="21" x2="20" y2="16"></line>
+                    <line x1="20" y1="12" x2="20" y2="3"></line>
+                    <line x1="1" y1="14" x2="7" y2="14"></line>
+                    <line x1="9" y1="8" x2="15" y2="8"></line>
+                    <line x1="17" y1="16" x2="23" y2="16"></line>
                 </svg>
                 <span class="hidden sm:inline">Filters</span>
                 <span id="activeFilterBadgeToolbar" class="active-filter-badge hidden px-1 sm:px-1.5 py-0.2 rounded-full text-[9px] bg-teal-400 text-slate-950 font-bold">0</span>
@@ -119,7 +127,7 @@
                     <select id="filter-vessel-flag" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400">
                         <option value="">All Flags</option>
                         @foreach($flags as $f)
-                            <option value="{{ $f['code'] }}">{{ $f['label'] }}</option>
+                        <option value="{{ $f['code'] }}">{{ $f['label'] }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -141,23 +149,23 @@
                     </div>
                     <div id="vesselTypeCheckboxesContainer" class="grid grid-cols-2 gap-1.5 max-h-36 overflow-y-auto p-1.5 rounded-lg bg-slate-950 border border-slate-700/80 text-[11px] custom-scrollbar">
                         @foreach($vesselTypes as $vt)
-                            @php
-                                $vtLower = strtolower($vt);
-                                $isFishing = $vtLower === 'fishing';
-                                $typeBadgeColors = match($vtLower) {
-                                    'fishing' => 'text-amber-300 border-amber-500/40 bg-amber-500/10',
-                                    'cargo' => 'text-sky-300 border-sky-500/30 bg-sky-500/5',
-                                    'tanker' => 'text-rose-300 border-rose-500/30 bg-rose-500/5',
-                                    'passenger' => 'text-emerald-300 border-emerald-500/30 bg-emerald-500/5',
-                                    'tug', 'towing' => 'text-orange-300 border-orange-500/30 bg-orange-500/5',
-                                    'pleasure', 'sailing' => 'text-violet-300 border-violet-500/30 bg-violet-500/5',
-                                    default => 'text-slate-300 border-slate-700 bg-slate-800/40',
-                                };
-                            @endphp
-                            <label class="flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer border hover:bg-slate-800/60 transition {{ $typeBadgeColors }}">
-                                <input type="checkbox" name="vessel_types[]" value="{{ $vtLower }}" class="vessel-type-checkbox rounded bg-slate-900 border-slate-600 text-amber-500 focus:ring-0 focus:ring-offset-0 cursor-pointer" {{ $isFishing ? 'checked' : '' }}>
-                                <span class="capitalize truncate font-medium">{{ str_replace('_', ' ', $vt) }}</span>
-                            </label>
+                        @php
+                        $vtLower = strtolower($vt);
+                        $isFishing = $vtLower === 'fishing';
+                        $typeBadgeColors = match($vtLower) {
+                        'fishing' => 'text-amber-300 border-amber-500/40 bg-amber-500/10',
+                        'cargo' => 'text-sky-300 border-sky-500/30 bg-sky-500/5',
+                        'tanker' => 'text-rose-300 border-rose-500/30 bg-rose-500/5',
+                        'passenger' => 'text-emerald-300 border-emerald-500/30 bg-emerald-500/5',
+                        'tug', 'towing' => 'text-orange-300 border-orange-500/30 bg-orange-500/5',
+                        'pleasure', 'sailing' => 'text-violet-300 border-violet-500/30 bg-violet-500/5',
+                        default => 'text-slate-300 border-slate-700 bg-slate-800/40',
+                        };
+                        @endphp
+                        <label class="flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer border hover:bg-slate-800/60 transition {{ $typeBadgeColors }}">
+                            <input type="checkbox" name="vessel_types[]" value="{{ $vtLower }}" class="vessel-type-checkbox rounded bg-slate-900 border-slate-600 text-amber-500 focus:ring-0 focus:ring-offset-0 cursor-pointer" {{ $isFishing ? 'checked' : '' }}>
+                            <span class="capitalize truncate font-medium">{{ str_replace('_', ' ', $vt) }}</span>
+                        </label>
                         @endforeach
                     </div>
                     <!-- Hidden input to maintain backwards compatibility -->
@@ -216,7 +224,7 @@
                     <select id="filter-sar-review" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400">
                         <option value="">All Review Statuses</option>
                         @foreach($reviewStatuses as $val => $lbl)
-                            <option value="{{ $val }}">{{ $lbl }}</option>
+                        <option value="{{ $val }}">{{ $lbl }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -226,7 +234,7 @@
                     <select id="filter-sar-correlation" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400">
                         <option value="">All Correlation Statuses</option>
                         @foreach($correlationStatuses as $cVal => $cLbl)
-                            <option value="{{ $cVal }}">{{ $cLbl }}</option>
+                        <option value="{{ $cVal }}">{{ $cLbl }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -244,7 +252,7 @@
                     <select id="filter-sar-platform" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-teal-400">
                         <option value="">All Satellite Platforms</option>
                         @foreach($platforms as $p)
-                            <option value="{{ $p }}">{{ $p }}</option>
+                        <option value="{{ $p }}">{{ $p }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -452,45 +460,45 @@
                 <div class="grid grid-cols-2 gap-2 text-slate-300">
                     <div class="flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 32 32">
-                            <path d="M 16 2 L 28 27.5 L 16 22.5 L 4 27.5 Z" fill="#F59E0B" stroke="#FFFFFF" stroke-width="2"/>
-                            <line x1="9" y1="17" x2="23" y2="17" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round"/>
-                            <circle cx="16" cy="13" r="2.2" fill="#1e293b" stroke="#FFFFFF" stroke-width="1"/>
+                            <path d="M 16 2 L 28 27.5 L 16 22.5 L 4 27.5 Z" fill="#F59E0B" stroke="#FFFFFF" stroke-width="2" />
+                            <line x1="9" y1="17" x2="23" y2="17" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" />
+                            <circle cx="16" cy="13" r="2.2" fill="#1e293b" stroke="#FFFFFF" stroke-width="1" />
                         </svg>
                         <strong class="text-[#F59E0B]">Fishing (Amber)</strong>
                     </div>
                     <div class="flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 32 32">
-                            <path d="M 16 2.5 L 27.5 26.5 L 16 22 L 4.5 26.5 Z" fill="#2563EB" stroke="#FFFFFF" stroke-width="2"/>
+                            <path d="M 16 2.5 L 27.5 26.5 L 16 22 L 4.5 26.5 Z" fill="#2563EB" stroke="#FFFFFF" stroke-width="2" />
                         </svg>
                         <span class="text-blue-400 font-semibold">Cargo (Blue)</span>
                     </div>
                     <div class="flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 32 32">
-                            <path d="M 16 2.5 L 27.5 26.5 L 16 22 L 4.5 26.5 Z" fill="#9333EA" stroke="#FFFFFF" stroke-width="2"/>
+                            <path d="M 16 2.5 L 27.5 26.5 L 16 22 L 4.5 26.5 Z" fill="#9333EA" stroke="#FFFFFF" stroke-width="2" />
                         </svg>
                         <span class="text-purple-400 font-semibold">Tanker (Purple)</span>
                     </div>
                     <div class="flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 32 32">
-                            <path d="M 16 2.5 L 27.5 26.5 L 16 22 L 4.5 26.5 Z" fill="#06B6D4" stroke="#FFFFFF" stroke-width="2"/>
+                            <path d="M 16 2.5 L 27.5 26.5 L 16 22 L 4.5 26.5 Z" fill="#06B6D4" stroke="#FFFFFF" stroke-width="2" />
                         </svg>
                         <span class="text-cyan-400 font-semibold">Passenger (Cyan)</span>
                     </div>
                     <div class="flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 32 32">
-                            <path d="M 16 2.5 L 27.5 26.5 L 16 22 L 4.5 26.5 Z" fill="#64748B" stroke="#FFFFFF" stroke-width="2"/>
+                            <path d="M 16 2.5 L 27.5 26.5 L 16 22 L 4.5 26.5 Z" fill="#64748B" stroke="#FFFFFF" stroke-width="2" />
                         </svg>
                         <span class="text-slate-300 font-semibold">Support (Slate)</span>
                     </div>
                     <div class="flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 32 32">
-                            <path d="M 16 2.5 L 27.5 26.5 L 16 22 L 4.5 26.5 Z" fill="#DC2626" stroke="#FFFFFF" stroke-width="2"/>
+                            <path d="M 16 2.5 L 27.5 26.5 L 16 22 L 4.5 26.5 Z" fill="#DC2626" stroke="#FFFFFF" stroke-width="2" />
                         </svg>
                         <span class="text-rose-400 font-semibold">Patrol (Red)</span>
                     </div>
                     <div class="flex items-center gap-1.5 col-span-2">
                         <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 32 32">
-                            <path d="M 16 2.5 L 27.5 26.5 L 16 22 L 4.5 26.5 Z" fill="#94A3B8" stroke="#FFFFFF" stroke-width="2"/>
+                            <path d="M 16 2.5 L 27.5 26.5 L 16 22 L 4.5 26.5 Z" fill="#94A3B8" stroke="#FFFFFF" stroke-width="2" />
                         </svg>
                         <span class="text-slate-400 font-semibold">Unknown Vessel (Gray)</span>
                     </div>
@@ -522,21 +530,21 @@
                     <div class="pt-1 border-t border-slate-800/80 space-y-1">
                         <div class="flex items-center gap-2">
                             <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 32 32">
-                                <path d="M 16 2 L 28 27.5 L 16 22.5 L 4 27.5 Z" fill="#F59E0B" stroke="#FFFFFF" stroke-width="2"/>
-                                <line x1="9" y1="17" x2="23" y2="17" stroke="#FFFFFF" stroke-width="1.6"/>
+                                <path d="M 16 2 L 28 27.5 L 16 22.5 L 4 27.5 Z" fill="#F59E0B" stroke="#FFFFFF" stroke-width="2" />
+                                <line x1="9" y1="17" x2="23" y2="17" stroke="#FFFFFF" stroke-width="1.6" />
                             </svg>
                             <span>COG Direction: Triangle oriented along vessel track</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
-                                <circle cx="12" cy="12" r="4.5" fill="#F59E0B" stroke="#451a03" stroke-width="1.5"/>
+                                <circle cx="12" cy="12" r="4.5" fill="#F59E0B" stroke="#451a03" stroke-width="1.5" />
                             </svg>
                             <span>Direction unavailable: Omnidirectional circular beacon</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
-                                <circle cx="12" cy="12" r="5" stroke="#F59E0B" stroke-width="1.5" stroke-dasharray="2 2"/>
-                                <circle cx="12" cy="12" r="1.5" fill="#F59E0B"/>
+                                <circle cx="12" cy="12" r="5" stroke="#F59E0B" stroke-width="1.5" stroke-dasharray="2 2" />
+                                <circle cx="12" cy="12" r="1.5" fill="#F59E0B" />
                             </svg>
                             <span>Selected vessel: Highlight ring indicator</span>
                         </div>
@@ -868,7 +876,7 @@
                     <span>D. Track History</span>
                     <span id="panelTrackPointBadge" class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-cyan-950 text-cyan-300 border border-cyan-800">0 points</span>
                 </div>
-                
+
                 <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2.5">
                     <!-- Period Selector (Exact 6 Options) -->
                     <div>
@@ -1156,16 +1164,36 @@
         window.activeMapController = mapController;
 
         // Checkbox Layer Toggles
-        const layerToggles = [
-            { id: 'toggle-layer-asean-eez', key: 'aseanEez' },
-            { id: 'toggle-layer-australia-eez', key: 'australiaEez' },
-            { id: 'toggle-layer-encounters', key: 'encounters' },
-            { id: 'toggle-layer-vessels', key: 'vessels' },
-            { id: 'toggle-layer-dark-vessels', key: 'darkVessels' },
-            { id: 'toggle-layer-sar-scenes', key: 'sarScenes' },
+        const layerToggles = [{
+                id: 'toggle-layer-asean-eez',
+                key: 'aseanEez'
+            },
+            {
+                id: 'toggle-layer-australia-eez',
+                key: 'australiaEez'
+            },
+            {
+                id: 'toggle-layer-encounters',
+                key: 'encounters'
+            },
+            {
+                id: 'toggle-layer-vessels',
+                key: 'vessels'
+            },
+            {
+                id: 'toggle-layer-dark-vessels',
+                key: 'darkVessels'
+            },
+            {
+                id: 'toggle-layer-sar-scenes',
+                key: 'sarScenes'
+            },
         ];
 
-        layerToggles.forEach(({ id, key }) => {
+        layerToggles.forEach(({
+            id,
+            key
+        }) => {
             const el = document.getElementById(id);
             if (el) {
                 el.addEventListener('change', (e) => {
@@ -1177,11 +1205,22 @@
         // ----------------------------------------------------
         // POPOVER MANAGEMENT (MUTUALLY EXCLUSIVE)
         // ----------------------------------------------------
-        const popovers = [
-            { id: 'advancedFiltersPanel', btn: 'btnToggleAdvancedFilters' },
-            { id: 'popoverLayers', btn: 'btnToggleLayers' },
-            { id: 'popoverLegend', btn: 'btnToggleLegend' },
-            { id: 'popoverSettings', btn: 'btnToggleSettings' },
+        const popovers = [{
+                id: 'advancedFiltersPanel',
+                btn: 'btnToggleAdvancedFilters'
+            },
+            {
+                id: 'popoverLayers',
+                btn: 'btnToggleLayers'
+            },
+            {
+                id: 'popoverLegend',
+                btn: 'btnToggleLegend'
+            },
+            {
+                id: 'popoverSettings',
+                btn: 'btnToggleSettings'
+            },
         ];
 
         function closeAllPopovers(exceptId = null) {
@@ -1231,8 +1270,8 @@
 
         // Synchronize Settings basemap radio and status label with mapController.currentBasemapKey
         const activeBasemapKey = mapController.currentBasemapKey || 'openfreemap-positron';
-        const activeRadio = document.querySelector(`input[name="basemap_choice"][value="${activeBasemapKey}"]`)
-            || (activeBasemapKey === 'openfreemap-dark' ? document.querySelector('input[name="basemap_choice"][value="esri-dark"]') : null);
+        const activeRadio = document.querySelector(`input[name="basemap_choice"][value="${activeBasemapKey}"]`) ||
+            (activeBasemapKey === 'openfreemap-dark' ? document.querySelector('input[name="basemap_choice"][value="esri-dark"]') : null);
         if (activeRadio) {
             activeRadio.checked = true;
         }
@@ -1421,7 +1460,9 @@
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     closeSearchDropdown();
-                    mapController.applyFilters({ search: searchInput.value.trim() });
+                    mapController.applyFilters({
+                        search: searchInput.value.trim()
+                    });
                 }
             });
         }
@@ -1431,7 +1472,9 @@
                 searchInput.value = '';
                 btnClearSearch.classList.add('hidden');
                 closeSearchDropdown();
-                mapController.applyFilters({ search: '' });
+                mapController.applyFilters({
+                    search: ''
+                });
             });
         }
 
@@ -1439,7 +1482,9 @@
             btnFilterSearch.addEventListener('click', () => {
                 closeSearchDropdown();
                 const q = searchInput ? searchInput.value.trim() : '';
-                mapController.applyFilters({ search: q });
+                mapController.applyFilters({
+                    search: q
+                });
             });
         }
 
@@ -1505,7 +1550,9 @@
                 const hiddenInput = document.getElementById('filter-vessel-type');
                 if (hiddenInput) hiddenInput.value = 'fishing';
                 if (mapController) {
-                    mapController.applyFilters({ vesselType: 'fishing' });
+                    mapController.applyFilters({
+                        vesselType: 'fishing'
+                    });
                 }
                 const feedback = document.getElementById('filterFeedbackMsg');
                 if (feedback) {
@@ -1527,7 +1574,9 @@
                 const hiddenInput = document.getElementById('filter-vessel-type');
                 if (hiddenInput) hiddenInput.value = 'all';
                 if (mapController) {
-                    mapController.applyFilters({ vesselType: 'all' });
+                    mapController.applyFilters({
+                        vesselType: 'all'
+                    });
                 }
                 const feedback = document.getElementById('filterFeedbackMsg');
                 if (feedback) {
@@ -1616,7 +1665,10 @@
         const btnReset = document.getElementById('btnResetView');
         if (btnReset) {
             btnReset.addEventListener('click', () => {
-                mapController.map.flyTo({ center: [100.0, 5.0], zoom: 3.5 });
+                mapController.map.flyTo({
+                    center: [100.0, 5.0],
+                    zoom: 3.5
+                });
             });
         }
 
@@ -1696,7 +1748,10 @@
                 }
 
                 if (targetId) {
-                    mapController.showVesselTrack(targetId, { range: range, fitBounds: false });
+                    mapController.showVesselTrack(targetId, {
+                        range: range,
+                        fitBounds: false
+                    });
                 }
             });
         });
